@@ -376,6 +376,8 @@ class MergebotRepoTests(RepoTestCase):
         self.emit("pr_opened", {"pr": 3},
                   {"branch": "agent/impl-0003", "class": "bugfix", "rfc": None, "author": "impl-1",
                    "head_sha": head}, "impl-1")
+        self.write("tools/owner.py", "# base moved on after the PR branched\n")
+        self.commit("owner change")  # a protected path the PR does not touch
         base = self.git("rev-parse", "main")
         checks = self.root / "checks"
         checks.mkdir()
@@ -385,7 +387,8 @@ class MergebotRepoTests(RepoTestCase):
         out = MB.cmd_merge(self.root, checks)
         self.assertIsNone(out["merged"])
         blocked = [e for e in audit.load_events(self.root) if e["type"] == "gate_blocked"]
-        self.assertEqual(blocked[-1]["data"]["rule"], 14)
+        self.assertEqual(blocked[-1]["data"]["rule"], 14)  # not rule 1 for base-only changes
+        self.assertEqual(self.git("status", "--porcelain", "--", "audit"), "")  # events committed
 
     def test_stale_check_is_skipped(self):
         self.git("checkout", "-b", "agent/impl-0004")

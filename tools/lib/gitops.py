@@ -70,11 +70,12 @@ def branch_ref(root, branch: str):
 
 
 def changed_files(root, base_sha: str, head_sha: str) -> list:
-    out = git(root, "diff", "--name-only", f"{base_sha}..{head_sha}")
+    # Three dots: the PR's own changes since its merge base, not base commits the PR lacks.
+    out = git(root, "diff", "--name-only", f"{base_sha}...{head_sha}")
     return [f for f in out.splitlines() if f]
 
 
 def removed_test_lines(root, base_sha: str, head_sha: str) -> bool:
     """True when an existing conformance test line was removed or changed."""
-    out = git(root, "diff", "-U0", f"{base_sha}..{head_sha}", "--", "conformance/")
+    out = git(root, "diff", "-U0", f"{base_sha}...{head_sha}", "--", "conformance/")
     return any(line.startswith("-") and not line.startswith("---") for line in out.splitlines())
