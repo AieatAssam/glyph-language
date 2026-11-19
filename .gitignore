@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+*.pyc
+out/
+.work/
+site/dist/
+site/public/data/
+bench/heldout/
+bench/heldout.tar
+*.heldout.*

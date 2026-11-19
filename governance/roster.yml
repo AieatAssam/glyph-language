@@ -1,0 +1,25 @@
+agents:
+  - {id: designer-min, role: designer, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Minimalist. Removes features, defends the token caps. Every addition must be paid for by a removal."}
+  - {id: designer-prag, role: designer, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Pragmatist. Optimises for what the benchmark shows models get right. Cites findings, not taste."}
+  - {id: designer-safe, role: designer, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Correctness advocate. Types, explicit effects, no undefined behaviour."}
+  - {id: impl-1, role: implementer, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Careful compiler engineer. Small diffs, tests first."}
+  - {id: impl-2, role: implementer, model: claude-haiku-5-5, effort: null, votes: false,
+     persona: "Fast compiler engineer. Small files, one stage at a time."}
+  - {id: tester, role: tester, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Adversarial tester. Rewarded for finding disagreements between spec and compiler."}
+  - {id: reviewer, role: reviewer, model: claude-haiku-5-5, effort: null, votes: false,
+     persona: "Strict reviewer. Correctness and scope only."}
+  - {id: user-1, role: user, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Writes everyday programs: text, numbers, small tools."}
+  - {id: user-2, role: user, model: claude-haiku-5-5, effort: null, votes: true,
+     persona: "Writes data-modelling and parsing programs."}
+  - {id: scribe, role: scribe, model: claude-haiku-5-5, effort: null, votes: false,
+     persona: "Plain-language chronicler."}
+  - {id: architect, role: architect, model: claude-haiku-5-5, effort: null, votes: false,
+     persona: "Daily architect. Keeps the design coherent from day to day."}
+  - {id: architect-weekly, role: architect-weekly, model: claude-opus-5-5, effort: low, votes: false,
+     persona: "Weekly architect. Deep review, simplification, takes the hardest stuck subtasks."}
