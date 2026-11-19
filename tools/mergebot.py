@@ -310,15 +310,19 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
               f"check:{n}:{check['sha']}:{check['base_sha']}")
         failed = R.first_failure(results)
         if failed:
+            # Mid-plan (unticked subtasks on the head) a PR is expected to fail: not a stuck subtask.
+            counts = pr.get("subtask") is not None and not _plan_open(root, pr.get("rfc"), check["sha"])
             _emit(root, "gate_blocked", {"pr": int(n)},
                   {"pr": int(n), "rule": failed["rule"], "reason": failed["reason"],
-                   "subtask": pr.get("subtask")}, f"blocked:{n}:{check['sha']}:{failed['rule']}")
-            if pr.get("subtask") is not None:
+                   "subtask": pr.get("subtask") if counts else None},
+                  f"blocked:{n}:{check['sha']}:{failed['rule']}")
+            if counts:
                 st2 = S.load_state(root)
                 count = st2["prs"][n]["subtask_failures"].get(str(pr["subtask"]), 0)
                 if count >= rules["escalation_failures"]:
                     _emit(root, "escalation", {"pr": int(n)},
-                          {"kind": "subtask_stuck", "subtask": pr["subtask"], "failures": count},
+                          {"kind": "subtask_stuck", "rfc": pr.get("rfc"), "subtask": pr["subtask"],
+                           "failures": count},
                           f"stuck:{n}:{count}")
             continue
         return _merge_one(root, n, pr, rfc, check, rules)
@@ -327,6 +331,15 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
     if sha:
         gitops.remote_sync(root)
     return {"merged": None, "commit": sha}
+
+
+UNTICKED = re.compile(r"^\s*- \[ \]", re.M)
+
+
+def _plan_open(root, rfc, sha) -> bool:
+    """True when rfcs/<rfc>.plan.md at sha still has an unticked subtask."""
+    text = gitops.git(root, "show", f"{sha}:rfcs/{rfc}.plan.md", check=False) if rfc else ""
+    return bool(UNTICKED.search(text))
 
 
 def _merge_one(root, n, pr, rfc, check, rules) -> dict:
@@ -339,7 +352,7 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     # Implemented once a non-plan PR lands with every subtask of the plan ticked.
     plan = Path(root) / "rfcs" / f"{pr.get('rfc')}.plan.md"
     rfc_implemented = (bool(pr.get("rfc")) and not plan_only and plan.exists()
-                       and not re.search(r"^\s*- \[ \]", plan.read_text(encoding="utf-8"), re.M))
+                       and not UNTICKED.search(plan.read_text(encoding="utf-8")))
     new_version = current
     if not plan_only:  # a plan changes no language artefact
         new_version = _bump(current, rfc_implemented and pr["class"] in ("language", "stdlib"))

@@ -48,6 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
+          fetch-depth: 0  # the orchestrator reads plans and diffs from origin/agent/* branches
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - name: Orchestrate assignments

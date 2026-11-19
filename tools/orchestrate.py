@@ -83,16 +83,22 @@ def next_subtask(text: str) -> tuple[int, str] | None:
 def escalation_items(state: dict, rules: dict) -> list[dict]:
     limit = int(rules.get("escalation_failures", 3))
     found: dict[tuple[str, int], dict] = {}
-    for e in state.get("escalations", []) or []:
-        found[(str(e.get("rfc")), int(e.get("subtask") or 0))] = {
-            "rfc": str(e.get("rfc")), "subtask": int(e.get("subtask") or 0), "notes": str(e.get("notes", "")),
-        }
     prs = state.get("prs", {})
+    for e in state.get("escalations", []) or []:  # state records are {seq, subject, data}
+        d = e.get("data") or {}
+        if d.get("kind") != "subtask_stuck":  # e.g. open_refused concerns no subtask
+            continue
+        rfc = d.get("rfc") or (prs.get(str((e.get("subject") or {}).get("pr"))) or {}).get("rfc")
+        if not rfc:
+            continue
+        found[(str(rfc), int(d.get("subtask") or 0))] = {
+            "rfc": str(rfc), "subtask": int(d.get("subtask") or 0),
+            "notes": f"{d.get('failures', '?')} failed gate runs"}
     for pn in by_num(prs):
         p = prs[pn]
         for k in by_num(p.get("subtask_failures", {}) or {}):
             count = int(p["subtask_failures"][k])
-            if count >= limit:
+            if count >= limit and p.get("rfc"):
                 key = (str(p.get("rfc")), int(k))
                 found.setdefault(key, {"rfc": key[0], "subtask": key[1], "notes": f"{count} failed sessions"})
     return [found[k] for k in sorted(found, key=lambda k: (int(k[0] or 0), k[1]))]

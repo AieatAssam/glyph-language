@@ -153,7 +153,10 @@ class Escalation(unittest.TestCase):
 
     def test_weekly_architect_takes_at_most_three(self):
         st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], status="implementing") for i in range(1, 6)},
-              "escalations": [{"rfc": f"{i:04d}", "subtask": 1, "notes": "x"} for i in range(1, 6)]}
+              "escalations": [{"seq": i, "subject": {"pr": i},  # the shape state.py records
+                               "data": {"kind": "subtask_stuck", "rfc": f"{i:04d}", "subtask": 1, "failures": 3}}
+                              for i in range(1, 6)] + [
+                  {"seq": 9, "subject": {}, "data": {"kind": "open_refused", "reason": "cap", "agent": "x"}}]}
         asgs = run("architect-weekly", state=st, run_date="2026-11-20")
         self.assertEqual(len(asgs[0].header["rfcs"]), 3)
 

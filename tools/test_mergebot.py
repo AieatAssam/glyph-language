@@ -400,6 +400,26 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(S.load_state(self.root)["rfcs"]["0001"]["status"], "implemented")
         self.assertEqual((self.root / "spec" / "VERSION").read_text().strip(), "0.1.0")
 
+    def test_mid_plan_gate_failure_is_not_a_stuck_subtask(self):
+        for n, plan in ((7, "- [x] 1. a\n- [ ] 2. b\n"), (8, "- [x] 1. a\n- [x] 2. b\n")):
+            self.commit("audit so far")
+            branch = f"agent/impl-000{n}"
+            self.git("checkout", "-q", "-b", branch)
+            self.write(f"rfcs/000{n}.plan.md", plan)
+            head = self.commit(branch)
+            self.git("checkout", "-q", "main")
+            self.emit("pr_opened", {"pr": n}, {"branch": branch, "class": "bugfix", "rfc": f"000{n}",
+                                               "author": "impl-1", "head_sha": head, "subtask": 1}, "impl-1")
+            checks = self.root / f"checks{n}"
+            checks.mkdir()
+            rules = {str(k): {"ok": k != 5, "detail": ""} for k in range(4, 12)}
+            (checks / f"{n}.json").write_text(json.dumps({"pr": n, "sha": head, "base_sha": self.git("rev-parse", "main"),
+                                                          "rules": rules}), encoding="utf-8")
+            MB.cmd_merge(self.root, checks)
+        blocked = {e["data"]["pr"]: e["data"]["subtask"] for e in audit.load_events(self.root)
+                   if e["type"] == "gate_blocked"}
+        self.assertEqual(blocked, {7: None, 8: 1})
+
     def test_merge_blocks_without_approval(self):
         self.git("checkout", "-b", "agent/impl-0003")
         self.write("compiler/stage0/fix.ts", "y\n")
