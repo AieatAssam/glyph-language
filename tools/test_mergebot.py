@@ -368,6 +368,38 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(self.git("log", "-1", "--format=%an", "--grep", "Merge PR #2"), "impl-1")
         self.assertEqual(S.load_state(self.root)["prs"]["2"]["status"], "merged")
 
+    def _merge_branch(self, n, branch, files, subtask):
+        self.commit("audit so far")
+        self.git("checkout", "-q", "-b", branch)
+        for rel, text in files.items():
+            self.write(rel, text)
+        head = self.commit(branch)
+        self.git("checkout", "-q", "main")
+        self.emit("pr_opened", {"pr": n}, {"branch": branch, "class": "language", "rfc": "0001",
+                                           "author": "impl-1", "head_sha": head, "subtask": subtask}, "impl-1")
+        self.emit("review_posted", {"pr": n}, {"verdict": "approve", "sha": head}, "reviewer")
+        checks = self.root / f"checks{n}"
+        checks.mkdir()
+        rules = {str(k): {"ok": True, "detail": ""} for k in range(4, 12)}
+        (checks / f"{n}.json").write_text(json.dumps({"pr": n, "sha": head, "base_sha": self.git("rev-parse", "main"),
+                                                      "rules": rules}), encoding="utf-8")
+        return MB.cmd_merge(self.root, checks)
+
+    def test_plan_merge_does_not_implement_rfc_or_bump_spec(self):
+        self.emit("rfc_opened", {"rfc": "0001"}, {"title": "T", "slug": "t", "author": "designer-min",
+                                                  "class": "language"}, "designer-min")
+        self.emit("rfc_status", {"rfc": "0001"}, {"rfc": "0001", "from": "discussion", "to": "implementing",
+                                                  "reason": "test"}, "mergebot")
+        plan = "- [ ] 1. lexer\n- [ ] 2. codegen\n"
+        self.assertEqual(self._merge_branch(5, "agent/impl-0001", {"rfcs/0001.plan.md": plan}, None)["merged"], 5)
+        self.assertEqual(S.load_state(self.root)["rfcs"]["0001"]["status"], "implementing")
+        self.assertFalse((self.root / "spec" / "VERSION").exists())
+        bundle = {"rfcs/0001.plan.md": plan.replace("[ ]", "[x]"), "spec/core/a.md": "a\n",
+                  "compiler/stage0/a.ts": "a\n", "conformance/a.test": "a\n", "examples/a.gl": "a\n"}
+        self.assertEqual(self._merge_branch(6, "agent/impl-0001-s", bundle, 2)["merged"], 6)
+        self.assertEqual(S.load_state(self.root)["rfcs"]["0001"]["status"], "implemented")
+        self.assertEqual((self.root / "spec" / "VERSION").read_text().strip(), "0.1.0")
+
     def test_merge_blocks_without_approval(self):
         self.git("checkout", "-b", "agent/impl-0003")
         self.write("compiler/stage0/fix.ts", "y\n")
