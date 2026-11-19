@@ -1,6 +1,6 @@
 --- meta
-id: arith/i32-wraps
-rfc: 0002
+id: toy/arith-wrap
+rfc: 0001
 kind: run
 --- source
 print 2147483647

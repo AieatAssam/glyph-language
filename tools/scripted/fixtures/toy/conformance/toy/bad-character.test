@@ -1,6 +1,6 @@
 --- meta
-id: syntax/bad-character
-rfc: 0002
+id: toy/bad-character
+rfc: 0001
 kind: compile-error
 --- source
 print 1

@@ -484,3 +484,23 @@ class RealGitTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScriptedPlaysPublish(unittest.TestCase):
+    """Every scripted implement play must pass the publisher, or the dry run stalls on Actions."""
+    setUp = PublisherTests.setUp
+    run_pub = PublisherTests.run_pub
+
+    def test_toy_plan_and_subtasks_are_not_refused(self):
+        from tools.scripted import plays
+        state = {"rfcs": {"0001": {"number": "0001", "slug": "toy-print", "author": "designer-min",
+                                   "status": "implementing", "votes": {}}}}
+        heads = [{"phase": "implement", "kind": "plan", "agent": "impl-1", "rfc": "0001"}] + [
+            {"phase": "implement", "kind": "subtask", "agent": "impl-1", "rfc": "0001", "subtask": k}
+            for k in plays.SUBTASK_PATHS]
+        for h in heads:
+            with self.subTest(kind=h["kind"], subtask=h.get("subtask")):
+                actions, files = plays.respond(h)
+                sdir = _write_session(Path(tempfile.mkdtemp(dir=self.tmp)), "s", "impl-1", actions, files)
+                _, rep, _ = self.run_pub([sdir], state=state)
+                self.assertEqual(rep["refused"], [])

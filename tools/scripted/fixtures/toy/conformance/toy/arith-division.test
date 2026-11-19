@@ -1,6 +1,6 @@
 --- meta
-id: arith/division-truncates
-rfc: 0002
+id: toy/arith-division
+rfc: 0001
 kind: run
 --- source
 print 7 / 2

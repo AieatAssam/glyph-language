@@ -1,6 +1,6 @@
 --- meta
-id: arith/precedence
-rfc: 0002
+id: toy/arith-precedence
+rfc: 0001
 kind: run
 --- source
 print 1 + 2 * 3

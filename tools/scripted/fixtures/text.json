@@ -8,11 +8,11 @@
   "votes": {
     "designer-prag": "Approve: the operators and output match the findings, and nothing else is added.",
     "designer-safe": "Approve: overflow and errors are stated.",
-    "impl-1": "Approve: small enough to build in two subtasks.",
+    "impl-1": "Approve: small enough to build in three subtasks.",
     "tester": "Approve: the cases in the plan can be checked against the spec.",
     "user-1": "Approve: I can write small calculations with print.",
     "user-2": "Approve: the output is enough for the data checks I write."
   },
   "review": "Correctness and scope match the plan for this subtask.",
-  "digest": "Tonight RFC 0001, the toy print language, was proposed, discussed, voted on and built in two subtasks, and merged."
+  "digest": "Tonight RFC 0001, the toy print language, was proposed, discussed, voted on and built in three subtasks, and merged."
 }
