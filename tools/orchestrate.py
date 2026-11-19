@@ -190,6 +190,19 @@ def findings_text(repo) -> str:
     return repo.read(runs[-1])[:8000]
 
 
+def overfit_note(repo) -> str:
+    """Only when the audit log holds an overfit_warning: tells designers to favour general changes."""
+    for line in (repo.read("audit/events.jsonl") or "").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(e, dict) and e.get("type") == "overfit_warning":
+            return ("\n\nWARNING: dev fitness has exceeded held-out fitness by more than the limit for "
+                    "several nights. Prefer changes that generalise, not ones tuned to the dev tasks.")
+    return ""
+
+
 def roadmap_top(repo) -> str:
     text = repo.read("architecture/ROADMAP.md")
     return "\n".join(text.splitlines()[:40]) if text else "(no roadmap yet)"
@@ -294,7 +307,7 @@ def plan_design(ctx) -> list[Asg]:
             if free(d) and can(d):
                 out[d] = Asg(d, "design", "propose", (
                     f"No RFC is open. {focus_for(st, i)}\n\n"
-                    f"## Benchmark findings\n{findings_text(repo)}\n\n## Open user issues\n{issues_text(st)}\n\n"
+                    f"## Benchmark findings\n{findings_text(repo)}{overfit_note(repo)}\n\n## Open user issues\n{issues_text(st)}\n\n"
                     f"## Roadmap (top)\n{roadmap_top(repo)}\n\n"
                     "Propose one RFC grounded in a finding or issue. Cite it in the Motivation section."))
 

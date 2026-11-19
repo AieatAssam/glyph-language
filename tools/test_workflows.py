@@ -17,7 +17,8 @@ RANK = {"none": 0, "read": 1, "write": 2}
 BANNED_TRIGGERS = {"pull_request", "pull_request_target"}
 AGENT_ENV = "agents"
 # The only jobs allowed to reference secrets.
-SECRET_JOBS = {("phase.yml", "agents"), ("bench.yml", "generate")}
+SECRET_JOBS = {("phase.yml", "agents"), ("bench.yml", "generate-1"), ("bench.yml", "generate-2"),
+               ("bench.yml", "generate-3"), ("bench.yml", "generate-4"), ("bench.yml", "heldout")}
 MAX_NESTING = 10
 USES_RE = re.compile(r"[\w.-]+/[\w.-]+(?:/[\w./-]+)?@v\d+")
 MODULE_RE = re.compile(r"python3? -m ((?:tools|bench)(?:\.\w+)*)(?:\s+([a-z][a-z-]*))?")

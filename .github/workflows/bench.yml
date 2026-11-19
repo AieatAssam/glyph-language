@@ -1,14 +1,18 @@
 name: bench
 
-# Benchmark run. Called from cycle.yml (scope gate) and nightly.yml (scope nightly),
-# and from baseline.yml (scope baseline). Gated by gates.bench in RULES.md,
-# which the caller checks before it calls this workflow.
-# generate holds the AI auth and the held-out key. execute holds no secrets.
+# Reusable benchmark workflow. Callers: cycle.yml (mode gate), nightly.yml (mode nightly) and
+# baseline.yml (mode baseline). The callers check gates.bench (or the nightly card and compiler
+# check) before they call this workflow.
+# Chain: setup plans the run. generate-K and execute-K run one round each, K = 1 to 4, gated by the
+# round count from setup (attempts + 1, capped at 4). gate runs one round on the gate subset and
+# then a paired run per PR. nightly adds a held-out job (env bench) that writes totals only, and
+# record writes the audit entry. generate and heldout are the only jobs that read secrets.
 
 on:
   workflow_call:
     inputs:
-      scope:
+      mode:
+        description: gate, nightly or baseline
         type: string
         required: true
       cycle:
@@ -17,11 +21,40 @@ on:
       base_branch:
         type: string
         required: true
+      prs:
+        description: "JSON list of {pr, sha}, or the {include: [...]} matrix. Gate mode only"
+        type: string
+        required: false
+        default: "[]"
 
 permissions: {}
 
 jobs:
-  generate:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      rounds: ${{ steps.plan.outputs.rounds }}
+      gate_count: ${{ steps.plan.outputs.gate_count }}
+      gate_matrix: ${{ steps.plan.outputs.gate_matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Plan the run
+        id: plan
+        env:
+          MODE: ${{ inputs.mode }}
+          PRS: ${{ inputs.prs }}
+        run: python -m bench.harness.plan --mode "$MODE" --prs "$PRS" >> "$GITHUB_OUTPUT"
+
+  generate-1:
+    needs: [setup]
+    if: fromJSON(needs.setup.outputs.rounds) >= 1
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: bench
@@ -35,22 +68,25 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - name: Generate programs
         env:
-          SCOPE: ${{ inputs.scope }}
+          MODE: ${{ inputs.mode }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
         run: |
+          set -euo pipefail
           # Writes only opaque-keyed programs. Held-out task text never leaves this job.
-          python -m bench.harness.generate round 1 --tasks bench/tasks/dev \
-            --out "$RUNNER_TEMP/gen" --lang glyph --opaque
+          args=(--tasks bench/tasks/dev --out "$RUNNER_TEMP/gen" --lang glyph --opaque)
+          if [ "$MODE" = gate ]; then args+=(--subset bench/tasks/gate_subset.txt); fi
+          if [ -f spec/card.md ]; then args+=(--card spec/card.md); fi
+          python -m bench.harness.generate round 1 "${args[@]}"
       - uses: actions/upload-artifact@v4
         with:
-          name: bench-programs-${{ inputs.scope }}-c${{ inputs.cycle }}
+          name: bench-gen-1-${{ inputs.mode }}-c${{ inputs.cycle }}
           path: ${{ runner.temp }}/gen
           retention-days: 14
 
-  execute:
-    needs: generate
+  execute-1:
+    needs: [generate-1]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -59,25 +95,347 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
-          path: base
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          name: bench-programs-${{ inputs.scope }}-c${{ inputs.cycle }}
-          path: gen
-      - name: Build sandbox from base
-        run: docker build -t glyph-sandbox base/tools/sandbox
+          name: bench-gen-1-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
       - name: Execute programs in the sandbox
         run: |
-          mkdir -p "$RUNNER_TEMP/results"
-          docker run --rm --network none --read-only --memory 4g --cpus 2 --pids-limit 512 \
-            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src \
-            -v "$PWD/base:/src:ro" -v "$PWD/gen:/in:ro" -v "$RUNNER_TEMP/results:/out" \
-            -w /src glyph-sandbox \
-            python -m bench.harness.execute --in /in --out /out/results.json --lang glyph
+          set -euo pipefail
+          # No credentials are passed. run.sh mounts this checkout compiler/ and toolkit/ read-only, the generated programs at /data read-only, and the harness from this checkout.
+          # Results land in $RUNNER_TEMP/exec/results and are uploaded as the next round's input.
+          bash tools/sandbox/run.sh . "$RUNNER_TEMP/exec" --data "$RUNNER_TEMP/gen" -- \
+            python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
       - uses: actions/upload-artifact@v4
         with:
-          name: bench-${{ inputs.scope }}-c${{ inputs.cycle }}
-          path: ${{ runner.temp }}/results
+          name: bench-exec-1-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/exec
           if-no-files-found: error
           retention-days: 30
+
+  generate-2:
+    needs: [setup, execute-1]
+    if: fromJSON(needs.setup.outputs.rounds) >= 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: bench
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Restore round 1 results
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-exec-1-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Generate programs
+        env:
+          MODE: ${{ inputs.mode }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
+        run: |
+          set -euo pipefail
+          # Writes only opaque-keyed programs. Held-out task text never leaves this job.
+          args=(--tasks bench/tasks/dev --out "$RUNNER_TEMP/gen" --lang glyph --opaque)
+          if [ "$MODE" = gate ]; then args+=(--subset bench/tasks/gate_subset.txt); fi
+          if [ -f spec/card.md ]; then args+=(--card spec/card.md); fi
+          python -m bench.harness.generate round 2 "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-gen-2-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+          retention-days: 14
+
+  execute-2:
+    needs: [generate-2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-2-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Execute programs in the sandbox
+        run: |
+          set -euo pipefail
+          # No credentials are passed. run.sh mounts this checkout compiler/ and toolkit/ read-only, the generated programs at /data read-only, and the harness from this checkout.
+          # Results land in $RUNNER_TEMP/exec/results and are uploaded as the next round's input.
+          bash tools/sandbox/run.sh . "$RUNNER_TEMP/exec" --data "$RUNNER_TEMP/gen" -- \
+            python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-exec-2-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/exec
+          if-no-files-found: error
+          retention-days: 30
+
+  generate-3:
+    needs: [setup, execute-2]
+    if: fromJSON(needs.setup.outputs.rounds) >= 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: bench
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Restore round 2 results
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-exec-2-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Generate programs
+        env:
+          MODE: ${{ inputs.mode }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
+        run: |
+          set -euo pipefail
+          # Writes only opaque-keyed programs. Held-out task text never leaves this job.
+          args=(--tasks bench/tasks/dev --out "$RUNNER_TEMP/gen" --lang glyph --opaque)
+          if [ "$MODE" = gate ]; then args+=(--subset bench/tasks/gate_subset.txt); fi
+          if [ -f spec/card.md ]; then args+=(--card spec/card.md); fi
+          python -m bench.harness.generate round 3 "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-gen-3-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+          retention-days: 14
+
+  execute-3:
+    needs: [generate-3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-3-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Execute programs in the sandbox
+        run: |
+          set -euo pipefail
+          # No credentials are passed. run.sh mounts this checkout compiler/ and toolkit/ read-only, the generated programs at /data read-only, and the harness from this checkout.
+          # Results land in $RUNNER_TEMP/exec/results and are uploaded as the next round's input.
+          bash tools/sandbox/run.sh . "$RUNNER_TEMP/exec" --data "$RUNNER_TEMP/gen" -- \
+            python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-exec-3-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/exec
+          if-no-files-found: error
+          retention-days: 30
+
+  generate-4:
+    needs: [setup, execute-3]
+    if: fromJSON(needs.setup.outputs.rounds) >= 4
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: bench
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Restore round 3 results
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-exec-3-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Generate programs
+        env:
+          MODE: ${{ inputs.mode }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
+        run: |
+          set -euo pipefail
+          # Writes only opaque-keyed programs. Held-out task text never leaves this job.
+          args=(--tasks bench/tasks/dev --out "$RUNNER_TEMP/gen" --lang glyph --opaque)
+          if [ "$MODE" = gate ]; then args+=(--subset bench/tasks/gate_subset.txt); fi
+          if [ -f spec/card.md ]; then args+=(--card spec/card.md); fi
+          python -m bench.harness.generate round 4 "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-gen-4-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+          retention-days: 14
+
+  execute-4:
+    needs: [generate-4]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-4-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Execute programs in the sandbox
+        run: |
+          set -euo pipefail
+          # No credentials are passed. run.sh mounts this checkout compiler/ and toolkit/ read-only, the generated programs at /data read-only, and the harness from this checkout.
+          # Results land in $RUNNER_TEMP/exec/results and are uploaded as the next round's input.
+          bash tools/sandbox/run.sh . "$RUNNER_TEMP/exec" --data "$RUNNER_TEMP/gen" -- \
+            python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-exec-4-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/exec
+          if-no-files-found: error
+          retention-days: 30
+
+  gate:
+    needs: [setup, generate-1]
+    if: inputs.mode == 'gate' && needs.setup.outputs.gate_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.gate_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      # Base side and head side both run the base run.sh and harness. Only the PR's compiler/ and toolkit/ differ.
+      # No secrets and no network. This is the trust tradeoff: PR code runs in the sandbox, never here.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          path: head
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-1-gate-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+      - name: Paired run and gate verdict
+        env:
+          PR: ${{ matrix.pr }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bench-gate"
+          rc=0
+          # One automatic rerun: verdict exits 2 when it failed with attempts left.
+          for attempt in 1 2 3; do
+            rm -rf "$RUNNER_TEMP/run-base" "$RUNNER_TEMP/run-head"
+            bash tools/sandbox/run.sh . "$RUNNER_TEMP/run-base" --data "$RUNNER_TEMP/gen" -- \
+              python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
+            bash tools/sandbox/run.sh head "$RUNNER_TEMP/run-head" --data "$RUNNER_TEMP/gen" -- \
+              python3 -m bench.harness.execute --in /data --out /out/results --lang glyph
+            rc=0
+            python -m bench.harness.gate verdict --pr "$PR" \
+              --base "$RUNNER_TEMP/run-base/results" --head "$RUNNER_TEMP/run-head/results" \
+              --out "$RUNNER_TEMP/bench-gate/$PR.json" --attempt "$attempt" || rc=$?
+            if [ "$rc" -eq 0 ]; then break; fi
+            if [ "$rc" -ne 2 ]; then exit "$rc"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-gate-c${{ inputs.cycle }}-${{ matrix.pr }}
+          path: ${{ runner.temp }}/bench-gate
+          if-no-files-found: error
+          retention-days: 30
+
+  heldout:
+    needs: [setup]
+    if: inputs.mode == 'nightly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: bench
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Held-out totals
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
+        run: |
+          set -euo pipefail
+          python -m bench.harness.heldout_run --out "$RUNNER_TEMP/heldout" --lang python
+          # Only the totals leave this job. Task text, programs and per-task results stay here.
+          mkdir -p "$RUNNER_TEMP/heldout-totals"
+          cp "$RUNNER_TEMP/heldout/totals.json" "$RUNNER_TEMP/heldout-totals/totals.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-heldout-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/heldout-totals
+          if-no-files-found: error
+          retention-days: 30
+
+  record:
+    needs: [setup, generate-1, generate-2, generate-3, generate-4, execute-1, execute-2, execute-3, execute-4, heldout]
+    if: >-
+      always() && inputs.mode != 'gate' && !cancelled() &&
+      !contains(needs.*.result, 'failure') && needs.execute-1.result == 'success' &&
+      (inputs.mode != 'nightly' || needs.heldout.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bench-exec-*
+          path: ${{ runner.temp }}/exec-in
+      - uses: actions/download-artifact@v4
+        if: inputs.mode == 'nightly'
+        with:
+          name: bench-heldout-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/heldout-in
+      - name: Record the run
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          # The last round that ran holds the final results.
+          last=$(find "$RUNNER_TEMP/exec-in" -mindepth 1 -maxdepth 1 -type d -name 'bench-exec-*' | sort -V | tail -1)
+          args=(bench "$last/results" --scope "$MODE")
+          if [ "$MODE" = nightly ]; then args+=(--heldout "$RUNNER_TEMP/heldout-in/totals.json"); fi
+          python -m tools.mergebot "${args[@]}"

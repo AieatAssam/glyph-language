@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from bench.harness import common as C  # noqa: E402
-from bench.harness import heldout, heldout_run, score, subset  # noqa: E402
+from bench.harness import gate, heldout, heldout_run, score, subset  # noqa: E402
 
 TEST_SECRET = "AGE-SECRET-KEY-1" + "Q" * 58
 
@@ -132,6 +132,50 @@ def result(kind: str, key: str, sample: int, attempt: int = 0, **kw) -> dict:
         base["probe"] = 0
     base.update(kw)
     return base
+
+
+class GateVerdictTests(unittest.TestCase):
+    """Verdict: pass when head fitness is within tolerance of base. Fail with attempts left exits 2."""
+
+    TOL = 2.0
+
+    def _verdict(self, base, head, attempt=1, max_attempts=2):
+        return gate.verdict(7, {"fitness": base}, {"fitness": head}, self.TOL, attempt, max_attempts)
+
+    def test_delta_within_tolerance_passes(self):
+        out, rc = self._verdict(50.0, 49.0)  # delta -1.0 is inside -2.0
+        self.assertTrue(out["pass"])
+        self.assertEqual((out["delta"], rc), (-1.0, 0))
+
+    def test_delta_over_tolerance_fails_and_asks_for_rerun(self):
+        out, rc = self._verdict(50.0, 46.0)  # delta -4.0 is past -2.0
+        self.assertFalse(out["pass"])
+        self.assertEqual(rc, gate.RERUN)
+
+    def test_failure_on_last_attempt_is_final(self):
+        out, rc = self._verdict(50.0, 46.0, attempt=2, max_attempts=2)
+        self.assertFalse(out["pass"])
+        self.assertEqual(rc, 0)
+
+    def test_passing_rerun_overrides_first_failure(self):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d, True)
+        base, head, out = d / "base.json", d / "head.json", d / "bench-gate" / "7.json"
+        base.write_text(json.dumps({"fitness": 50.0}), encoding="utf-8")
+        cmd = [sys.executable, "-m", "bench.harness.gate", "verdict", "--pr", "7", "--base", str(base),
+               "--head", str(head), "--out", str(out)]
+
+        head.write_text(json.dumps({"fitness": 46.0}), encoding="utf-8")
+        first = subprocess.run(cmd + ["--attempt", "1"], cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(first.returncode, gate.RERUN)
+        self.assertFalse(json.loads(out.read_text(encoding="utf-8"))["pass"])
+
+        head.write_text(json.dumps({"fitness": 49.5}), encoding="utf-8")
+        second = subprocess.run(cmd + ["--attempt", "2"], cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        final = json.loads(out.read_text(encoding="utf-8"))
+        self.assertTrue(final["pass"])
+        self.assertEqual(final["attempt"], 2)
 
 
 class ScoreTests(unittest.TestCase):

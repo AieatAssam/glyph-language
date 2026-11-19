@@ -4,7 +4,7 @@ Usage: python -m bench.harness.execute --in GEN_OUT --out GEN_OUT/results --lang
 
 Reads GEN_OUT/bundle.json (test inputs and expected digests), GEN_OUT/programs, GEN_OUT/predictions
 and GEN_OUT/variants. Writes one JSON result per file. Actual stdout is kept only for visible tests.
-Glyph assumes `bin/glyphc --json -o OUT SRC` (exit 3 = no compiler) and `node toolkit/run.ts WASM`
+Glyph uses `bin/glyphc check SRC --json` then `bin/glyphc build SRC -o OUT` (exit 3 = no compiler) and `node toolkit/run.ts WASM`
 with stdin piped; both are assumptions until the compiler CLI is pinned.
 """
 from __future__ import annotations
@@ -49,19 +49,22 @@ class GlyphRunner:
         glyphc = self.root / "bin" / "glyphc"
         if not glyphc.exists():
             raise NoCompiler(3)
-        r = C.run_program([str(glyphc), "--json", "-o", str(wasm), str(src)], "", cwd=work, timeout=120)
+        # CLI contract (spec §8): `check FILE --json` prints one diagnostic object per line.
+        r = C.run_program([str(glyphc), "check", str(src), "--json"], "", cwd=work, timeout=120)
         if r["exit"] == 3:
             raise NoCompiler(3)
         diags = []
-        for blob in (r.get("stdout", ""), r.get("stderr", "")):
+        for line in r.get("stdout", "").splitlines():
             try:
-                obj = json.loads(blob)
-                diags = obj.get("diagnostics", []) if isinstance(obj, dict) else obj
-                break
-            except (json.JSONDecodeError, AttributeError):
+                d = json.loads(line)
+            except json.JSONDecodeError:
                 continue
-        diags = [{"code": str(d.get("code")), "line": d.get("line"), "message": str(d.get("message", ""))[:300]}
-                 for d in diags if isinstance(d, dict)]
+            if isinstance(d, dict) and d.get("severity", "error") == "error":
+                start = (d.get("span") or {}).get("start") or [None]
+                diags.append({"code": str(d.get("code")), "line": start[0], "message": str(d.get("message", ""))[:300],
+                              "fix": d.get("fix")})
+        if r["exit"] == 0:
+            r = C.run_program([str(glyphc), "build", str(src), "-o", str(wasm)], "", cwd=work, timeout=120)
         if r["exit"] != 0 or not wasm.exists():
             return False, diags or [{"code": "UNKNOWN", "line": None, "message": "compile failed"}], None
         return True, [], wasm

@@ -133,6 +133,17 @@ def differential(tc, names, a_wasm, stats):
     return True, "%d dumps identical (%d sources, %d stages)" % (comparisons, len(names), len(DUMP_STAGES))
 
 
+def keep_stage_wasm(tree, dst):
+    """Copy the fixed point's A, B and C modules into dst, the check's out dir. The nightly cutover
+    gate reads B.wasm from there and checks its sha256 against the recorded B hash."""
+    dst = Path(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    for name in ("A", "B", "C"):
+        src = Path(tree) / "out" / (name + ".wasm")
+        if src.is_file():
+            shutil.copyfile(src, dst / (name + ".wasm"))
+
+
 def fixed_point(tc, entry, stats):
     """Before cutover: A (stage 0), B (A), C (B). Returns (ok, detail)."""
     a = build(tc, None, entry, "out/A.wasm")
@@ -183,7 +194,8 @@ def native(repo, records, tmp, platform=sys.platform):
     return True, "%d native runs match wasm" % len(runs)
 
 
-def check_gates(repo, flags, caps, tmp, records, platform=sys.platform, make_toolchain=Toolchain):
+def check_gates(repo, flags, caps, tmp, records, platform=sys.platform, make_toolchain=Toolchain,
+                artifacts=None):
     """Run each gate flag that is on. Returns (ok, detail, stats). A failing gate never raises."""
     tmp = Path(tmp)
     stats, results = {}, []
@@ -197,8 +209,12 @@ def check_gates(repo, flags, caps, tmp, records, platform=sys.platform, make_too
                 build(tc, None, entry, "out/A.wasm")
                 results.append(differential(tc, stage_sources(tree), tree / "out/A.wasm", stats))
             if flags.get("fixed_point"):
-                results.append(cutover(tc, entry, stats) if active == "self"
-                               else fixed_point(tc, entry, stats))
+                try:
+                    results.append(cutover(tc, entry, stats) if active == "self"
+                                   else fixed_point(tc, entry, stats))
+                finally:
+                    if artifacts is not None and active != "self":
+                        keep_stage_wasm(tc.tree, artifacts)
         except GateError as e:
             results.append((False, str(e)))
     if flags.get("native"):

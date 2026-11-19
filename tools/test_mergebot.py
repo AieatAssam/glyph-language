@@ -1,4 +1,5 @@
 """Voting, gate rules, cooldown, and the mergebot commands run against temp git repos (dry mode)."""
+import hashlib
 import json
 import os
 import shutil
@@ -8,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from bench.harness import common as BC, plan as PL
 from tools import mergebot as MB
 from tools.lib import audit, rfc as F, roster as RO, rules as R
 from tools.lib import state as S
@@ -406,3 +408,139 @@ class MergebotRepoTests(RepoTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OverfitBreachTests(unittest.TestCase):
+    def test_needs_every_recent_night_over_the_limit(self):
+        self.assertTrue(MB.overfit_breach([1, 9, 9, 9], 8, 3))
+        self.assertFalse(MB.overfit_breach([9, 9, 1], 8, 3))
+        self.assertFalse(MB.overfit_breach([9, 9], 8, 3))
+        self.assertFalse(MB.overfit_breach([8, 9, 9], 8, 3))  # equal to the limit is not over
+
+
+class BenchPlanTests(unittest.TestCase):
+    def test_rounds_follow_mode_and_attempts(self):
+        self.assertEqual(PL.rounds_for("gate", 3), 1)
+        self.assertEqual(PL.rounds_for("nightly", 3), 4)
+        self.assertEqual(PL.rounds_for("baseline", 0), 1)
+
+    def test_empty_pr_list_gives_placeholder_and_no_gate_jobs(self):
+        out = PL.plan("gate", "[]")
+        self.assertEqual(out["gate_count"], 0)
+        self.assertEqual(out["rounds"], 1)
+
+    def test_accepts_include_form(self):
+        out = PL.plan("gate", json.dumps({"include": [{"pr": 7, "sha": "a" * 40}]}))
+        self.assertEqual(out["gate_count"], 1)
+        self.assertIn('"pr":7', out["gate_matrix"])
+
+
+class BenchFixedPointTests(RepoTestCase):
+    def fp_night(self, day, b_hash):
+        audit.append_event(self.root, type="fixed_point_passed", actor="mergebot", session="s",
+                           subject={}, data={"sha": "c" * 40, "hashes": {"A": "a", "B": b_hash, "C": b_hash}},
+                           ts=f"{day}T03:00:00Z", idem=f"fp:{day}")
+
+    def check_file(self, fp):
+        path = self.root / "fp" / "result.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"sha": "c" * 40, "stats": {"fixed_point": fp}}), encoding="utf-8")
+        return path
+
+    def artifacts(self, data=b"wasm"):
+        d = self.root / "artifacts"
+        d.mkdir(exist_ok=True)
+        (d / "B.wasm").write_bytes(data)
+        return d
+
+    def test_fixedpoint_records_matching_hashes(self):
+        out = MB.cmd_fixedpoint(self.root, self.check_file({"A": "x", "B": "y", "C": "y"}))
+        self.assertEqual(out["B"], "y")
+        self.assertIn("fixed_point_passed", [e["type"] for e in audit.load_events(self.root)])
+
+    def test_fixedpoint_refuses_mismatch(self):
+        with self.assertRaises(SystemExit):
+            MB.cmd_fixedpoint(self.root, self.check_file({"A": "x", "B": "y", "C": "z"}))
+        self.assertNotIn("fixed_point_passed", [e["type"] for e in audit.load_events(self.root)])
+
+    def test_cutover_skipped_until_three_consecutive_nights(self):
+        self.fp_night("2026-11-17", "h")
+        self.fp_night("2026-11-18", "h")
+        self.assertIn("skipped", MB.cmd_cutover(self.root, self.artifacts()))
+
+    def test_cutover_skipped_when_nights_have_a_gap(self):
+        for day in ("2026-11-16", "2026-11-17", "2026-11-19"):
+            self.fp_night(day, "h")
+        self.assertIn("skipped", MB.cmd_cutover(self.root, self.artifacts()))
+
+    def test_cutover_skipped_once_already_self_hosted(self):
+        (self.root / "compiler").mkdir()
+        (self.root / "compiler" / "ACTIVE").write_text("self\n", encoding="utf-8")
+        self.assertIn("skipped", MB.cmd_cutover(self.root, self.artifacts()))
+
+    def test_cutover_switches_to_self_after_three_nights(self):
+        digest = hashlib.sha256(b"wasm").hexdigest()
+        for day in ("2026-11-17", "2026-11-18", "2026-11-19"):
+            self.fp_night(day, digest)
+        out = MB.cmd_cutover(self.root, self.artifacts())
+        self.assertEqual((out["active"], out["sha256"]), ("self", digest))
+        self.assertEqual((self.root / "compiler" / "ACTIVE").read_text().strip(), "self")
+        self.assertTrue((self.root / "compiler" / "bootstrap" / "glyphc.wasm").exists())
+
+    def test_cutover_refuses_binary_that_is_not_the_passed_fixed_point(self):
+        digest = hashlib.sha256(b"wasm").hexdigest()
+        for day in ("2026-11-17", "2026-11-18", "2026-11-19"):
+            self.fp_night(day, digest)
+        with self.assertRaises(SystemExit):
+            MB.cmd_cutover(self.root, self.artifacts(b"other"))
+
+
+class BenchRecordTests(RepoTestCase):
+    def setUp(self):
+        super().setUp()
+        model = BC.load_rules()["bench"]["model"]
+        self.write(f"bench/baselines/{model}.json", json.dumps({"fitness": 0.0, "metrics": {}}))
+
+    def results(self, name):
+        d = self.root / name
+        d.mkdir(exist_ok=True)
+        return d
+
+    def nightly(self, day, dev, heldout_fitness):
+        totals = self.root / f"held-{day}.json"
+        totals.write_text(json.dumps({"fitness": heldout_fitness, "metrics": {}}), encoding="utf-8")
+        with mock.patch.dict(os.environ, {"RUN_DATE": day}), \
+                mock.patch.object(MB.score, "compute", return_value={"fitness": dev, "metrics": {}}), \
+                mock.patch.object(MB.findings, "write"):
+            return MB.cmd_bench(self.root, self.results(f"dev-{day}"), "nightly", heldout=totals)
+
+    def test_gate_records_one_event_per_pr(self):
+        res = self.results("gate-out")
+        (res / "7.json").write_text(json.dumps({"pr": 7, "fitness": 1.0, "baseline": 0.9, "delta": 0.1,
+                                                "pass": True, "attempt": 1}), encoding="utf-8")
+        out = MB.cmd_bench(self.root, res, "gate")
+        self.assertEqual(out["prs"], [7])
+        rows = [(e["data"]["scope"], e["data"]["pr"]) for e in audit.load_events(self.root)
+                if e["type"] == "bench_run"]
+        self.assertEqual(rows, [("gate", 7)])
+
+    def test_baseline_writes_model_file(self):
+        with mock.patch.object(MB.score, "compute", return_value={"fitness": 0.42, "metrics": {}}):
+            out = MB.cmd_bench(self.root, self.results("base-out"), "baseline")
+        model = BC.load_rules()["bench"]["model"]
+        data = json.loads((self.root / "bench" / "baselines" / f"{model}.json").read_text(encoding="utf-8"))
+        self.assertEqual((out["scope"], data["fitness"]), ("baseline", 0.42))
+
+    def test_overfit_warning_after_three_nights_of_large_gap(self):
+        days = ["2026-11-17", "2026-11-18", "2026-11-19"]
+        for day in days[:2]:
+            self.nightly(day, dev=20.0, heldout_fitness=5.0)
+        self.assertNotIn("overfit_warning", [e["type"] for e in audit.load_events(self.root)])
+        self.nightly(days[2], dev=20.0, heldout_fitness=5.0)
+        self.assertIn("overfit_warning", [e["type"] for e in audit.load_events(self.root)])
+
+    def test_no_overfit_warning_when_gap_is_small(self):
+        for day in ("2026-11-17", "2026-11-18", "2026-11-19"):
+            self.nightly(day, dev=6.0, heldout_fitness=5.0)
+        self.assertNotIn("overfit_warning", [e["type"] for e in audit.load_events(self.root)])
+

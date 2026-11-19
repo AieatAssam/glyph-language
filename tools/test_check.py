@@ -1,4 +1,5 @@
 """Tests for the protected check package. Run: python3 -m unittest tools.test_check"""
+import hashlib
 import json
 import os
 import shutil
@@ -249,6 +250,20 @@ class GateTests(unittest.TestCase):
                                     lambda t, c, tmp: FakeToolchain(t, c, tmp, mode="chain"))
         self.assertFalse(ok)
         self.assertIn("no fixed point", detail)
+
+    def test_fixed_point_keeps_a_b_c_wasm_for_the_cutover_gate(self):
+        artifacts = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, artifacts, True)
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        ok, detail, stats = gates.check_gates(self._repo(), {"fixed_point": True}, CAPS, tmp, [],
+                                              make_toolchain=FakeToolchain, artifacts=artifacts)
+        self.assertTrue(ok, detail)
+        for name in ("A", "B", "C"):
+            self.assertTrue((artifacts / (name + ".wasm")).is_file(), name)
+        # Cutover input contract: B.wasm is present and its sha256 is the B hash fixedpoint records.
+        b_sha = hashlib.sha256((artifacts / "B.wasm").read_bytes()).hexdigest()
+        self.assertEqual(b_sha, stats["fixed_point"]["B"])
 
     def test_native_is_skipped_on_darwin(self):
         ok, detail, _ = self._check(FIXTURE, {"native": True}, platform="darwin")

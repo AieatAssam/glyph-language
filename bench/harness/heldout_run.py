@@ -1,9 +1,11 @@
-"""Held-out bench run. Runs entirely inside the bench generate job; only metric totals leave it.
+"""Held-out bench run. Runs as its own `heldout` job in bench.yml (environment `bench`), separate from
+the generate-K jobs. Only metric totals leave it.
 
 Held-out inputs and expected outputs are decrypted into a job-local workspace and never written to
 the output directory. Generate runs on the host (it holds AI auth and HELDOUT_KEY). Execute runs in
-the sandbox via `tools/sandbox/run.sh REPO OUT -- python3 -m bench.harness.execute ...`: no network,
-no environment from the job, no key file mounted. Score runs on the host over the sandbox results.
+the sandbox via `tools/sandbox/run.sh CHECKOUT OUT --data WS -- python3 -m bench.harness.execute ...`,
+where CHECKOUT is the base checkout and WS is the workspace: no network, no environment from the job,
+no key file mounted. Score runs on the host over the sandbox results.
 
 python -m bench.harness.heldout_run --out DIR [--lang python] [--model M] [--samples N]
                                     [--baseline SCORE.json]
@@ -32,8 +34,8 @@ HOST_ENV_KEYS = ("PATH", "HOME", "DOCKER_HOST", "DOCKER_CONFIG", "GLYPH_SANDBOX_
 def sandbox_execute(ws: Path, results: Path) -> None:
     """Execute every program in ws inside the sandbox container; results land in `results`."""
     env = {k: v for k, v in os.environ.items() if k in HOST_ENV_KEYS}
-    cmd = ["bash", str(SANDBOX), str(ws), str(results), "--",
-           "python3", "-m", "bench.harness.execute", "--in", "/repo", "--out", "/out", "--lang", "python"]
+    cmd = ["bash", str(SANDBOX), str(C.ROOT), str(results), "--data", str(ws), "--",
+           "python3", "-m", "bench.harness.execute", "--in", "/data", "--out", "/out", "--lang", "python"]
     subprocess.run(cmd, check=True, env=env, cwd=C.ROOT)
 
 

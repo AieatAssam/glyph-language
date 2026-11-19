@@ -20,9 +20,9 @@ jobs:
   bench-baseline:
     uses: ./.github/workflows/bench.yml
     permissions:
-      contents: read
+      contents: write
     with:
-      scope: baseline
+      mode: baseline
       cycle: "0"
       base_branch: ${{ inputs.base_branch || 'main' }}
     secrets: inherit

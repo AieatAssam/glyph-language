@@ -1,6 +1,6 @@
 """Deterministic merge bot. No LLM makes any decision here.
 
-Usage: python -m tools.mergebot <open|ingest|decide|merge|close|verify|bootstrap> [args]
+Usage: python -m tools.mergebot <open|ingest|decide|merge|close|verify|bootstrap|bench|fixedpoint|cutover> [args]
 Root is $GLYPH_ROOT, else the current directory. Timestamps come from $GLYPH_TS or RUN_DATE.
 """
 import argparse
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import yaml
 
+from bench.harness import common as BC, findings, score
 from tools.lib import audit, gh, gitops, rfc as F, roster as RO, rules as R
 from tools.lib import state as S
 
@@ -423,6 +424,160 @@ def cmd_verify(root) -> dict:
     return {"ok": True, "events": len(audit.load_events(root)), "head_hash": st["head_hash"]}
 
 
+# ---- bench, fixed point, cutover ---------------------------------------------
+
+CUTOVER_NIGHTS = 3
+
+
+def overfit_breach(gaps: list, limit: float, nights: int) -> bool:
+    """True when the last `nights` nightly gaps (dev minus held-out) all exceed `limit`."""
+    recent = gaps[-nights:]
+    return len(recent) == nights and all(g > limit for g in recent)
+
+
+def _bench_gaps(root) -> list:
+    rows = [e["data"] for e in audit.load_events(root)
+            if e["type"] == "bench_run" and (e.get("data") or {}).get("scope") == "nightly"
+            and e["data"].get("heldout_fitness") is not None]
+    return [d["dev_fitness"] - d["heldout_fitness"] for d in rows]
+
+
+def _model_baseline(root):
+    model = BC.load_rules()["bench"]["model"]
+    return model, _read_json(Path(root) / "bench" / "baselines" / f"{model}.json")
+
+
+def _bench_gate(root, res: Path) -> dict:
+    done = []
+    for path in sorted(res.glob("*.json")):
+        v = _read_json(path)
+        _emit(root, "bench_run", {"pr": v["pr"]},
+              {"scope": "gate", "pr": v["pr"], "fitness": v["fitness"], "baseline": v["baseline"],
+               "delta": v["delta"], "pass": v["pass"], "attempt": v["attempt"]},
+              f"bench:gate:{v['pr']}:{cycle_id()}:{v['attempt']}")
+        done.append(v["pr"])
+    return {"scope": "gate", "prs": done}
+
+
+def _bench_baseline(root, res: Path) -> dict:
+    model = BC.load_rules()["bench"]["model"]
+    data = score.compute(res)
+    dest = Path(root) / "bench" / "baselines" / f"{model}.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(data, sort_keys=True, indent=1) + "\n", encoding="utf-8")
+    _emit(root, "bench_run", {}, {"scope": "baseline", "model": model, "fitness": data["fitness"]},
+          f"bench:baseline:{run_date()}")
+    sha = gitops.commit_all(root, "Audit: bench baseline\n\nBot: mergebot",
+                            paths=["audit", "bench/baselines"])
+    gitops.remote_sync(root)
+    return {"scope": "baseline", "model": model, "fitness": data["fitness"], "commit": sha}
+
+
+def _bench_nightly(root, res: Path, heldout) -> dict:
+    rules = BC.load_rules()["bench"]
+    day = run_date()
+    _, base = _model_baseline(root)
+    dev = score.compute(res, base)
+    totals = _read_json(Path(heldout)) if heldout else None
+    if heldout and totals is None:
+        raise SystemExit(f"held-out totals not readable: {heldout}")
+    out = Path(root) / "audit" / "bench" / day
+    if (out / "findings.md").exists():
+        raise SystemExit(f"{day} already recorded")
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(res, out / "dev", dirs_exist_ok=True)
+    (out / "dev.json").write_text(json.dumps(dev, sort_keys=True, indent=1) + "\n", encoding="utf-8")
+    if totals is not None:  # held-out contributes totals only
+        (out / "heldout.json").write_text(json.dumps(totals, sort_keys=True, indent=1) + "\n",
+                                          encoding="utf-8")
+    findings.write(res, totals, out / "findings.md")
+    _emit(root, "bench_run", {}, {"scope": "nightly", "dev_fitness": dev["fitness"],
+                                  "heldout_fitness": totals["fitness"] if totals else None},
+          f"bench:nightly:{day}")
+    warned = False
+    if totals is not None:
+        gaps = _bench_gaps(root)
+        if overfit_breach(gaps, rules["overfit_gap"], rules["overfit_nights"]):
+            _emit(root, "overfit_warning", {}, {"gap": gaps[-1], "limit": rules["overfit_gap"],
+                                                "nights": rules["overfit_nights"]}, f"overfit:{day}")
+            warned = True
+    sha = gitops.commit_all(root, "Audit: bench nightly\n\nBot: mergebot", paths=["audit"])
+    gitops.remote_sync(root)
+    return {"scope": "nightly", "dev_fitness": dev["fitness"],
+            "heldout_fitness": totals["fitness"] if totals else None, "overfit_warning": warned,
+            "commit": sha}
+
+
+def cmd_bench(root, resultsdir, scope, heldout=None) -> dict:
+    ok, bad = audit.verify_chain(root)
+    if not ok:
+        raise SystemExit(f"audit chain broken at seq {bad}")
+    res = Path(resultsdir)
+    if scope == "gate":
+        out = _bench_gate(root, res)
+        sha = gitops.commit_all(root, "Audit: bench gate\n\nBot: mergebot", paths=["audit"])
+        gitops.remote_sync(root)
+        return {**out, "commit": sha}
+    if scope == "baseline":
+        return _bench_baseline(root, res)
+    return _bench_nightly(root, res, heldout)
+
+
+def cmd_fixedpoint(root, check_path) -> dict:
+    """Record a passed fixed point (B == C) for the sha the base-check ran on."""
+    ok, bad = audit.verify_chain(root)
+    if not ok:
+        raise SystemExit(f"audit chain broken at seq {bad}")
+    check = _read_json(Path(check_path))
+    if check is None:
+        raise SystemExit(f"no check result at {check_path}")
+    fp = (check.get("stats") or {}).get("fixed_point") or {}
+    if not fp.get("B") or fp.get("B") != fp.get("C"):
+        raise SystemExit("fixed point not reached: B and C must match")
+    hashes = {"A": fp.get("A"), "B": fp["B"], "C": fp["C"]}
+    _emit(root, "fixed_point_passed", {}, {"sha": check["sha"], "hashes": hashes},
+          f"fixedpoint:{run_date()}:{check['sha']}")
+    sha = gitops.commit_all(root, "Audit: fixed point\n\nBot: mergebot", paths=["audit"])
+    gitops.remote_sync(root)
+    return {"sha": check["sha"], "B": fp["B"], "commit": sha}
+
+
+def _consecutive_fixed_point_nights(root, need: int) -> bool:
+    days = sorted({e["ts"][:10] for e in audit.load_events(root) if e["type"] == "fixed_point_passed"})
+    last = [datetime.date.fromisoformat(d) for d in days][-need:]
+    return len(last) == need and all((b - a).days == 1 for a, b in zip(last, last[1:]))
+
+
+def cmd_cutover(root, artifacts) -> dict:
+    """Switch ACTIVE to self and commit the fixed-point binary. The binary is hashed, never run."""
+    ok, bad = audit.verify_chain(root)
+    if not ok:
+        raise SystemExit(f"audit chain broken at seq {bad}")
+    active_file = Path(root) / "compiler" / "ACTIVE"
+    active = active_file.read_text(encoding="utf-8").strip() if active_file.exists() else "stage0"
+    if active != "stage0":
+        return {"skipped": f"ACTIVE is {active!r}, cutover runs once from stage0"}
+    if not _consecutive_fixed_point_nights(root, CUTOVER_NIGHTS):
+        return {"skipped": f"fewer than {CUTOVER_NIGHTS} consecutive nights with fixed_point_passed"}
+    last = [e for e in audit.load_events(root) if e["type"] == "fixed_point_passed"][-1]
+    expected = last["data"]["hashes"]["B"]
+    data = (Path(artifacts) / "B.wasm").read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != expected:
+        raise SystemExit(f"B.wasm sha256 {digest[:12]} does not match the passed fixed point {expected[:12]}")
+    dest = Path(root) / "compiler" / "bootstrap" / "glyphc.wasm"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    active_file.write_text("self\n", encoding="utf-8")
+    _emit(root, "cutover", {}, {"artifact": "compiler/bootstrap/glyphc.wasm", "sha256": digest,
+                                "bytes": len(data), "active": "self",
+                                "fixed_point_sha": last["data"]["sha"]}, f"cutover:{digest}")
+    sha = gitops.commit_all(root, "Audit: cutover to self-hosted compiler\n\nBot: mergebot",
+                            paths=["audit", "compiler/bootstrap", "compiler/ACTIVE"])
+    gitops.remote_sync(root)
+    return {"active": "self", "sha256": digest, "commit": sha}
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m tools.mergebot")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -438,6 +593,14 @@ def main(argv=None) -> int:
     sub.add_parser("verify")
     bs = sub.add_parser("bootstrap")
     bs.add_argument("wasm")
+    bn = sub.add_parser("bench")
+    bn.add_argument("resultsdir")
+    bn.add_argument("--scope", required=True, choices=["gate", "nightly", "baseline"])
+    bn.add_argument("--heldout", help="nightly: held-out totals.json (totals only)")
+    fp = sub.add_parser("fixedpoint")
+    fp.add_argument("check", help="base-check result.json")
+    co = sub.add_parser("cutover")
+    co.add_argument("artifacts", help="directory holding B.wasm from the base-check run")
     a = p.parse_args(argv)
     root = Path(os.environ.get("GLYPH_ROOT") or os.getcwd())
     if a.cmd == "open":
@@ -452,6 +615,12 @@ def main(argv=None) -> int:
         out = cmd_merge(root, a.checkdir, a.benchdir)
     elif a.cmd == "close":
         out = cmd_close(root)
+    elif a.cmd == "bench":
+        out = cmd_bench(root, a.resultsdir, a.scope, a.heldout)
+    elif a.cmd == "fixedpoint":
+        out = cmd_fixedpoint(root, a.check)
+    elif a.cmd == "cutover":
+        out = cmd_cutover(root, a.artifacts)
     else:
         out = cmd_verify(root)
         print(json.dumps(out, sort_keys=True))

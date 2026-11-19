@@ -179,7 +179,8 @@ def rule_12(ctx):
     if not any(flags.get(name) for name in ("differential", "fixed_point", "native")):
         return True, "gates off (differential, fixed_point, native all false)"
     ok, detail, stats = gates.check_gates(ctx["repo"], flags, _caps(ctx["rules"]),
-                                          ctx["tmp"] / "gates", ctx["records"])
+                                          ctx["tmp"] / "gates", ctx["records"],
+                                          artifacts=ctx["artifacts"])
     ctx["stats"].update(stats)
     return ok, detail
 
@@ -192,11 +193,13 @@ def _rule(ctx, fn):
     return {"ok": bool(ok), "detail": detail}
 
 
-def run_checks(repo):
+def run_checks(repo, artifacts=None):
+    """artifacts: directory that receives the fixed point's A.wasm, B.wasm and C.wasm (the out dir)."""
     repo = Path(repo).resolve()
     started = time.time()
     ctx = {"repo": repo, "rules": None, "rules_error": None, "summary": None,
-           "records": [], "stats": {}, "tmp": None}
+           "records": [], "stats": {}, "tmp": None,
+           "artifacts": Path(artifacts) if artifacts is not None else None}
     try:
         ctx["rules"] = load_rules(repo)
     except Exception as e:
@@ -229,7 +232,7 @@ def main(argv=None):
     ap.add_argument("--base-sha")
     a = ap.parse_args(argv)
     untrusted.harden()
-    result = run_checks(a.repo)
+    result = run_checks(a.repo, Path(a.out).parent)
     result = {"pr": a.pr, "sha": a.sha, "base_sha": a.base_sha, **result}
     Path(a.out).write_bytes(canon(result))
     return 0

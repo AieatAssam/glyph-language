@@ -217,15 +217,16 @@ jobs:
     secrets: inherit
 
   bench:
-    needs: review
-    if: always() && inputs.bench_on == 'true'
+    needs: [review, check-plan]
+    if: always() && inputs.bench_on == 'true' && needs['check-plan'].result == 'success' && needs['check-plan'].outputs.count != '0'
     uses: ./.github/workflows/bench.yml
     permissions:
-      contents: read
+      contents: write
     with:
-      scope: gate
+      mode: gate
       cycle: ${{ inputs.cycle }}
       base_branch: ${{ inputs.base_branch }}
+      prs: ${{ needs['check-plan'].outputs.matrix }}
     secrets: inherit
 
   merge:
@@ -256,11 +257,13 @@ jobs:
         if: needs.bench.result == 'success'
         uses: actions/download-artifact@v4
         with:
-          name: bench-gate-c${{ inputs.cycle }}
+          pattern: bench-gate-c${{ inputs.cycle }}-*
           path: bench
+          merge-multiple: true
       - name: Apply gate and merge at most one PR
         run: |
           mkdir -p checks
+          if [ -d bench ]; then python -m tools.mergebot bench bench --scope gate; fi
           args=(checks)
           if [ -d bench ]; then args+=(bench); fi
           python -m tools.mergebot merge "${args[@]}"

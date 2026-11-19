@@ -6,11 +6,15 @@
 #     Writes OUT_DIR/result.json. The checker's own tools/ and toolkit/ come from this checkout
 #     (trusted), mounted read-only; the candidate repo is mounted read-only at /repo.
 #
-#   Bench command (held-out runs):
-#     run.sh REPO_DIR OUT_DIR -- CMD [ARGS...]
-#     Runs CMD from /checker. REPO_DIR is mounted read-only at /repo. bench/, governance/ and tools/
-#     are mounted read-only at /checker. The caller must not pass secrets: docker receives no
-#     environment from this script and no key file is mounted.
+#   Bench command (bench execute, gate runs, held-out runs):
+#     run.sh REPO_DIR OUT_DIR [--data DATA_DIR] -- CMD [ARGS...]
+#     Runs CMD from /checker. REPO_DIR is the repo under test, mounted read-only at /repo. Its
+#     compiler/ and toolkit/ are mounted read-only at /checker/compiler and /checker/toolkit, so the
+#     code under test is what glyphc runs. bin/, bench/, governance/ and tools/ come from THIS
+#     checkout (the trusted base) and are mounted read-only at /checker. DATA_DIR, when given, is
+#     mounted read-only at /data (generated programs and bundle). Callers must pass the base
+#     run.sh, never the copy inside the repo under test. The caller must not pass secrets: docker
+#     receives no environment from this script and no key file is mounted.
 #
 # Trust split (both modes): the trusted entry point runs as root with only SETUID and SETGID
 # capabilities. Every command the candidate controls (glyphc, node, wasm runs, generated programs,
@@ -77,16 +81,39 @@ run_container() {
   exit "$rc"
 }
 
+if [[ "${1:-}" == "--data" ]]; then
+  if [[ $# -lt 4 || "${3:-}" != "--" ]]; then
+    echo "run.sh: expected --data DIR -- CMD [ARGS...]" >&2
+    exit 2
+  fi
+  data="$(cd "$2" && pwd)"
+  shift 2
+fi
+
 if [[ "${1:-}" == "--" ]]; then
   shift
   if [[ $# -lt 1 ]]; then
     echo "run.sh: -- needs a command" >&2
     exit 2
   fi
-  run_container \
-    -v "$root/bench:/checker/bench:ro" \
-    -v "$root/governance:/checker/governance:ro" \
-    -v "$root/tools:/checker/tools:ro" \
+  mounts=(
+    -v "$root/bin:/checker/bin:ro"
+    -v "$root/bench:/checker/bench:ro"
+    -v "$root/governance:/checker/governance:ro"
+    -v "$root/tools:/checker/tools:ro"
+  )
+  # The code under test: the repo's own compiler and toolkit, which bin/glyphc (base) reads from
+  # its ROOT. Absent directories are not mounted, so glyphc exits 3 for a repo with no compiler.
+  if [[ -d "$repo/compiler" ]]; then
+    mounts+=(-v "$repo/compiler:/checker/compiler:ro")
+  fi
+  if [[ -d "$repo/toolkit" ]]; then
+    mounts+=(-v "$repo/toolkit:/checker/toolkit:ro")
+  fi
+  if [[ -n "${data:-}" ]]; then
+    mounts+=(-v "$data:/data:ro")
+  fi
+  run_container "${mounts[@]}" \
     --entrypoint "$1" \
     "$image" "${@:2}"
 fi
