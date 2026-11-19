@@ -321,7 +321,11 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
                           f"stuck:{n}:{count}")
             continue
         return _merge_one(root, n, pr, rfc, check, rules)
-    return {"merged": None}
+    # Nothing merged: still publish the check_run and gate_blocked events (review planning reads them).
+    sha = gitops.commit_all(root, "Audit: gate\n\nBot: mergebot", paths=["audit"])
+    if sha:
+        gitops.remote_sync(root)
+    return {"merged": None, "commit": sha}
 
 
 def _merge_one(root, n, pr, rfc, check, rules) -> dict:
