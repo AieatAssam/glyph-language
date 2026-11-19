@@ -37,7 +37,7 @@ from pathlib import Path
 import jsonschema
 import yaml
 
-from tools.lib import gh
+from tools.lib import gh, gitops
 
 HERE = Path(__file__).resolve().parent
 ROLES = ("designer", "implementer", "tester", "reviewer", "user", "scribe",
@@ -324,7 +324,7 @@ class Publisher:
         return True
 
     def _git(self, args: list[str], env=None, stdin: bytes | None = None) -> str:
-        res = subprocess.run(["git", *args], cwd=self.root, env=env, input=stdin, capture_output=True)
+        res = subprocess.run(["git", *args], cwd=self.root, env=env or gitops.git_env(), input=stdin, capture_output=True)
         if res.returncode:
             raise PublishError(f"git {args[0]} failed: {res.stderr.decode(errors='replace').strip()[:300]}")
         return res.stdout.decode().strip()
@@ -353,7 +353,7 @@ class Publisher:
                                  "paths": [p for p, _ in changes]})
             return sha
         tmp = tempfile.mkdtemp(prefix="publisher-index-")
-        env = dict(os.environ, GIT_INDEX_FILE=os.path.join(tmp, "index"))
+        env = dict(gitops.git_env(), GIT_INDEX_FILE=os.path.join(tmp, "index"))
         try:
             self._git(["fetch", "--quiet", "origin", f"refs/heads/{base_branch}"])
             parent = self._git(["rev-parse", "FETCH_HEAD"])

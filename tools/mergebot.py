@@ -386,7 +386,7 @@ def cmd_close(root) -> dict:
 
 def _push_transcripts(root, files, day):
     env_index = Path(root) / ".git" / f"index-transcripts-{day}"
-    env = dict(os.environ, GIT_INDEX_FILE=str(env_index))
+    env = dict(gitops.git_env(), GIT_INDEX_FILE=str(env_index))
     import subprocess
 
     def g(*args, input_text=None):

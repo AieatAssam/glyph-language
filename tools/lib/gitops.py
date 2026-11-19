@@ -7,9 +7,18 @@ from pathlib import Path
 from tools.lib import gh
 
 
+BOT_ENV = {"GIT_AUTHOR_NAME": "glyph-mergebot", "GIT_AUTHOR_EMAIL": "glyph-mergebot@users.noreply.github.com",
+           "GIT_COMMITTER_NAME": "glyph-mergebot", "GIT_COMMITTER_EMAIL": "glyph-mergebot@users.noreply.github.com"}
+
+
+def git_env() -> dict:
+    """Process env with a bot identity filled in where none is configured (fresh CI runners)."""
+    return {**BOT_ENV, **os.environ}
+
+
 def git(root, *args, check=True, input_text=None) -> str:
     res = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
-                         input=input_text)
+                         input=input_text, env=git_env())
     if check and res.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {res.stderr.strip()}")
     return res.stdout
