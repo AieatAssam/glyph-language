@@ -339,10 +339,11 @@ class Publisher:
         res = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=self.root, capture_output=True)
         return res.stdout if res.returncode == 0 else b""
 
-    def _commit(self, branch: str, base_branch: str, changes, message: str) -> str:
+    def _commit(self, branch: str, base_branch: str, changes, message: str, agent: str) -> str:
         """Commit changes onto branch (parent: base_branch's tip) and push. Returns the sha.
 
         changes: [(repo path, bytes or None for delete)]. Only agent/* branches are pushed.
+        The agent is the commit author; the publisher bot is the committer.
         """
         if not branch.startswith("agent/") or ".." in branch or " " in branch:
             raise PublishError(f"refusing to push to {branch}")
@@ -365,7 +366,11 @@ class Publisher:
                     blob = self._git(["hash-object", "-w", "--stdin"], env=env, stdin=data)
                     self._git(["update-index", "--add", "--cacheinfo", f"100644,{blob},{path}"], env=env)
             tree = self._git(["write-tree"], env=env)
-            sha = self._git(["commit-tree", tree, "-p", parent, "-m", message])
+            who = dict(gitops.git_env(), GIT_AUTHOR_NAME=agent,
+                       GIT_AUTHOR_EMAIL=f"{agent}@agents.glyph-language.invalid",
+                       GIT_COMMITTER_NAME="glyph-publisher",
+                       GIT_COMMITTER_EMAIL="glyph-publisher@users.noreply.github.com")
+            sha = self._git(["commit-tree", tree, "-p", parent, "-m", message], env=who)
             self._git(["push", "--quiet", "origin", f"{sha}:refs/heads/{branch}"])
             return sha
         finally:
@@ -459,7 +464,7 @@ class Publisher:
             self._check_write(ses, "open_rfc", [(dest, data)])
             branch = f"agent/rfc-{rfc}"
             msg = f"RFC {rfc}: {a['title']}\n\nAgent: {ses.agent}\nSession: {ses.session}\n"
-            sha = self._commit(branch, self.base, [(dest, data)], msg)
+            sha = self._commit(branch, self.base, [(dest, data)], msg, ses.agent)
             url = self._gh(["pr", "create", "--base", self.base, "--head", branch,
                             "--title", f"RFC {rfc}: {a['title']}", "--body-file", "-"],
                            stdin=self._text(ses, key, a["title"]))
@@ -483,7 +488,7 @@ class Publisher:
         self._check_write(ses, "revise_rfc", [(dest, data)])
         branch = f"agent/rfc-{rfc}"
         msg = f"RFC {rfc}: revision\n\nAgent: {ses.agent}\nSession: {ses.session}\n"
-        sha = self._commit(branch, branch, [(dest, data)], msg)
+        sha = self._commit(branch, branch, [(dest, data)], msg, ses.agent)
         pr = self._rfc_pr(rfc)
         if pr:
             self._post_comment(ses, key, "pr", pr, a["note"])
@@ -542,7 +547,7 @@ class Publisher:
     def _update_branch(self, ses, i, pr: int, branch: str, items, a, body=None):
         key = self._key(ses, i)
         msg = f"PR {pr}: update\n\nAgent: {ses.agent}\nSession: {ses.session}\n"
-        sha = self._commit(branch, branch, items, msg)
+        sha = self._commit(branch, branch, items, msg, ses.agent)
         if body:
             self._post_comment(ses, key, "pr", pr, body)
         self._event(ses, i, "pr_updated", {"pr": pr},
@@ -573,7 +578,7 @@ class Publisher:
         if branch in self.created:
             raise PublishError(f"branch {branch} was already created in this run")
         msg = f"{a['title']}\n\nAgent: {ses.agent}\nSession: {ses.session}\n"
-        sha = self._commit(branch, self.base, items, msg)
+        sha = self._commit(branch, self.base, items, msg, ses.agent)
         self.created.add(branch)
         url = self._gh(["pr", "create", "--base", self.base, "--head", branch, "--title", a["title"],
                         "--body-file", "-"], stdin=self._text(ses, key, a["body"]))

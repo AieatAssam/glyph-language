@@ -336,9 +336,16 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     trailers = ["Bot: mergebot", "Gate: rules 1-14 pass", f"PR: {n}", f"Check-Sha: {sha_head}"]
     if pr.get("rfc"):
         trailers.append(f"RFC: {pr['rfc']}")
+    # The agents who wrote the branch sign the merge: PR author as author, the rest as co-authors.
+    authors = gitops.git(root, "log", "--format=%an <%ae>", f"{check['base_sha']}..{sha_head}",
+                         check=False).splitlines()
+    lead = next((a for a in authors if a.startswith(f"{pr['author']} <")), None)
+    for a in dict.fromkeys(authors):
+        if a != lead and not a.startswith("glyph-"):
+            trailers.append(f"Co-authored-by: {a}")
     msg = f"Merge PR #{n} ({pr['class']})\n\n" + "\n".join(trailers)
     gitops.git(root, "add", "-A", "--", ".")
-    gitops.git(root, "commit", "-m", msg, "--no-verify")
+    gitops.git(root, "commit", "-m", msg, "--no-verify", *(["--author", lead] if lead else []))
     merge_sha = gitops.git(root, "rev-parse", "HEAD").strip()
     rfc_implemented = bool(pr.get("rfc")) and pr.get("subtask") is None
     _emit(root, "merged", {"pr": int(n)},

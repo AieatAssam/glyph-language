@@ -467,11 +467,15 @@ class RealGitTests(unittest.TestCase):
                          draft.decode().rstrip("\n"))
         self.assertEqual(self.git(self.bare, "show", "refs/heads/agent/stdlib-add-strings:stdlib/strings.glyph"),
                          STRINGS["stdlib/strings.glyph"].rstrip("\n"))
+        self.assertEqual(self.git(self.bare, "log", "-1", "--format=%an|%cn", "refs/heads/agent/rfc-0001"),
+                         "designer-min|glyph-publisher")
+        self.assertEqual(self.git(self.bare, "log", "-1", "--format=%an", "refs/heads/agent/stdlib-add-strings"),
+                         "impl-1")
 
     def test_real_mode_never_pushes_outside_agent(self):
         pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
         with self.assertRaises(P.PublishError):
-            pub._commit("main", "main", [("stdlib/x.glyph", b"x\n")], "bad")
+            pub._commit("main", "main", [("stdlib/x.glyph", b"x\n")], "bad", "impl-1")
         self.assertEqual(self.bare_refs(), ["refs/heads/main"])
 
 

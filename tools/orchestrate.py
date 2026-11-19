@@ -417,7 +417,8 @@ def plan_review(ctx) -> list[Asg]:
                                             for r in p.get("reviews", [])):
             continue
         check = _latest_check(ctx.events, n, p.get("head_sha"))
-        rules_ok = check and check["data"].get("rules") and all(v.get("ok") for v in check["data"]["rules"].values())
+        rules_ok = check and check["data"].get("rules") and all(  # 14 is the review itself
+            v.get("ok") for k, v in check["data"]["rules"].items() if k != "14")
         if rules_ok:
             ready.append(n)
     ready = ready[:int(rules.get("max_gated_prs_per_cycle", 2))]

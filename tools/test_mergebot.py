@@ -140,6 +140,16 @@ class GateTests(unittest.TestCase):
         ctx.update(extra)
         return {r["rule"]: r for r in R.evaluate_gate(ctx, RULES)}
 
+    def test_plan_only_pr_skips_code_rules_but_needs_review(self):
+        pr = self._pr(**{"class": "language", "rfc_present": True, "rfc_status": "implementing",
+                         "changed_files": ["rfcs/0001.plan.md"]})
+        fails = self._checks(**{str(n): False for n in range(4, 12)})  # base has no compiler yet
+        self.assertTrue(all(r["ok"] for r in self._run(pr=pr, check_rules=fails).values()))
+        pr["reviews"] = []
+        self.assertFalse(self._run(pr=pr, check_rules=fails)[14]["ok"])
+        pr["changed_files"] = ["rfcs/0001.plan.md", "compiler/x.ts"]
+        self.assertFalse(self._run(pr=pr, check_rules=fails)[3]["ok"])
+
     def test_clean_bugfix_passes_everything(self):
         res = self._run()
         self.assertTrue(all(r["ok"] for r in res.values()), res)
@@ -331,7 +341,12 @@ class MergebotRepoTests(RepoTestCase):
     def test_merge_passes_gate_and_squashes(self):
         self.git("checkout", "-b", "agent/impl-0002")
         self.write("compiler/stage0/fix.ts", "export const x = 1;\n")
-        head = self.commit("fix")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "fix", "--author", "impl-1 <impl-1@agents.glyph-language.invalid>")
+        self.write("conformance/fix.test", "x\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "test", "--author", "tester <tester@agents.glyph-language.invalid>")
+        head = self.git("rev-parse", "HEAD")
         self.git("checkout", "main")
         self.emit("pr_opened", {"pr": 2},
                   {"branch": "agent/impl-0002", "class": "bugfix", "rfc": None, "author": "impl-1",
@@ -349,6 +364,8 @@ class MergebotRepoTests(RepoTestCase):
         msg = self.git("log", "--format=%B", "--grep", "Merge PR #2")
         self.assertIn("Bot: mergebot", msg)
         self.assertIn("Check-Sha: " + head, msg)
+        self.assertIn("Co-authored-by: tester <tester@agents.glyph-language.invalid>", msg)
+        self.assertEqual(self.git("log", "-1", "--format=%an", "--grep", "Merge PR #2"), "impl-1")
         self.assertEqual(S.load_state(self.root)["prs"]["2"]["status"], "merged")
 
     def test_merge_blocks_without_approval(self):

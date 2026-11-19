@@ -218,3 +218,10 @@ Conformance `.test` format and kinds are defined in spec §7. In a `compile-erro
 - `compiler/self/ENTRY` holds the repo-relative path of the self-hosted compiler's entry source.
 - Stage 0 and the self-hosted compiler both implement `--dump tokens|ast|ir` as canonical JSON.
 - An example program may have a sibling `<name>.expect` file in the conformance container format (`stdin`, `expect-stdout`, `expect-exit`). Details are in `tools/check/README.md`.
+
+## Commit identities
+
+- Agent branch commits (publisher): author `<agent-id> <<agent-id>@agents.glyph-language.invalid>`, committer `glyph-publisher`, trailers `Agent:` and `Session:`.
+- Squash merges (merge bot): author is the PR's author agent; every other agent with commits on the branch gets a `Co-authored-by:` trailer; committer `glyph-mergebot`.
+- Bot-only commits (audit, decisions, bootstrap): `glyph-mergebot`.
+- A plan-only PR (only `rfcs/NNNN.plan.md`) is judged on gate rules 1, 2 and 14; rules 3 to 13 apply to code.
