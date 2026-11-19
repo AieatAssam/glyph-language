@@ -450,6 +450,22 @@ class RealGitTests(unittest.TestCase):
         out = self.git(self.bare, "for-each-ref", "--format=%(refname)", "refs/heads")
         return out.splitlines()
 
+    def test_new_pr_replaces_a_dead_branch_of_the_same_name(self):
+        seed = self.tmp / "seed"  # a merged PR left agent/stdlib-add-strings behind with other history
+        self.git(seed, "checkout", "-q", "-b", "agent/stdlib-add-strings")
+        (seed / "old.txt").write_text("old\n")
+        self.git(seed, "add", "-A")
+        self.git(seed, "commit", "-q", "-m", "old PR")
+        self.git(seed, "push", "-q", str(self.bare), "agent/stdlib-add-strings")
+        pr = _write_session(self.tmp, "pr", "impl-1", [OPEN_PR], files=STRINGS)
+        out = self.tmp / "out"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            P.main(["--session-dirs", str(pr), "--out", str(out), "--root", str(self.root)])
+        rep = json.loads((out / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(rep["refused"], [])
+        self.assertEqual(self.git(self.bare, "log", "-1", "--format=%an", "refs/heads/agent/stdlib-add-strings"),
+                         "impl-1")
+
     def test_branches_push_to_origin_and_only_agent_branches(self):
         main_before = self.git(self.bare, "rev-parse", "refs/heads/main")
         draft = b"# Pipes\n\nA pipe operator.\n"

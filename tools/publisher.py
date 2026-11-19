@@ -371,7 +371,10 @@ class Publisher:
                        GIT_COMMITTER_NAME="glyph-publisher",
                        GIT_COMMITTER_EMAIL="glyph-publisher@users.noreply.github.com")
             sha = self._git(["commit-tree", tree, "-p", parent, "-m", message], env=who)
-            self._git(["push", "--quiet", "origin", f"{sha}:refs/heads/{branch}"])
+            # A new PR starts from base. A same-named branch left by a merged or closed PR is dead
+            # (callers only create when no open PR uses it), so replace it; updates fast-forward.
+            force = ["--force"] if base_branch != branch else []
+            self._git(["push", "--quiet", *force, "origin", f"{sha}:refs/heads/{branch}"])
             return sha
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
