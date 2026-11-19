@@ -100,6 +100,14 @@ class Caps(unittest.TestCase):
         self.assertEqual(len(asgs), 1)
         self.assertEqual(len(asgs[0].header["prs"]), 2)
 
+    def test_review_scheduled_while_only_rule_14_fails(self):
+        prs = {"1": {"status": "open", "head_sha": "s1", "branch": "b1", "class": "language"}}
+        events = [{"type": "check_run", "subject": {"pr": "1"},
+                   "data": {"sha": "s1", "rules": {"5": {"ok": True}, "14": {"ok": False}}}}]
+        self.assertEqual(len(run("review", state={"prs": prs}, events=events)), 1)
+        events[0]["data"]["rules"]["5"]["ok"] = False
+        self.assertEqual(run("review", state={"prs": prs}, events=events), [])
+
 
 class Blindness(unittest.TestCase):
     def test_user_agent_never_sees_rfc_text(self):

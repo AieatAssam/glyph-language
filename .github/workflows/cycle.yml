@@ -190,12 +190,13 @@ jobs:
             -w /src glyph-sandbox \
             python -m tools.check.run --repo /work --out /out/result.json \
               --pr "$PR" --sha "$SHA" --base-sha "$BASE_SHA"
-          cp "$RUNNER_TEMP/out/result.json" "$RUNNER_TEMP/result.json"
+          mkdir -p "$RUNNER_TEMP/check"
+          cp "$RUNNER_TEMP/out/result.json" "$RUNNER_TEMP/check/$PR.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: check-c${{ inputs.cycle }}-${{ matrix.pr }}
-          path: ${{ runner.temp }}/result.json
+          path: ${{ runner.temp }}/check/${{ matrix.pr }}.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -253,6 +254,7 @@ jobs:
         with:
           pattern: check-c${{ inputs.cycle }}-*
           path: checks
+          merge-multiple: true
       - name: Fetch bench results
         if: needs.bench.result == 'success'
         uses: actions/download-artifact@v4

@@ -73,6 +73,9 @@ def stability_ok(pr: dict, stab, window: int):
     return True, ""
 
 
+PLAN_RE = re.compile(r"rfcs/\d{4}\.plan\.md")
+
+
 def evaluate_gate(ctx: dict, rules: dict) -> list:
     """Pure evaluation of gate rules 1 to 14 in order. Returns one result dict per rule.
 
@@ -106,6 +109,19 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
     ok2 = (is_exempt(cls) or bool(rfc_ok)) and stab_ok
     reason = "" if ok2 else (stab_why or f"rfc status {pr.get('rfc_status')!r}")
     out.append(_res(2, "rfc_linked", ok2, reason))
+
+    # A PR touching only rfcs/NNNN.plan.md is a plan, not an implementation PR: rules 3 to 13
+    # judge code and would fail on a base with no compiler yet (bootstrap deadlock).
+    if files and all(PLAN_RE.fullmatch(f) for f in files):
+        for n, name in ((3, "bundle_together"), (4, "compiler_builds"), (5, "conformance_passes"),
+                        (6, "no_test_altered"), (7, "wasm_valid"), (8, "deterministic"),
+                        (9, "token_caps"), (10, "grammar_coverage"), (11, "examples_pass"),
+                        (12, "fixed_point"), (13, "bench_no_regression")):
+            out.append(_res(n, name, True, "plan only"))
+        approved = any(r.get("verdict") == "approve" and r.get("sha") == head
+                       for r in pr.get("reviews", []))
+        out.append(_res(14, "reviewer_approved", approved, "" if approved else "no approval on head"))
+        return out
 
     # 3. Spec, compiler, conformance and migration arrive together for language and stdlib.
     if cls in LANGUAGE_CLASSES:
