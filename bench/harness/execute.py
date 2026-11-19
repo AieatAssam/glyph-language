@@ -14,9 +14,10 @@ import json
 import re
 import shutil
 import sys
-import tempfile
 from collections import Counter
 from pathlib import Path
+
+from tools.check import untrusted
 
 from . import common as C
 
@@ -91,7 +92,8 @@ def main() -> None:
     bundle = json.loads((a.inp / "bundle.json").read_text(encoding="utf-8"))
     runner = PyRunner() if a.lang == "python" else GlyphRunner(C.ROOT)
     ext = C.LANG_EXT[a.lang]
-    work_root = Path(tempfile.mkdtemp(prefix="bench-exec-"))
+    untrusted.harden()
+    work_root = untrusted.mkdtemp(prefix="bench-exec-")
     counts = Counter()
     try:
         for prog in sorted((a.inp / "programs").glob(f"*/*{ext}")):
@@ -124,7 +126,7 @@ def main() -> None:
 
 
 def score_program(runner, prog: Path, tests: list[dict], work_root: Path, lang: str) -> dict:
-    work = Path(tempfile.mkdtemp(dir=work_root))
+    work = untrusted.mkdtemp(dir=work_root)
     source = prog.read_text(encoding="utf-8")
     compiled, diags, artifact = runner.compile(prog, work)
     res = {"compiled": compiled, "diagnostics": diags, "pass": False, "tests": [],
@@ -135,7 +137,7 @@ def score_program(runner, prog: Path, tests: list[dict], work_root: Path, lang: 
 
 
 def read_result(runner, prog: Path, prediction: str, probe: dict | str, work_root: Path) -> dict:
-    work = Path(tempfile.mkdtemp(dir=work_root))
+    work = untrusted.mkdtemp(dir=work_root)
     compiled, diags, artifact = runner.compile(prog, work)
     if not compiled:
         return {"pass": False, "match": False, "predicted": prediction[:4000], "actual": None}

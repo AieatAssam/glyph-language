@@ -24,7 +24,7 @@ on:
         type: string
         required: false
       attack:
-        description: Reserved for the attack harness. Unused in M1
+        description: Scripted runs only. Passed to the phase and cycle jobs as SCRIPTED_ATTACK
         type: string
         required: false
 
@@ -95,7 +95,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-tools
       - name: Verify audit chain and open the night
-        run: python -m tools.mergebot open
+        run: python -m tools.mergebot open --night
 
   architect:
     needs: [setup, open]
@@ -111,6 +111,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
     secrets: inherit
 
   cycle-1:
@@ -126,6 +127,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -142,6 +144,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -158,6 +161,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -174,6 +178,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -190,6 +195,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -206,6 +212,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
       bench_on: ${{ needs.setup.outputs.bench_on }}
     secrets: inherit
 
@@ -235,6 +242,7 @@ jobs:
       run_date: ${{ needs.setup.outputs.run_date }}
       base_branch: ${{ needs.setup.outputs.base_branch }}
       agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      attack: ${{ inputs.attack || '' }}
     secrets: inherit
 
   close:

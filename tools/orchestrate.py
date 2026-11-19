@@ -19,7 +19,8 @@ import yaml
 
 PHASES = ("architect", "design", "vote", "implement", "review", "use", "scribe", "architect-weekly")
 ARCH_PHASES = {"architect", "scribe", "architect-weekly"}  # session ids use cycle c0
-USER_ROLE = "user"  # users vote on RFC titles only; they never get RFC text (see _vote_block)
+USER_ROLE = "user"  # users vote from the RFC's Summary and Examples only (see _vote_block)
+USER_SECTIONS = ("summary", "examples")
 DIFF_CAP = 60000
 RFC_CAP = 30000
 
@@ -152,13 +153,29 @@ def rfc_path(num: str, rfc: dict) -> str:
     return f"rfcs/{num}-{rfc['slug']}.md"
 
 
-def rfc_text(repo, num: str, rfc: dict) -> str:
+def _rfc_raw(repo, num: str, rfc: dict) -> str | None:
     text = repo.read(rfc_path(num, rfc))
     if text is None and rfc.get("branch"):
         text = repo.read_ref(rfc["branch"], rfc_path(num, rfc))
+    return text
+
+
+def rfc_text(repo, num: str, rfc: dict) -> str:
+    text = _rfc_raw(repo, num, rfc)
     if text is None:
         return f"(RFC {num} is not on {repo.base} yet; branch {rfc.get('branch')})"
     return text[:RFC_CAP]
+
+
+def user_sections(text: str) -> str:
+    """Only the `## Summary` and `## Examples` sections of an RFC. Text before the first heading is dropped."""
+    out, keep = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            keep = line[3:].strip().lower() in USER_SECTIONS
+        if keep:
+            out.append(line)
+    return "\n".join(out)
 
 
 def rfc_block(repo, num: str, rfc: dict) -> str:
@@ -204,9 +221,11 @@ def _voters(roster):
 
 
 def _vote_block(repo, n: str, r: dict, user: bool) -> str:
-    if user:  # a user judges from use and the title, never from the RFC text
-        return f"### RFC {n}: {r.get('title')} (class {r.get('class')})\n"
-    return rfc_block(repo, n, r)
+    if not user:
+        return rfc_block(repo, n, r)
+    # A user judges from the title and the Summary and Examples; the design body stays with designers.
+    text = user_sections(_rfc_raw(repo, n, r) or "")[:RFC_CAP].strip()
+    return f"### RFC {n}: {r.get('title')} (class {r.get('class')})\n\n{text}\n"
 
 
 def _open_pr(prs, n: str, *, subtask: bool) -> str | None:

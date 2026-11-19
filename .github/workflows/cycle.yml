@@ -23,11 +23,39 @@ on:
       bench_on:
         type: string
         required: true
+      attack:
+        type: string
+        required: false
+        default: ""
+
+env:
+  BASE_BRANCH: ${{ inputs.base_branch }}
+  RUN_DATE: ${{ inputs.run_date }}
+  CYCLE: ${{ inputs.cycle }}
+  AGENT_MODE: ${{ inputs.agent_mode }}
 
 permissions: {}
 
 jobs:
+  open:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Open the cycle in the audit log
+        run: python -m tools.mergebot open
+
   design:
+    needs: open
+    if: needs.open.result == 'success'
     uses: ./.github/workflows/phase.yml
     permissions:
       contents: write
@@ -39,6 +67,7 @@ jobs:
       run_date: ${{ inputs.run_date }}
       base_branch: ${{ inputs.base_branch }}
       agent_mode: ${{ inputs.agent_mode }}
+      attack: ${{ inputs.attack }}
     secrets: inherit
 
   vote:
@@ -55,6 +84,7 @@ jobs:
       run_date: ${{ inputs.run_date }}
       base_branch: ${{ inputs.base_branch }}
       agent_mode: ${{ inputs.agent_mode }}
+      attack: ${{ inputs.attack }}
     secrets: inherit
 
   decide:
@@ -68,9 +98,6 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
-      BASE_BRANCH: ${{ inputs.base_branch }}
-      RUN_DATE: ${{ inputs.run_date }}
-      CYCLE: ${{ inputs.cycle }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,6 +120,7 @@ jobs:
       run_date: ${{ inputs.run_date }}
       base_branch: ${{ inputs.base_branch }}
       agent_mode: ${{ inputs.agent_mode }}
+      attack: ${{ inputs.attack }}
     secrets: inherit
 
   check-plan:
@@ -108,24 +136,21 @@ jobs:
       matrix: ${{ steps.list.outputs.matrix }}
     env:
       GH_TOKEN: ${{ github.token }}
-      BASE_BRANCH: ${{ inputs.base_branch }}
     steps:
       # Lists open agent PRs only. No agent code runs in this job.
       - name: List open agent PRs
         id: list
         run: |
-          gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 200 \
-            --json number,headRefName,headRefOid,baseRefName > prs.json
-          python3 - <<'PY'
-          import json, os
-          with open("prs.json", encoding="utf-8") as f:
-              prs = json.load(f)
-          inc = [{"pr": p["number"], "sha": p["headRefOid"]} for p in prs
-                 if p["headRefName"].startswith("agent/") and p["baseRefName"] == os.environ["BASE_BRANCH"]]
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
-              out.write(f"count={len(inc)}\n")
-              out.write("matrix=" + json.dumps({"include": inc or [{"pr": 0, "sha": ""}]}) + "\n")
-          PY
+          # shellcheck disable=SC2016 # $ENV is a jq variable, not a shell one
+          q='[.[] | select(.headRefName | startswith("agent/")) | select(.baseRefName == $ENV.BASE_BRANCH) | {pr: .number, sha: .headRefOid}]'
+          fields=number,headRefName,headRefOid,baseRefName
+          count=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 200 --json "$fields" --jq "$q | length")
+          matrix=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 200 --json "$fields" \
+            --jq "{include: ($q | if length == 0 then [{pr: 0, sha: \"\"}] else . end)} | tojson")
+          {
+            echo "count=$count"
+            echo "matrix=$matrix"
+          } >> "$GITHUB_OUTPUT"
 
   check:
     needs: check-plan
@@ -188,6 +213,7 @@ jobs:
       run_date: ${{ inputs.run_date }}
       base_branch: ${{ inputs.base_branch }}
       agent_mode: ${{ inputs.agent_mode }}
+      attack: ${{ inputs.attack }}
     secrets: inherit
 
   bench:
@@ -213,9 +239,6 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
-      BASE_BRANCH: ${{ inputs.base_branch }}
-      RUN_DATE: ${{ inputs.run_date }}
-      CYCLE: ${{ inputs.cycle }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,4 +279,5 @@ jobs:
       run_date: ${{ inputs.run_date }}
       base_branch: ${{ inputs.base_branch }}
       agent_mode: ${{ inputs.agent_mode }}
+      attack: ${{ inputs.attack }}
     secrets: inherit

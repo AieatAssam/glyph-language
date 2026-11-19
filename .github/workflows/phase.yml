@@ -22,6 +22,16 @@ on:
       agent_mode:
         type: string
         required: true
+      attack:
+        type: string
+        required: false
+        default: ""
+
+env:
+  BASE_BRANCH: ${{ inputs.base_branch }}
+  RUN_DATE: ${{ inputs.run_date }}
+  CYCLE: ${{ inputs.cycle }}
+  AGENT_MODE: ${{ inputs.agent_mode }}
 
 permissions: {}
 
@@ -44,9 +54,6 @@ jobs:
         id: plan
         env:
           PHASE: ${{ inputs.phase }}
-          RUN_DATE: ${{ inputs.run_date }}
-          CYCLE: ${{ inputs.cycle }}
-          BASE_BRANCH: ${{ inputs.base_branch }}
         run: |
           python -m tools.orchestrate --phase "$PHASE" --out "$RUNNER_TEMP/orch"
           python - <<'PY'
@@ -93,10 +100,8 @@ jobs:
           path: orch
       - name: Run agent session
         env:
-          AGENT_MODE: ${{ inputs.agent_mode }}
-          RUN_DATE: ${{ inputs.run_date }}
-          CYCLE: ${{ inputs.cycle }}
           AGENT: ${{ matrix.agent }}
+          SCRIPTED_ATTACK: ${{ inputs.agent_mode == 'scripted' && inputs.attack || '' }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -121,7 +126,6 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
-      BASE_BRANCH: ${{ inputs.base_branch }}
     steps:
       - uses: actions/checkout@v4
         with:

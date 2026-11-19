@@ -1,5 +1,6 @@
 """Thresholds from governance/RULES.md, path policy, and the pure merge gate (spec section 6)."""
 import re
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -62,6 +63,16 @@ def _res(n, name, ok, reason=""):
     return {"rule": n, "name": name, "ok": bool(ok), "reason": reason}
 
 
+def stability_ok(pr: dict, stab, window: int):
+    """SPEC section 6: after self-hosting, at most one breaking change per `window` nights."""
+    if not stab or not stab.get("self_hosted") or not pr.get("breaking") or not stab.get("last_breaking"):
+        return True, ""
+    gap = (date.fromisoformat(stab["today"]) - date.fromisoformat(stab["last_breaking"])).days
+    if gap < window:
+        return False, f"breaking change {gap} night(s) after {stab['last_breaking']}, window {window}"
+    return True, ""
+
+
 def evaluate_gate(ctx: dict, rules: dict) -> list:
     """Pure evaluation of gate rules 1 to 14 in order. Returns one result dict per rule.
 
@@ -71,6 +82,7 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
       check_rules: {"4": bool, "5": bool, ..., "12": bool} from the check result (rules 4-12)
       tests_altered: bool, true when an existing conformance test was removed or changed
       bench: {fitness, baseline, conformance_output_unchanged} or None
+      stability: {self_hosted, last_breaking, today} or None (see stability_ok)
     """
     pr = ctx.get("pr", {})
     cr = ctx.get("check_rules", {})
@@ -90,8 +102,10 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
 
     # 2. Linked to an accepted RFC, or the class is exempt.
     rfc_ok = pr.get("rfc_present") and pr.get("rfc_status") in ("accepted", "implementing", "implemented")
-    ok2 = is_exempt(cls) or bool(rfc_ok)
-    out.append(_res(2, "rfc_linked", ok2, "" if ok2 else f"rfc status {pr.get('rfc_status')!r}"))
+    stab_ok, stab_why = stability_ok(pr, ctx.get("stability"), int(rules.get("stability_window_nights", 7)))
+    ok2 = (is_exempt(cls) or bool(rfc_ok)) and stab_ok
+    reason = "" if ok2 else (stab_why or f"rfc status {pr.get('rfc_status')!r}")
+    out.append(_res(2, "rfc_linked", ok2, reason))
 
     # 3. Spec, compiler, conformance and migration arrive together for language and stdlib.
     if cls in LANGUAGE_CLASSES:

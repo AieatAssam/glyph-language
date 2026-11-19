@@ -227,7 +227,7 @@ class PipelineTests(unittest.TestCase):
         # bin/glyphc is owned by the check builder and may exist. Test the no-compiler path on a temp
         # copy of the repo with compiler/ACTIVE removed, so the real checkout is never changed.
         copy = self.tmp / "nocompiler"
-        for part in ("bench", "bin", "compiler", "toolkit", "governance"):
+        for part in ("bench", "bin", "compiler", "toolkit", "governance", "tools"):
             src = ROOT / part
             if src.exists():
                 shutil.copytree(src, copy / part, ignore=shutil.ignore_patterns("__pycache__"))

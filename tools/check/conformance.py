@@ -23,6 +23,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from . import untrusted
+
 TEST_KINDS = ("run", "compile-error", "trap", "fmt", "fix")
 KNOWN_SECTIONS = {"meta", "source", "stdin", "expect-stdout", "expect-stderr",
                   "expect-exit", "expect-errors"}
@@ -100,7 +102,7 @@ def discover(repo):
 def _glyphc(repo, args, cwd, stdin=None):
     exe = Path(repo) / "bin" / "glyphc"
     try:
-        p = subprocess.run([str(exe), *args], cwd=str(cwd), input=stdin,
+        p = untrusted.run([str(exe), *args], cwd=str(cwd), input=stdin,
                            capture_output=True, text=True, timeout=TIMEOUT)
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
@@ -142,7 +144,7 @@ def _diagnostics(out):
 def _host(repo_host, mode, req, tmp):
     reqpath = Path(tmp) / ("req-%s.json" % mode)
     reqpath.write_text(json.dumps(req), encoding="utf-8")
-    p = subprocess.run(["node", str(repo_host), mode, str(reqpath)], capture_output=True,
+    p = untrusted.run(["node", str(repo_host), mode, str(reqpath)], capture_output=True,
                        text=True, timeout=TIMEOUT)
     if p.returncode != 0:
         raise RuntimeError("wasm host failed: %s" % p.stderr[-400:])

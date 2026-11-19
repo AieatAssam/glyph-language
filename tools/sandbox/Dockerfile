@@ -24,6 +24,7 @@ RUN case "${TARGETARCH:-amd64}" in \
  && wasmtime --version
 
 RUN useradd --create-home --uid 10001 runner
-USER 10001:10001
 ENV HOME=/home/runner PYTHONDONTWRITEBYTECODE=1
+# /out is root-owned and private to the checker: untrusted code runs as uid 65534 and cannot open it.
+RUN install -d -m 0700 -o root -g root /out
 WORKDIR /checker

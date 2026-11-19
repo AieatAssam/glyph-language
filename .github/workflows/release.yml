@@ -1,7 +1,9 @@
 name: release
 
-# Called from nightly.yml when close reports release=true. Builds inside the sandbox from the
-# base branch, then publishes a GitHub release for the version in spec/VERSION.
+# Called from nightly.yml when close reports release=true. Builds from the base branch and
+# publishes GitHub release spec-v<version> for spec/VERSION. Every release carries a source
+# archive. While compiler/ACTIVE is `self`, it also carries the self-compiler built in the sandbox
+# (`bin/glyphc build <compiler/self/ENTRY> -o glyphc.wasm`).
 
 on:
   workflow_call:
@@ -27,17 +29,33 @@ jobs:
           ref: ${{ inputs.base_branch }}
           path: base
           persist-credentials: false
-      - name: Build sandbox from base
-        run: docker build -t glyph-sandbox base/tools/sandbox
-      - name: Build release artifacts in sandbox
+      - name: Read version and active compiler
+        id: meta
+        run: |
+          echo "version=$(tr -d '[:space:]' < base/spec/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "compiler=$(tr -d '[:space:]' < base/compiler/ACTIVE)" >> "$GITHUB_OUTPUT"
+      - name: Source archive from the base commit
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           mkdir -p "$RUNNER_TEMP/dist"
-          # UNVERIFIED: CONTRACTS.md defines no build entry point. Replace the module when one exists.
+          chmod 0777 "$RUNNER_TEMP/dist"
+          git -C base archive --format=tar.gz --prefix="glyph-$VERSION/" \
+            -o "$RUNNER_TEMP/dist/glyph-source-$VERSION.tar.gz" HEAD
+      - name: Build sandbox from base
+        if: steps.meta.outputs.compiler == 'self'
+        run: docker build -t glyph-sandbox base/tools/sandbox
+      - name: Build self-compiler in sandbox
+        if: steps.meta.outputs.compiler == 'self'
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          entry=$(tr -d '[:space:]' < base/compiler/self/ENTRY)
           docker run --rm --network none --read-only --memory 4g --cpus 2 --pids-limit 512 \
-            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src \
+            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 \
             -v "$PWD/base:/src:ro" -v "$RUNNER_TEMP/dist:/out" \
             -w /src glyph-sandbox \
-            python -m tools.build --out /out
+            bin/glyphc build "$entry" -o /out/glyphc-"$VERSION".wasm
       - uses: actions/upload-artifact@v4
         with:
           name: release-dist
@@ -65,7 +83,20 @@ jobs:
           path: dist
       - name: Create GitHub release
         run: |
-          version=$(tr -d '[:space:]' < spec/VERSION)
-          tag="v$version"
+          tag="spec-v$(tr -d '[:space:]' < spec/VERSION)"
           gh release create "$tag" dist/* --target "$(git rev-parse HEAD)" \
             --title "$tag" --generate-notes
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Commit bootstrap binary (after cutover)
+        if: hashFiles('dist/glyphc-*.wasm') != ''
+        env:
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          RUN_DATE: ${{ inputs.run_date }}
+        run: |
+          pip install -q -r tools/requirements.txt
+          git config user.name "glyph-mergebot"
+          git config user.email "glyph-mergebot@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          python -m tools.mergebot bootstrap dist/glyphc-*.wasm

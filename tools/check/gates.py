@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import conformance
+from . import conformance, untrusted
 
 HOST = Path(__file__).resolve().parent / "wasm_host.ts"
 DUMP_STAGES = ("tokens", "ast", "ir")
@@ -46,7 +46,7 @@ class Toolchain:
         self.tmp.mkdir(parents=True, exist_ok=True)
 
     def stage0(self, args):
-        p = subprocess.run(["node", str(self.tree / "compiler/stage0/src/main.ts"), *args],
+        p = untrusted.run(["node", str(self.tree / "compiler/stage0/src/main.ts"), *args],
                            cwd=str(self.tree), capture_output=True, timeout=conformance.TIMEOUT)
         return p.returncode, p.stdout, p.stderr.decode("utf-8", "replace")
 
@@ -172,7 +172,7 @@ def native(repo, records, tmp, platform=sys.platform):
         if rc != 0:
             return False, "native build of %s failed (rc %d): %s" % (r["id"], rc, err[-200:])
         try:
-            p = subprocess.run([str(exe)], input=r["stdin"].encode("utf-8"), capture_output=True,
+            p = untrusted.run([str(exe)], input=r["stdin"].encode("utf-8"), capture_output=True,
                                timeout=NATIVE_TIMEOUT)
         except subprocess.TimeoutExpired:
             return False, "native run of %s timed out" % r["id"]

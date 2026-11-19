@@ -185,6 +185,15 @@ class GateTests(unittest.TestCase):
         res = self._run(check_rules=self._checks(**{"5": False, "9": False}))
         self.assertEqual(R.first_failure(list(res.values()))["rule"], 5)
 
+    def test_stability_window_after_self_hosting(self):
+        stab = {"self_hosted": True, "last_breaking": "2026-11-15", "today": "2026-11-19"}
+        pr = self._pr(**{"class": "language", "rfc_present": True, "rfc_status": "accepted",
+                         "breaking": True,
+                         "changed_files": ["spec/a", "compiler/self/a", "conformance/a", "examples/a"]})
+        self.assertFalse(self._run(pr=pr, stability=stab)[2]["ok"])
+        self.assertTrue(self._run(pr=pr, stability=dict(stab, today="2026-11-22"))[2]["ok"])
+        self.assertTrue(self._run(pr=pr, stability=dict(stab, self_hosted=False))[2]["ok"])
+
     def test_owner_path_protection(self):
         self.assertTrue(R.is_protected("governance/roster.yml"))
         self.assertTrue(R.is_protected("tools/lib/audit.py"))
@@ -252,6 +261,19 @@ class MergebotRepoTests(RepoTestCase):
         self.write("governance/roster.yml", "agents: []\n")
         self.commit("Audit: roster touch\n\nBot: mergebot")
         self.assertEqual(MB.cmd_open(self.root)["owner_events"], 0)
+
+    def test_night_open_records_no_cycle(self):
+        MB.cmd_open(self.root, night=True)
+        self.assertNotIn("cycle_started", [e["type"] for e in audit.load_events(self.root)])
+
+    def test_bootstrap_installs_bytes_and_records_hash(self):
+        wasm = self.root / "built.wasm"
+        wasm.write_bytes(b"\0asm\x01\0\0\0")
+        out = MB.cmd_bootstrap(self.root, str(wasm))
+        self.assertEqual((self.root / "compiler" / "bootstrap" / "glyphc.wasm").read_bytes(),
+                         wasm.read_bytes())
+        releases = [e for e in audit.load_events(self.root) if e["type"] == "release"]
+        self.assertEqual(releases[-1]["data"]["sha256"], out["sha256"])
 
     def test_ingest_is_idempotent(self):
         pub = self.root / "pub"

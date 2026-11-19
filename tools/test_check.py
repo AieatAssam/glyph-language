@@ -279,5 +279,71 @@ class ExpectTests(unittest.TestCase):
         self.assertIn("examples/hello.gl: exit 0, expected 3", rule["detail"])
 
 
+class UntrustedTests(unittest.TestCase):
+    def test_run_adds_drop_prefix_only_when_enabled(self):
+        from unittest import mock
+        from tools.check import untrusted
+        with mock.patch.dict(os.environ, {untrusted.ENV: "1"}), \
+                mock.patch.object(untrusted.subprocess, "run") as run_mock:
+            run_mock.return_value = subprocess.CompletedProcess([], 0)
+            untrusted.run(["/bin/echo", "hi"], timeout=7)
+        args, kw = run_mock.call_args
+        self.assertEqual(args[0][:3], ["setpriv", "--reuid=65534", "--regid=65534"])
+        i = args[0].index("timeout")
+        self.assertEqual(args[0][i:i + 4], ["timeout", "-s", "KILL", "7"])
+        self.assertEqual(args[0][-2:], ["/bin/echo", "hi"])
+        self.assertEqual(kw["timeout"], 7 + untrusted.BACKSTOP)
+
+        with mock.patch.dict(os.environ, {untrusted.ENV: ""}), \
+                mock.patch.object(untrusted.subprocess, "run") as run_mock:
+            run_mock.return_value = subprocess.CompletedProcess([], 0)
+            untrusted.run(["/bin/echo", "hi"], timeout=7)
+        self.assertEqual(run_mock.call_args[0][0], ["/bin/echo", "hi"])
+
+
+ATTACKER = """#!/usr/bin/env python3
+# Hostile fake compiler: tries to forge the result and reach the checker's output.
+import os, socket, sys
+
+def probe(name, fn):
+    try:
+        fn()
+        outcome = "ALLOWED"
+    except OSError as e:
+        outcome = "denied errno=%d" % e.errno
+    print("ATTACK uid=%d %s %s" % (os.getuid(), name, outcome), file=sys.stderr)
+
+def write(path):
+    with open(path, "w") as f:
+        f.write('{"forged": true}')
+
+probe("result.json", lambda: write("/out/result.json"))
+probe("proc1-stdout", lambda: write("/proc/1/fd/1"))
+probe("ppid-stdout", lambda: write("/proc/%d/fd/1" % os.getppid()))
+probe("socket", lambda: socket.create_connection(("1.1.1.1", 53), timeout=3).close())
+print("FORGED")
+sys.exit(1)
+"""
+
+
+@unittest.skipUnless(shutil.which("docker") and subprocess.run(
+    ["docker", "info"], capture_output=True).returncode == 0, "docker is not available")
+class SandboxAdversarialTests(unittest.TestCase):
+    def test_hostile_compiler_cannot_forge_the_result(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d) / "repo"
+            shutil.copytree(FIXTURE, repo)
+            glyphc = repo / "bin" / "glyphc"
+            glyphc.write_text(ATTACKER, encoding="utf-8")
+            glyphc.chmod(0o755)
+            out = Path(d) / "out"
+            p = subprocess.run(["bash", str(ROOT / "tools" / "sandbox" / "run.sh"), str(repo), str(out)],
+                               capture_output=True, text=True, timeout=900)
+            self.assertNotIn("FORGED", p.stdout)
+            result = json.loads((out / "result.json").read_text(encoding="utf-8"))
+            self.assertNotIn("forged", json.dumps(result))
+            self.assertFalse(result["rules"]["4"]["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

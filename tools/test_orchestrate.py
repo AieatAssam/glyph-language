@@ -110,13 +110,17 @@ class Blindness(unittest.TestCase):
             self.assertNotIn("SECRET RFC BODY", a.body)
             self.assertNotIn("rfcs/", a.body)
 
-    def test_users_vote_on_titles_never_rfc_text(self):
-        repo = FakeRepo(files={"rfcs/0001-s0001.md": "SECRET RFC BODY"})
+    def test_users_vote_on_summary_and_examples_only(self):
+        text = ("## Summary\nSUMMARY TEXT\n## Design\nSECRET RFC BODY\n"
+                "## Examples\nEXAMPLE TEXT\n")
+        repo = FakeRepo(files={"rfcs/0001-s0001.md": text})
         st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="voting")}}
         asgs = {a.agent: a for a in run("vote", state=st, repo=repo)}
         for u in USERS:
             self.assertIn(u, asgs)
             self.assertIn("t0001", asgs[u].body)
+            self.assertIn("SUMMARY TEXT", asgs[u].body)
+            self.assertIn("EXAMPLE TEXT", asgs[u].body)
             self.assertNotIn("SECRET RFC BODY", asgs[u].body)
         self.assertIn("SECRET RFC BODY", asgs["designer-prag"].body)
 

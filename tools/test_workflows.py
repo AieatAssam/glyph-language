@@ -5,6 +5,7 @@ Run from the repository root: python3 -m unittest tools.test_workflows
 import json
 import pathlib
 import re
+import subprocess
 import sys
 import unittest
 
@@ -19,7 +20,7 @@ AGENT_ENV = "agents"
 SECRET_JOBS = {("phase.yml", "agents"), ("bench.yml", "generate")}
 MAX_NESTING = 10
 USES_RE = re.compile(r"[\w.-]+/[\w.-]+(?:/[\w./-]+)?@v\d+")
-MODULE_RE = re.compile(r"python3? -m ((?:tools|bench)(?:\.\w+)*)")
+MODULE_RE = re.compile(r"python3? -m ((?:tools|bench)(?:\.\w+)*)(?:\s+([a-z][a-z-]*))?")
 
 
 def load_workflows():
@@ -232,11 +233,28 @@ class WorkflowTests(unittest.TestCase):
         for name, doc in self.docs.items():
             for job_id, job in jobs_of(doc).items():
                 for step in steps_of(job):
-                    for mod in MODULE_RE.findall(step.get("run", "") or ""):
+                    for mod, _sub in MODULE_RE.findall(step.get("run", "") or ""):
                         if not module_exists(mod):
                             missing.add(mod)
         for mod in sorted(missing):
             print(f"WARNING: workflow calls {mod}, which is not in the repo yet", file=sys.stderr)
+
+    def test_subcommands_answer_help(self):
+        # `python -m tools.mergebot open` must parse its subcommand; --help exits 0 without side effects.
+        found = set()
+        for doc in self.docs.values():
+            for job in jobs_of(doc).values():
+                for step in steps_of(job):
+                    for mod, sub in MODULE_RE.findall(step.get("run", "") or ""):
+                        if sub and module_exists(mod):
+                            found.add((mod, sub))
+        self.assertIn(("tools.mergebot", "open"), found)
+        for mod, sub in sorted(found):
+            with self.subTest(command=f"{mod} {sub}"):
+                proc = subprocess.run([sys.executable, "-m", mod, sub, "--help"], cwd=ROOT,
+                                      capture_output=True, text=True, timeout=60)
+                self.assertEqual(proc.returncode, 0, proc.stderr[-300:])
+                self.assertIn(sub, proc.stdout)
 
 
 if __name__ == "__main__":

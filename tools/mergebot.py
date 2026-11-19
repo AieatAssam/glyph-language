@@ -1,6 +1,6 @@
 """Deterministic merge bot. No LLM makes any decision here.
 
-Usage: python -m tools.mergebot <open|ingest|decide|merge|close|verify> [args]
+Usage: python -m tools.mergebot <open|ingest|decide|merge|close|verify|bootstrap> [args]
 Root is $GLYPH_ROOT, else the current directory. Timestamps come from $GLYPH_TS or RUN_DATE.
 """
 import argparse
@@ -67,14 +67,40 @@ def owner_scan(root) -> int:
     return count
 
 
-def cmd_open(root) -> dict:
+def cmd_open(root, night=False) -> dict:
+    """Verify the chain and record owner changes. A cycle also records its start.
+
+    Each job checks out base fresh, so the audit commit is pushed here, before the next job runs.
+    """
     ok, bad = audit.verify_chain(root)
     if not ok:
         raise SystemExit(f"audit chain broken at seq {bad}")
-    owner = owner_scan(root)
-    cycle = cycle_id()
-    _emit(root, "cycle_started", {}, {"cycle": cycle}, f"cycle:{cycle}")
-    return {"cycle": cycle, "owner_events": owner}
+    out = {"owner_events": owner_scan(root)}
+    if not night:
+        cycle = cycle_id()
+        _emit(root, "cycle_started", {}, {"cycle": cycle}, f"cycle:{cycle}")
+        out["cycle"] = cycle
+    out["commit"] = gitops.commit_all(root, "Audit: open\n\nBot: mergebot", paths=["audit"])
+    gitops.remote_sync(root)
+    return out
+
+
+def cmd_bootstrap(root, wasm) -> dict:
+    """Install a built self-compiler as compiler/bootstrap/glyphc.wasm. Copies and hashes it; never runs it."""
+    ok, bad = audit.verify_chain(root)
+    if not ok:
+        raise SystemExit(f"audit chain broken at seq {bad}")
+    data = Path(wasm).read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    dest = Path(root) / "compiler" / "bootstrap" / "glyphc.wasm"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    _emit(root, "release", {}, {"artifact": "compiler/bootstrap/glyphc.wasm", "sha256": digest,
+                                "bytes": len(data)}, f"bootstrap:{digest}")
+    sha = gitops.commit_all(root, "Audit: bootstrap compiler\n\nBot: mergebot",
+                            paths=["audit", "compiler/bootstrap"])
+    gitops.remote_sync(root)
+    return {"installed": "compiler/bootstrap/glyphc.wasm", "sha256": digest, "commit": sha}
 
 
 # ---- ingest: publisher events, sessions, audit commit ------------------------
@@ -234,6 +260,16 @@ def _stale(root, check) -> bool:
     return bool(out.strip())
 
 
+def _stability(root) -> dict:
+    """Inputs to the stability window in gate rule 2: self-hosting, the last breaking merge, tonight."""
+    active_file = Path(root) / "compiler" / "ACTIVE"
+    active = active_file.read_text(encoding="utf-8").strip() if active_file.exists() else "stage0"
+    breaking = [e["ts"][:10] for e in audit.load_events(root)
+                if e["type"] == "merged" and (e.get("data") or {}).get("breaking")]
+    return {"self_hosted": active == "self", "last_breaking": max(breaking) if breaking else None,
+            "today": run_date()}
+
+
 def cmd_merge(root, checkdir, benchdir=None) -> dict:
     ok, bad = audit.verify_chain(root)
     if not ok:
@@ -241,6 +277,7 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
     rules = _rules(root)
     roster = RO.load_roster(root)
     st = S.load_state(root)
+    stab = _stability(root)
     for n in sorted(st["prs"], key=int):
         pr = st["prs"][n]
         if pr["status"] != "open":
@@ -256,11 +293,13 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
             "pr": {"class": pr["class"], "role": RO.role_of(roster, pr["author"]),
                    "rfc_present": rfc is not None, "rfc_status": rfc["status"] if rfc else None,
                    "rfc_accepted_super": bool(rfc and rfc.get("accepted_super")),
+                   "breaking": bool(rfc and rfc.get("breaking")),
                    "changed_files": gitops.changed_files(root, check["base_sha"], check["sha"]),
                    "head_sha": pr["head_sha"], "reviews": pr["reviews"]},
             "check_rules": {k: v.get("ok") for k, v in check.get("rules", {}).items()},
             "tests_altered": gitops.removed_test_lines(root, check["base_sha"], check["sha"]),
             "bench": bench,
+            "stability": stab,
         }
         results = R.evaluate_gate(ctx, rules)
         _emit(root, "check_run", {"pr": int(n)},
@@ -303,7 +342,8 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     rfc_implemented = bool(pr.get("rfc")) and pr.get("subtask") is None
     _emit(root, "merged", {"pr": int(n)},
           {"sha": merge_sha, "class": pr["class"], "spec_after": new_version,
-           "rfc_implemented": rfc_implemented}, f"merged:{n}:{merge_sha}")
+           "rfc_implemented": rfc_implemented, "breaking": bool(rfc and rfc.get("breaking"))},
+          f"merged:{n}:{merge_sha}")
     gitops.commit_all(root, "Audit: merged PR\n\nBot: mergebot", paths=["audit"])
     gitops.remote_sync(root)
     if not gh.dry():
@@ -386,7 +426,8 @@ def cmd_verify(root) -> dict:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m tools.mergebot")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("open")
+    op = sub.add_parser("open")
+    op.add_argument("--night", action="store_true", help="nightly: verify and owner-scan only")
     ing = sub.add_parser("ingest")
     ing.add_argument("pubdirs", nargs="+")
     sub.add_parser("decide")
@@ -395,10 +436,14 @@ def main(argv=None) -> int:
     mg.add_argument("benchdir", nargs="?")
     sub.add_parser("close")
     sub.add_parser("verify")
+    bs = sub.add_parser("bootstrap")
+    bs.add_argument("wasm")
     a = p.parse_args(argv)
     root = Path(os.environ.get("GLYPH_ROOT") or os.getcwd())
     if a.cmd == "open":
-        out = cmd_open(root)
+        out = cmd_open(root, night=a.night)
+    elif a.cmd == "bootstrap":
+        out = cmd_bootstrap(root, a.wasm)
     elif a.cmd == "ingest":
         out = cmd_ingest(root, a.pubdirs)
     elif a.cmd == "decide":

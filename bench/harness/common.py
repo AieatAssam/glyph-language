@@ -12,6 +12,8 @@ from pathlib import Path
 
 import yaml
 
+from tools.check import untrusted
+
 ROOT = Path(__file__).resolve().parents[2]
 DEV_TASKS = ROOT / "bench" / "tasks" / "dev"
 SUBSET_FILE = ROOT / "bench" / "tasks" / "gate_subset.txt"
@@ -130,7 +132,7 @@ def heldout_secret() -> str:
 def run_program(cmd: list[str], stdin: str, cwd: Path | None = None, timeout: float = RUN_TIMEOUT) -> dict:
     """Run a command with stdin text. Returns exit, stdout (capped), stderr, timed_out."""
     try:
-        p = subprocess.run(cmd, input=stdin.encode("utf-8"), cwd=cwd, capture_output=True,
+        p = untrusted.run(cmd, input=stdin.encode("utf-8"), cwd=cwd, capture_output=True,
                            timeout=timeout)
         out = p.stdout[:STDOUT_LIMIT].decode("utf-8", "replace")
         return {"exit": p.returncode, "stdout": out,

@@ -12,11 +12,10 @@ import argparse
 import json
 import re
 import sys
-import tempfile
 import time
 from pathlib import Path
 
-from . import conformance, gates, peg, tokens
+from . import conformance, gates, peg, tokens, untrusted
 
 HERE = Path(__file__).resolve().parent
 HOST = HERE / "wasm_host.ts"
@@ -202,8 +201,8 @@ def run_checks(repo):
         ctx["rules"] = load_rules(repo)
     except Exception as e:
         ctx["rules_error"] = "%s: %s" % (type(e).__name__, e)
-    with tempfile.TemporaryDirectory(prefix="glyph-check-") as tmpdir:
-        ctx["tmp"] = Path(tmpdir)
+    with untrusted.scratch("glyph-check-") as tmpdir:
+        ctx["tmp"] = tmpdir
         if ctx["rules"] is not None:
             caps = _caps(ctx["rules"])
             try:
@@ -229,6 +228,7 @@ def main(argv=None):
     ap.add_argument("--sha")
     ap.add_argument("--base-sha")
     a = ap.parse_args(argv)
+    untrusted.harden()
     result = run_checks(a.repo)
     result = {"pr": a.pr, "sha": a.sha, "base_sha": a.base_sha, **result}
     Path(a.out).write_bytes(canon(result))
