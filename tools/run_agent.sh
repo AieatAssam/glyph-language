@@ -39,6 +39,9 @@ run_date="${RUN_DATE:-$(date -u +%Y-%m-%d)}"
 cycle="${CYCLE:-1}"
 case "$phase" in architect|architect-weekly|scribe|bench) cycle=0 ;; esac
 session="$run_date/c$cycle/$phase/$agent"
+# The orchestrator's session id wins: it carries the run id that keeps same-day runs apart.
+listed="$(python3 -c 'import json,sys,os; p=os.path.join(os.path.dirname(sys.argv[1]),"assignments.json"); print(next((e["session"] for e in (json.load(open(p)) if os.path.exists(p) else []) if e["agent"]==sys.argv[2]),""))' "$assignment" "$agent")"
+session="${listed:-$session}"
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/glyph-run.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
