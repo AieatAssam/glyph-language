@@ -530,7 +530,8 @@ def write(outdir: Path, asgs: list[Asg], run_date: str, cycle: int) -> None:
     entries = []
     for a in asgs:
         c = 0 if a.phase in ARCH_PHASES else cycle
-        session = f"{run_date}/c{c}/{a.phase}/{a.agent}"
+        run = os.environ.get("GLYPH_RUN")  # same rule as tools.lib.audit.cycle_id
+        session = f"{run_date}/{f'r{run}/' if run else ''}c{c}/{a.phase}/{a.agent}"
         text = f"<!-- assignment {canon(a.header)} -->\n\n{a.body}\n"
         (outdir / f"{a.agent}.md").write_text(text, encoding="utf-8")
         entries.append({"agent": a.agent, "session": session, "phase": a.phase, "file": f"{a.agent}.md"})

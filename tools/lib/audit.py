@@ -1,6 +1,7 @@
 """Hash-chained, append-only event log at audit/events.jsonl (CONTRACTS.md, spec section 11)."""
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import jsonschema
@@ -84,3 +85,9 @@ def verify_chain(root):
             return False, seq
         prev = e["hash"]
     return True, None
+
+
+def cycle_id(run_date: str, cycle) -> str:
+    """Session prefix. GLYPH_RUN (the workflow run id) keeps two runs on one date apart; re-runs keep it."""
+    run = os.environ.get("GLYPH_RUN")
+    return f"{run_date}/r{run}/c{cycle}" if run else f"{run_date}/c{cycle}"

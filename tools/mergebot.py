@@ -34,7 +34,7 @@ def run_date() -> str:
 
 
 def cycle_id() -> str:
-    return f"{run_date()}/c{os.environ.get('CYCLE', '1')}"
+    return audit.cycle_id(run_date(), os.environ.get("CYCLE", "1"))
 
 
 def now_ts() -> str:
@@ -149,8 +149,7 @@ def cmd_ingest(root, pubdirs) -> dict:
                                   idem=f"session:{meta['session']}"):
                 appended += 1
             if tpath.exists():
-                dest = Path(root) / "audit" / "transcripts" / meta["session"].split("/")[0].replace("/", "-")
-                dest = dest / meta["phase"] / f"{meta['agent']}.jsonl.gz"
+                dest = Path(root) / "audit" / "transcripts" / f"{meta['session']}.jsonl.gz"
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 with gzip.open(dest, "wb") as f:
                     f.write(tpath.read_bytes())

@@ -6,6 +6,8 @@ agents and the event log in a temp root: no network, no git writes, no GitHub.
 import json
 import tempfile
 import unittest
+from unittest import mock
+import os
 from pathlib import Path
 
 import jsonschema
@@ -171,6 +173,18 @@ class Determinism(unittest.TestCase):
                 o.write(Path(d), asgs, "2026-11-19", 1)
                 outs.append({p.name: p.read_bytes() for p in sorted(Path(d).iterdir())})
         self.assertEqual(outs[0], outs[1])
+
+    def test_run_id_keeps_same_day_sessions_apart(self):
+        st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="voting")}}
+        asgs = run("vote", state=st, repo=FakeRepo({"rfcs/0001-s0001.md": "body"}))
+        sessions = []
+        for env in ({}, {"GLYPH_RUN": "7"}):
+            with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, env):
+                os.environ.pop("GLYPH_RUN", None) if not env else None
+                o.write(Path(d), asgs, "2026-11-19", 2)
+                sessions.append(json.loads((Path(d) / "assignments.json").read_text())[0]["session"])
+        self.assertTrue(sessions[0].startswith("2026-11-19/c2/vote/"))
+        self.assertTrue(sessions[1].startswith("2026-11-19/r7/c2/vote/"))
 
     def test_m0_plans_nothing(self):
         self.assertEqual(run("design", rules=dict(M2, milestone="M0")), [])

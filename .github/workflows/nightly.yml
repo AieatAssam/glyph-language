@@ -95,6 +95,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
       RUN_DATE: ${{ needs.setup.outputs.run_date }}
+      GLYPH_RUN: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -312,6 +313,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
       RUN_DATE: ${{ needs.setup.outputs.run_date }}
+      GLYPH_RUN: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:

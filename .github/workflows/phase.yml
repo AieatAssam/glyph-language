@@ -30,6 +30,7 @@ on:
 env:
   BASE_BRANCH: ${{ inputs.base_branch }}
   RUN_DATE: ${{ inputs.run_date }}
+  GLYPH_RUN: ${{ github.run_id }}
   CYCLE: ${{ inputs.cycle }}
   AGENT_MODE: ${{ inputs.agent_mode }}
 
