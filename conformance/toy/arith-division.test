@@ -1,0 +1,13 @@
+--- meta
+id: toy/arith-division
+rfc: 0001
+kind: run
+--- source
+print 7 / 2
+print 0 - 7 / 2
+--- stdin
+--- expect-stdout
+3
+-3
+--- expect-exit
+0
