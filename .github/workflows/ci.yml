@@ -27,12 +27,16 @@ jobs:
         run: python -m unittest discover -s tools -t . -p 'test_*.py'
       - name: Node tests
         run: |
-          mapfile -t files < <(find . -name '*.test.ts' -not -path '*/node_modules/*')
+          mapfile -t files < <(find . -name '*.test.ts' -not -path '*/node_modules/*' -not -path './tools/scripted/fixtures/*')
           if [ "${#files[@]}" -gt 0 ]; then
             node --test "${files[@]}"
           else
             echo "no node tests"
           fi
+      - name: Scripted toy fixture tests (overlaid on a repo copy)
+        run: |
+          t=$(mktemp -d); cp -R bin toolkit tools governance "$t"/; cp -R tools/scripted/fixtures/toy/* "$t"/
+          (cd "$t" && node --test 'compiler/stage0/**/*.test.ts' && python -m tools.check.run --repo . --out r.json && python -c "import json,sys;r=json.load(open('r.json'));bad=[k for k,v in r['rules'].items() if not v['ok']];print(bad);sys.exit(1 if bad else 0)")
       - name: Load governance rules
         run: python -c "from tools.lib.rules import load_rules; load_rules('.')"
       - name: Verify audit log

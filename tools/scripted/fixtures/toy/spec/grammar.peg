@@ -1,9 +1,10 @@
-# Toy grammar (0.1.0). Whitespace is skipped by the lexer, not shown here.
-Program   <- (Blank / Statement)* EOF
-Blank     <- NEWLINE
-Statement <- "print" Expr (NEWLINE / EOF)
-Expr      <- Term (("+" / "-") Term)*
-Term      <- Atom (("*" / "/") Atom)*
-Atom      <- INT / "(" Expr ")"
+# Toy grammar (0.1.0). The grammar is exact: no implicit whitespace, so Space is written where it may occur.
+Program   <- (Blank / Statement)* !.
+Blank     <- Space NEWLINE
+Statement <- "print" Space Expr Space (NEWLINE / !.)
+Expr      <- Term (Space ("+" / "-") Space Term)*
+Term      <- Atom (Space ("*" / "/") Space Atom)*
+Atom      <- INT / "(" Space Expr Space ")"
 INT       <- [0-9]+
+Space     <- [ \t\r]*
 NEWLINE   <- "\n"

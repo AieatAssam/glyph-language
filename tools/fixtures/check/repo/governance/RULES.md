@@ -1,6 +1,6 @@
 # Fixture rules
 
-```yaml
+```yaml rules
 caps:
   core_spec_tokens: 12000
   card_tokens: 2000

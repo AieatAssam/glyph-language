@@ -28,14 +28,9 @@ def canon(obj):
 
 
 def load_rules(repo):
-    """Read the fenced yaml block in governance/RULES.md that defines caps."""
-    import yaml  # lazy: only the check path needs PyYAML
-    text = (Path(repo) / "governance" / "RULES.md").read_text(encoding="utf-8")
-    for block in re.findall(r"```yaml\n(.*?)\n```", text, re.S):
-        data = yaml.safe_load(block)
-        if isinstance(data, dict) and "caps" in data:
-            return data
-    raise ValueError("no yaml rules block with caps in governance/RULES.md")
+    """The ```yaml rules block of governance/RULES.md (single shared parser)."""
+    from tools.lib.rules import load_rules as _load
+    return _load(repo)
 
 
 def rule_4(ctx):
