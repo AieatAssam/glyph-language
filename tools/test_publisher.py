@@ -268,8 +268,11 @@ class PublisherTests(unittest.TestCase):
                 {"type": "digest", "title": "Week 46", "body": "Things happened."},
             ]),
         ]
-        _, rep, out = self.run_pub(sessions, state=voting_state())
+        pub, rep, out = self.run_pub(sessions, state=voting_state())
         self.assertEqual(rep["refused"], [])
+        reviews = [x for x in pub.dry_log if x.get("gh", [])[:2] == ["pr", "review"]]
+        self.assertEqual([x["gh"][3] for x in reviews], ["--comment"])  # own-PR approve is refused by GitHub
+        self.assertIn("**Verdict: Approve**", reviews[0]["stdin"])
         events = [json.loads(x) for x in (out / "events.jsonl").read_text(encoding="utf-8").splitlines()]
         types = {e["type"] for e in events}
         self.assertTrue({"rfc_opened", "comment_posted", "vote_cast", "pr_opened", "pr_updated",

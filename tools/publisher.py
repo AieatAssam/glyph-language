@@ -600,9 +600,11 @@ class Publisher:
         key = self._key(ses, i)
         pr = a["pr"]
         if not self._find(key, f"repos/{self.repo}/pulls/{pr}/reviews"):
-            flag = "--approve" if a["verdict"] == "approve" else "--request-changes"
-            self._gh(["pr", "review", str(pr), flag, "--body-file", "-"],
-                     stdin=self._text(ses, key, a["body"]))
+            # Every PR is opened by this same token, and GitHub refuses approve/request-changes on
+            # your own PR. The verdict lives in the body and in review_posted (what gate rule 14 reads).
+            verdict = "Approve" if a["verdict"] == "approve" else "Request changes"
+            self._gh(["pr", "review", str(pr), "--comment", "--body-file", "-"],
+                     stdin=self._text(ses, key, f"**Verdict: {verdict}**\n\n{a['body']}"))
         sha = self._gh(["pr", "view", str(pr), "--json", "headRefOid", "--jq", ".headRefOid"])
         self._event(ses, i, "review_posted", {"pr": pr}, {"verdict": a["verdict"], "sha": sha})
         return {"pr": pr, "verdict": a["verdict"]}
