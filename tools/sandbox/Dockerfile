@@ -8,7 +8,8 @@ ARG TARGETARCH
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-yaml python3-jsonschema ca-certificates curl xz-utils \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && ln -sf /usr/bin/python3 /usr/local/bin/python
 
 RUN case "${TARGETARCH:-amd64}" in \
       amd64) WT_ARCH=x86_64 ;; \
@@ -28,3 +29,5 @@ ENV HOME=/home/runner PYTHONDONTWRITEBYTECODE=1
 # /out is root-owned and private to the checker: untrusted code runs as uid 65534 and cannot open it.
 RUN install -d -m 0700 -o root -g root /out
 WORKDIR /checker
+# node's docker-entrypoint rewrites unknown commands to `node CMD`; run commands as given.
+ENTRYPOINT []
