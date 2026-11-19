@@ -1,0 +1,52 @@
+name: ci
+
+# Checks on every push to main. No pull_request trigger: agent PRs are checked by cycle.yml.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Python tests
+        run: python -m unittest discover -s tools -t . -p 'test_*.py'
+      - name: Node tests
+        run: |
+          mapfile -t files < <(find . -name '*.test.ts' -not -path '*/node_modules/*')
+          if [ "${#files[@]}" -gt 0 ]; then
+            node --test "${files[@]}"
+          else
+            echo "no node tests"
+          fi
+      - name: Load governance rules
+        run: python -c "from tools.lib.rules import load_rules; load_rules('.')"
+      - name: Verify audit log
+        run: python -m tools.mergebot verify
+
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Build site data
+        run: python site/build_data.py

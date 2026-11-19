@@ -1,0 +1,6 @@
+id: user-1
+role: user
+model: claude-haiku-5-5
+effort: null
+votes: true
+persona: "Writes everyday programs: text, numbers, small tools."

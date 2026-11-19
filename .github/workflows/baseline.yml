@@ -1,0 +1,28 @@
+name: baseline
+
+# Manual baseline run of the bench harness. Shares the nightly group so it never overlaps a night.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch that plays the role of main
+        type: string
+        default: main
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  bench-baseline:
+    uses: ./.github/workflows/bench.yml
+    permissions:
+      contents: read
+    with:
+      scope: baseline
+      cycle: "0"
+      base_branch: ${{ inputs.base_branch || 'main' }}
+    secrets: inherit

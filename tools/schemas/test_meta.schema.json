@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "glyph://tools/schemas/test_meta.schema.json",
+  "title": "Conformance test meta block",
+  "description": "The `--- meta` block of conformance/<feature>/<name>.test (spec section 7). The publisher checks it on every conformance file an agent writes. An integer rfc is zero-padded to four digits before checking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "rfc", "kind"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)+$"},
+    "rfc": {"type": "string", "pattern": "^[0-9]{4}$"},
+    "kind": {"enum": ["run", "compile-error", "trap", "fmt", "fix"]}
+  }
+}

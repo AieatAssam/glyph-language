@@ -1,0 +1,12 @@
+--- meta
+id: arith/divide-by-zero-traps
+rfc: 0002
+kind: trap
+--- source
+print 1
+print 1 / 0
+--- stdin
+--- expect-stdout
+1
+--- expect-exit
+1

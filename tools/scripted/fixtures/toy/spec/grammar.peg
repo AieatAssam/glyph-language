@@ -1,0 +1,9 @@
+# Toy grammar (0.1.0). Whitespace is skipped by the lexer, not shown here.
+Program   <- (Blank / Statement)* EOF
+Blank     <- NEWLINE
+Statement <- "print" Expr (NEWLINE / EOF)
+Expr      <- Term (("+" / "-") Term)*
+Term      <- Atom (("*" / "/") Atom)*
+Atom      <- INT / "(" Expr ")"
+INT       <- [0-9]+
+NEWLINE   <- "\n"

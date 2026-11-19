@@ -1,0 +1,7 @@
+--- meta
+id: errors/bad
+kind: compile-error
+--- source
+ERROR
+--- expect-errors
+E0001 1

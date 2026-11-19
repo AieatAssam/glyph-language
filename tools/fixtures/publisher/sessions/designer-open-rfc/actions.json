@@ -1,0 +1,11 @@
+{
+  "actions": [
+    {
+      "type": "open_rfc",
+      "title": "Card syntax",
+      "slug": "card-syntax",
+      "class": "language",
+      "file": "drafts/card.md"
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+name: nightly
+
+# The nightly run. Order: open (merge bot), architect, cycles 1 to 6 (each guarded by
+# cycles_per_night from RULES.md, capped at 6), then bench-nightly, scribe, close, release, site.
+# Secrets reach cycle.yml and below only through `secrets: inherit`. Every call job sets the
+# permission ceiling for its callee. Nothing here sets `environment` on a call job.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch that plays the role of main
+        type: string
+        default: main
+      agent_mode:
+        description: live runs Claude Code, scripted runs the canned agents
+        type: choice
+        options: [live, scripted]
+        default: live
+      cycles:
+        description: Cycles this night, 0 to 6. Empty uses cycles_per_night from RULES.md
+        type: string
+        required: false
+      attack:
+        description: Reserved for the attack harness. Unused in M1
+        type: string
+        required: false
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      run_date: ${{ steps.vars.outputs.run_date }}
+      cycles: ${{ steps.vars.outputs.cycles }}
+      bench_on: ${{ steps.vars.outputs.bench_on }}
+      base_branch: ${{ steps.vars.outputs.base_branch }}
+      agent_mode: ${{ steps.vars.outputs.agent_mode }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch || 'main' }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Read nightly settings
+        id: vars
+        env:
+          CYCLES_IN: ${{ inputs.cycles }}
+          BASE_IN: ${{ inputs.base_branch || 'main' }}
+          MODE_IN: ${{ inputs.agent_mode || 'live' }}
+        run: |
+          python3 - <<'PY'
+          import datetime, os, pathlib, re, yaml
+          text = pathlib.Path("governance/RULES.md").read_text(encoding="utf-8")
+          block = re.search(r"^```yaml rules\n(.*?)^```", text, re.S | re.M).group(1)
+          rules = yaml.safe_load(block)
+          cycles = int(rules["cycles_per_night"])
+          if os.environ["CYCLES_IN"].strip():
+              cycles = int(os.environ["CYCLES_IN"])
+          cycles = max(0, min(6, cycles))
+          run_date = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+          bench_on = "true" if rules.get("gates", {}).get("bench") else "false"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"run_date={run_date}\n")
+              out.write(f"cycles={cycles}\n")
+              out.write(f"bench_on={bench_on}\n")
+              out.write(f"base_branch={os.environ['BASE_IN']}\n")
+              out.write(f"agent_mode={os.environ['MODE_IN']}\n")
+          PY
+
+  open:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
+      RUN_DATE: ${{ needs.setup.outputs.run_date }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Verify audit chain and open the night
+        run: python -m tools.mergebot open
+
+  architect:
+    needs: [setup, open]
+    if: needs.open.result == 'success'
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: architect
+      cycle: "0"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+    secrets: inherit
+
+  cycle-1:
+    needs: [setup, open, architect]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 1
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "1"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  cycle-2:
+    needs: [setup, open, cycle-1]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 2
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "2"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  cycle-3:
+    needs: [setup, open, cycle-2]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 3
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "3"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  cycle-4:
+    needs: [setup, open, cycle-3]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 4
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "4"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  cycle-5:
+    needs: [setup, open, cycle-4]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 5
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "5"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  cycle-6:
+    needs: [setup, open, cycle-5]
+    if: always() && needs.open.result == 'success' && fromJSON(needs.setup.outputs.cycles) >= 6
+    uses: ./.github/workflows/cycle.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      cycle: "6"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+      bench_on: ${{ needs.setup.outputs.bench_on }}
+    secrets: inherit
+
+  bench-nightly:
+    needs: [setup, cycle-1, cycle-2, cycle-3, cycle-4, cycle-5, cycle-6]
+    if: always() && needs.setup.outputs.bench_on == 'true'
+    uses: ./.github/workflows/bench.yml
+    permissions:
+      contents: read
+    with:
+      scope: nightly
+      cycle: "0"
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+    secrets: inherit
+
+  scribe:
+    needs: [setup, open, cycle-1, cycle-2, cycle-3, cycle-4, cycle-5, cycle-6, bench-nightly]
+    if: always() && needs.open.result == 'success'
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: scribe
+      cycle: "0"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+    secrets: inherit
+
+  close:
+    needs: [setup, scribe]
+    if: always() && needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    outputs:
+      release: ${{ steps.close.outputs.release }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}
+      RUN_DATE: ${{ needs.setup.outputs.run_date }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Close the night
+        id: close
+        run: |
+          python -m tools.mergebot close | tee close.log
+          if grep -qx 'release=true' close.log; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: [setup, close]
+    if: needs.close.outputs.release == 'true'
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      run_date: ${{ needs.setup.outputs.run_date }}
+    secrets: inherit
+
+  site:
+    needs: [setup, close]
+    if: always() && needs.setup.outputs.base_branch == 'main' && needs.close.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Build site data
+        run: python site/build_data.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+      - name: Deploy to Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

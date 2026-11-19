@@ -1,0 +1,12 @@
+--- meta
+id: math/sub
+rfc: 0004
+kind: run
+--- source
+fn main() { print(1 + 2) }
+--- stdin
+
+--- expect-stdout
+3
+--- expect-exit
+0

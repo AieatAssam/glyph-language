@@ -1,0 +1,6 @@
+{
+  "user-1": {"title": "print cannot label its output",
+    "body": "Program: print 2 * 3 + 4\nI wanted to label the output as total. The toy language has no text, so I had to guess the layout.\nMessage: none, the program ran. The gap is the missing text."},
+  "user-2": {"title": "Long sums with parentheses are hard to check",
+    "body": "Program: print ((1 + 2) * (3 + 4)) - 5\nThe output is right, but the spec says nothing about how an unbalanced parenthesis is reported beyond E0003.\nMessage: none."}
+}

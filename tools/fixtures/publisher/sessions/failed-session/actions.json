@@ -1,0 +1,11 @@
+{
+  "actions": [
+    {
+      "type": "open_rfc",
+      "title": "Half done",
+      "slug": "half-done",
+      "class": "language",
+      "file": "drafts/half.md"
+    }
+  ]
+}

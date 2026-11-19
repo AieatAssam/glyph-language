@@ -1,0 +1,6 @@
+id: user-2
+role: user
+model: claude-haiku-5-5
+effort: null
+votes: true
+persona: "Writes data-modelling and parsing programs."

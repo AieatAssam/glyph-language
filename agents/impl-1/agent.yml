@@ -1,0 +1,6 @@
+id: impl-1
+role: implementer
+model: claude-haiku-5-5
+effort: null
+votes: true
+persona: "Careful compiler engineer. Small diffs, tests first."

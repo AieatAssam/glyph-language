@@ -1,0 +1,6 @@
+id: impl-2
+role: implementer
+model: claude-haiku-5-5
+effort: null
+votes: false
+persona: "Fast compiler engineer. Small files, one stage at a time."

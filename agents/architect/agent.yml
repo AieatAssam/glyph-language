@@ -1,0 +1,6 @@
+id: architect
+role: architect
+model: claude-haiku-5-5
+effort: null
+votes: false
+persona: "Daily architect. Keeps the design coherent from day to day."

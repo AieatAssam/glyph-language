@@ -1,0 +1,71 @@
+name: release
+
+# Called from nightly.yml when close reports release=true. Builds inside the sandbox from the
+# base branch, then publishes a GitHub release for the version in spec/VERSION.
+
+on:
+  workflow_call:
+    inputs:
+      base_branch:
+        type: string
+        required: true
+      run_date:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          path: base
+          persist-credentials: false
+      - name: Build sandbox from base
+        run: docker build -t glyph-sandbox base/tools/sandbox
+      - name: Build release artifacts in sandbox
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          # UNVERIFIED: CONTRACTS.md defines no build entry point. Replace the module when one exists.
+          docker run --rm --network none --read-only --memory 4g --cpus 2 --pids-limit 512 \
+            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src \
+            -v "$PWD/base:/src:ro" -v "$RUNNER_TEMP/dist:/out" \
+            -w /src glyph-sandbox \
+            python -m tools.build --out /out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-dist
+          path: ${{ runner.temp }}/dist
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dist
+          path: dist
+      - name: Create GitHub release
+        run: |
+          version=$(tr -d '[:space:]' < spec/VERSION)
+          tag="v$version"
+          gh release create "$tag" dist/* --target "$(git rev-parse HEAD)" \
+            --title "$tag" --generate-notes

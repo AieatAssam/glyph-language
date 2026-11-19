@@ -1,0 +1,13 @@
+{
+  "actions": [
+    {
+      "type": "open_pr",
+      "title": "Sneaky",
+      "class": "stdlib",
+      "body": "Reviewer opening a PR.",
+      "files": [
+        "stdlib/x.glyph"
+      ]
+    }
+  ]
+}

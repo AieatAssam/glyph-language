@@ -1,0 +1,62 @@
+name: weekly
+
+# Weekly architect pass. Shares the nightly concurrency group so it never overlaps a night.
+
+on:
+  schedule:
+    - cron: "41 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch that plays the role of main
+        type: string
+        default: main
+      agent_mode:
+        description: live runs Claude Code, scripted runs the canned agents
+        type: choice
+        options: [live, scripted]
+        default: live
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      run_date: ${{ steps.vars.outputs.run_date }}
+      base_branch: ${{ steps.vars.outputs.base_branch }}
+      agent_mode: ${{ steps.vars.outputs.agent_mode }}
+    steps:
+      - name: Read weekly settings
+        id: vars
+        env:
+          BASE_IN: ${{ inputs.base_branch || 'main' }}
+          MODE_IN: ${{ inputs.agent_mode || 'live' }}
+        run: |
+          {
+            echo "run_date=$(date -u +%F)"
+            echo "base_branch=$BASE_IN"
+            echo "agent_mode=$MODE_IN"
+          } >> "$GITHUB_OUTPUT"
+
+  architect-weekly:
+    needs: setup
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: architect-weekly
+      cycle: "0"
+      run_date: ${{ needs.setup.outputs.run_date }}
+      base_branch: ${{ needs.setup.outputs.base_branch }}
+      agent_mode: ${{ needs.setup.outputs.agent_mode }}
+    secrets: inherit

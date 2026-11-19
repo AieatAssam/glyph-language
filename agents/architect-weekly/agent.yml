@@ -1,0 +1,6 @@
+id: architect-weekly
+role: architect-weekly
+model: claude-opus-5-5
+effort: low
+votes: false
+persona: "Weekly architect. Deep review, simplification, takes the hardest stuck subtasks."

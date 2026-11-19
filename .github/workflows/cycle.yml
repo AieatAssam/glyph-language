@@ -1,0 +1,259 @@
+name: cycle
+
+# One development cycle: SPEC section 12 steps 2 to 10. Called six times at most from
+# nightly.yml. Each cycle re-reads repo state, because each job checks out the base
+# branch fresh. Jobs use `if: always()` so one failed step does not stop the rest.
+# Never sets `environment`: phase.yml and bench.yml bind their own.
+
+on:
+  workflow_call:
+    inputs:
+      cycle:
+        type: string
+        required: true
+      run_date:
+        type: string
+        required: true
+      base_branch:
+        type: string
+        required: true
+      agent_mode:
+        type: string
+        required: true
+      bench_on:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  design:
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: design
+      cycle: ${{ inputs.cycle }}
+      run_date: ${{ inputs.run_date }}
+      base_branch: ${{ inputs.base_branch }}
+      agent_mode: ${{ inputs.agent_mode }}
+    secrets: inherit
+
+  vote:
+    needs: design
+    if: always()
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: vote
+      cycle: ${{ inputs.cycle }}
+      run_date: ${{ inputs.run_date }}
+      base_branch: ${{ inputs.base_branch }}
+      agent_mode: ${{ inputs.agent_mode }}
+    secrets: inherit
+
+  decide:
+    needs: vote
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ inputs.base_branch }}
+      RUN_DATE: ${{ inputs.run_date }}
+      CYCLE: ${{ inputs.cycle }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - run: python -m tools.mergebot decide
+
+  implement:
+    needs: decide
+    if: always()
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: implement
+      cycle: ${{ inputs.cycle }}
+      run_date: ${{ inputs.run_date }}
+      base_branch: ${{ inputs.base_branch }}
+      agent_mode: ${{ inputs.agent_mode }}
+    secrets: inherit
+
+  check-plan:
+    needs: implement
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      count: ${{ steps.list.outputs.count }}
+      matrix: ${{ steps.list.outputs.matrix }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ inputs.base_branch }}
+    steps:
+      # Lists open agent PRs only. No agent code runs in this job.
+      - name: List open agent PRs
+        id: list
+        run: |
+          gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 200 \
+            --json number,headRefName,headRefOid,baseRefName > prs.json
+          python3 - <<'PY'
+          import json, os
+          with open("prs.json", encoding="utf-8") as f:
+              prs = json.load(f)
+          inc = [{"pr": p["number"], "sha": p["headRefOid"]} for p in prs
+                 if p["headRefName"].startswith("agent/") and p["baseRefName"] == os.environ["BASE_BRANCH"]]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"count={len(inc)}\n")
+              out.write("matrix=" + json.dumps({"include": inc or [{"pr": 0, "sha": ""}]}) + "\n")
+          PY
+
+  check:
+    needs: check-plan
+    if: always() && needs['check-plan'].result == 'success' && needs['check-plan'].outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs['check-plan'].outputs.matrix) }}
+    steps:
+      # The sandbox image and the check code come from the base branch, never from the PR.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          path: base
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          path: pr
+          persist-credentials: false
+      - name: Build sandbox from base
+        run: docker build -t glyph-sandbox base/tools/sandbox
+      - name: Run check in sandbox
+        env:
+          PR: ${{ matrix.pr }}
+          SHA: ${{ matrix.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          BASE_SHA=$(git -C base rev-parse HEAD)
+          docker run --rm --network none --read-only --memory 4g --cpus 2 --pids-limit 512 \
+            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src \
+            -v "$PWD/base:/src:ro" -v "$PWD/pr:/work:ro" -v "$RUNNER_TEMP/out:/out" \
+            -w /src glyph-sandbox \
+            python -m tools.check.run --repo /work --out /out/result.json \
+              --pr "$PR" --sha "$SHA" --base-sha "$BASE_SHA"
+          cp "$RUNNER_TEMP/out/result.json" "$RUNNER_TEMP/result.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: check-c${{ inputs.cycle }}-${{ matrix.pr }}
+          path: ${{ runner.temp }}/result.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  review:
+    needs: check
+    if: always()
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: review
+      cycle: ${{ inputs.cycle }}
+      run_date: ${{ inputs.run_date }}
+      base_branch: ${{ inputs.base_branch }}
+      agent_mode: ${{ inputs.agent_mode }}
+    secrets: inherit
+
+  bench:
+    needs: review
+    if: always() && inputs.bench_on == 'true'
+    uses: ./.github/workflows/bench.yml
+    permissions:
+      contents: read
+    with:
+      scope: gate
+      cycle: ${{ inputs.cycle }}
+      base_branch: ${{ inputs.base_branch }}
+    secrets: inherit
+
+  merge:
+    needs: [check, bench]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ inputs.base_branch }}
+      RUN_DATE: ${{ inputs.run_date }}
+      CYCLE: ${{ inputs.cycle }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Fetch check results
+        if: needs.check.result != 'skipped'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: check-c${{ inputs.cycle }}-*
+          path: checks
+      - name: Fetch bench results
+        if: needs.bench.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-gate-c${{ inputs.cycle }}
+          path: bench
+      - name: Apply gate and merge at most one PR
+        run: |
+          mkdir -p checks
+          args=(checks)
+          if [ -d bench ]; then args+=(bench); fi
+          python -m tools.mergebot merge "${args[@]}"
+
+  use:
+    needs: merge
+    if: always()
+    uses: ./.github/workflows/phase.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    with:
+      phase: use
+      cycle: ${{ inputs.cycle }}
+      run_date: ${{ inputs.run_date }}
+      base_branch: ${{ inputs.base_branch }}
+      agent_mode: ${{ inputs.agent_mode }}
+    secrets: inherit

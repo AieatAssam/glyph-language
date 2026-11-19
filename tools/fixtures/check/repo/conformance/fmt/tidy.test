@@ -1,0 +1,7 @@
+--- meta
+id: fmt/tidy
+kind: fmt
+--- source
+ok
+--- expect-stdout
+ok

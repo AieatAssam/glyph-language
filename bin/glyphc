@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Protected dispatcher. Reads compiler/ACTIVE and runs the active implementation.
+# Exit 3 when no compiler is available.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ACTIVE_FILE="$ROOT/compiler/ACTIVE"
+if [[ ! -f "$ACTIVE_FILE" ]]; then
+  echo "glyphc: no compiler (compiler/ACTIVE missing)" >&2
+  exit 3
+fi
+ACTIVE="$(tr -d '[:space:]' < "$ACTIVE_FILE")"
+case "$ACTIVE" in
+  stage0)
+    entry="$ROOT/compiler/stage0/src/main.ts"
+    if [[ ! -f "$entry" ]]; then
+      echo "glyphc: stage0 compiler missing: compiler/stage0/src/main.ts" >&2
+      exit 3
+    fi
+    exec node "$entry" "$@"
+    ;;
+  self)
+    wasm="$ROOT/compiler/bootstrap/glyphc.wasm"
+    if [[ ! -f "$wasm" ]]; then
+      echo "glyphc: self compiler missing: compiler/bootstrap/glyphc.wasm" >&2
+      exit 3
+    fi
+    exec node "$ROOT/toolkit/run.ts" "$wasm" "$@"
+    ;;
+  *)
+    echo "glyphc: unknown compiler '$ACTIVE' in compiler/ACTIVE" >&2
+    exit 3
+    ;;
+esac

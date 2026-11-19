@@ -37,11 +37,11 @@ Agent territory and the roles that may write each path (enforced by the publishe
 | --- | --- |
 | `rfcs/NNNN-*.md` | designer, architect-weekly (in RFC PRs only) |
 | `rfcs/NNNN.plan.md` | implementer, architect-weekly |
-| `spec/**` | implementer, architect-weekly, scribe (`spec/CHANGELOG.md` only), designer (`spec/card.md` only, inside an RFC PR) |
+| `spec/**` | implementer, architect-weekly, scribe (`spec/CHANGELOG.md` only) |
 | `compiler/stage0/**`, `compiler/self/**` | implementer, architect-weekly |
 | `conformance/**` | tester, implementer, architect-weekly |
 | `stdlib/**` | implementer, architect-weekly |
-| `examples/**` | user, implementer |
+| `examples/**` | user (in `docs` PRs), implementer |
 | `architecture/**` | architect, architect-weekly |
 | `agents/<own-id>/MEMORY.md` | every agent, its own file only, through `out/MEMORY.md` |
 
@@ -109,8 +109,8 @@ Allowed action types per role:
 | implementer | open_pr, update_pr, comment, vote, open_issue, close_issue |
 | tester | open_pr, update_pr, comment, vote, open_issue |
 | reviewer | review, comment |
-| user | open_issue, comment, vote |
-| scribe | digest, comment, open_pr (docs/CHANGELOG only) |
+| user | open_issue, comment, vote, open_pr (`examples/` only) |
+| scribe | digest, comment, open_pr (`spec/CHANGELOG.md` only) |
 | architect | comment, open_issue, open_pr (`architecture/` only) |
 | architect-weekly | open_rfc, revise_rfc, comment, open_issue, open_pr, update_pr |
 
@@ -208,3 +208,13 @@ Conformance `.test` format and kinds are defined in spec §7. In a `compile-erro
 ## Rules flags
 
 `RULES.md` holds `gates: {bench, differential, fixed_point, native}` and `milestone`. Infrastructure for later milestones is built now and stays switched off until the owner flips its flag.
+
+## Playground entry
+
+`compiler/<ACTIVE>/browser.ts` exports `compile(source, opts) -> {wasm?: Uint8Array, diagnostics}` and `format(source) -> string`. It may not use any Node API, and the implementer prompt requires it. The full contract is in `site/README.md`.
+
+## Self-hosting conventions
+
+- `compiler/self/ENTRY` holds the repo-relative path of the self-hosted compiler's entry source.
+- Stage 0 and the self-hosted compiler both implement `--dump tokens|ast|ir` as canonical JSON.
+- An example program may have a sibling `<name>.expect` file in the conformance container format (`stdin`, `expect-stdout`, `expect-exit`). Details are in `tools/check/README.md`.

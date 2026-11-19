@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "glyph://tools/schemas/actions.schema.json",
+  "title": "Agent session actions",
+  "description": "out/actions.json written by one agent session. Validated here for shape, then by tools/publisher.py against the agent's role.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actions"],
+  "properties": {
+    "actions": {"type": "array", "items": {"$ref": "#/$defs/action"}}
+  },
+  "$defs": {
+    "action": {
+      "oneOf": [
+        {"$ref": "#/$defs/open_rfc"},
+        {"$ref": "#/$defs/revise_rfc"},
+        {"$ref": "#/$defs/comment"},
+        {"$ref": "#/$defs/vote"},
+        {"$ref": "#/$defs/withdraw_rfc"},
+        {"$ref": "#/$defs/open_pr"},
+        {"$ref": "#/$defs/update_pr"},
+        {"$ref": "#/$defs/review"},
+        {"$ref": "#/$defs/open_issue"},
+        {"$ref": "#/$defs/close_issue"},
+        {"$ref": "#/$defs/digest"}
+      ]
+    },
+    "path": {"type": "string", "minLength": 1, "maxLength": 300},
+    "paths": {"type": "array", "items": {"$ref": "#/$defs/path"}, "maxItems": 500},
+    "rfc": {"type": "string", "pattern": "^[0-9]{4}$"},
+    "number": {"type": "integer", "minimum": 1},
+    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+    "body": {"type": "string", "minLength": 1, "maxLength": 20000},
+    "subtask": {"type": "integer", "minimum": 0},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "rfc": {"$ref": "#/$defs/rfc"},
+        "pr": {"$ref": "#/$defs/number"},
+        "issue": {"$ref": "#/$defs/number"}
+      }
+    },
+    "open_rfc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "slug", "class", "file"],
+      "properties": {
+        "type": {"const": "open_rfc"},
+        "title": {"$ref": "#/$defs/title"},
+        "slug": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,59}$"},
+        "class": {"enum": ["language", "stdlib"]},
+        "file": {"$ref": "#/$defs/path"}
+      }
+    },
+    "revise_rfc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "rfc", "file", "note"],
+      "properties": {
+        "type": {"const": "revise_rfc"},
+        "rfc": {"$ref": "#/$defs/rfc"},
+        "file": {"$ref": "#/$defs/path"},
+        "note": {"$ref": "#/$defs/body"}
+      }
+    },
+    "comment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "target", "body"],
+      "properties": {
+        "type": {"const": "comment"},
+        "target": {"$ref": "#/$defs/target"},
+        "body": {"$ref": "#/$defs/body"}
+      }
+    },
+    "vote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "rfc", "vote", "rationale"],
+      "properties": {
+        "type": {"const": "vote"},
+        "rfc": {"$ref": "#/$defs/rfc"},
+        "vote": {"enum": ["approve", "reject", "abstain"]},
+        "rationale": {"$ref": "#/$defs/body"}
+      }
+    },
+    "withdraw_rfc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "rfc", "reason"],
+      "properties": {
+        "type": {"const": "withdraw_rfc"},
+        "rfc": {"$ref": "#/$defs/rfc"},
+        "reason": {"$ref": "#/$defs/body"}
+      }
+    },
+    "open_pr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "class", "body", "files"],
+      "properties": {
+        "type": {"const": "open_pr"},
+        "title": {"$ref": "#/$defs/title"},
+        "class": {"enum": ["language", "stdlib", "bugfix", "refactor", "docs"]},
+        "rfc": {"$ref": "#/$defs/rfc"},
+        "subtask": {"$ref": "#/$defs/subtask"},
+        "body": {"$ref": "#/$defs/body"},
+        "files": {"$ref": "#/$defs/paths"},
+        "delete": {"$ref": "#/$defs/paths"}
+      }
+    },
+    "update_pr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "pr", "files"],
+      "properties": {
+        "type": {"const": "update_pr"},
+        "pr": {"$ref": "#/$defs/number"},
+        "body": {"$ref": "#/$defs/body"},
+        "files": {"$ref": "#/$defs/paths"},
+        "delete": {"$ref": "#/$defs/paths"},
+        "subtask": {"$ref": "#/$defs/subtask"}
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "pr", "verdict", "body"],
+      "properties": {
+        "type": {"const": "review"},
+        "pr": {"$ref": "#/$defs/number"},
+        "verdict": {"enum": ["approve", "request_changes"]},
+        "body": {"$ref": "#/$defs/body"}
+      }
+    },
+    "open_issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "body", "labels"],
+      "properties": {
+        "type": {"const": "open_issue"},
+        "title": {"$ref": "#/$defs/title"},
+        "body": {"$ref": "#/$defs/body"},
+        "labels": {"type": "array", "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 50}}
+      }
+    },
+    "close_issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "issue", "reason"],
+      "properties": {
+        "type": {"const": "close_issue"},
+        "issue": {"$ref": "#/$defs/number"},
+        "reason": {"$ref": "#/$defs/body"}
+      }
+    },
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "title", "body"],
+      "properties": {
+        "type": {"const": "digest"},
+        "title": {"$ref": "#/$defs/title"},
+        "body": {"$ref": "#/$defs/body"}
+      }
+    }
+  }
+}

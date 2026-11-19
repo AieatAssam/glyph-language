@@ -1,0 +1,151 @@
+name: phase
+
+# One orchestrated phase: plan assignments, run one agent session per assignment,
+# publish the results. Called from cycle.yml, nightly.yml and weekly.yml.
+# Only the agents job holds AI secrets, and it binds the `agents` environment.
+
+on:
+  workflow_call:
+    inputs:
+      phase:
+        type: string
+        required: true
+      cycle:
+        type: string
+        required: true
+      run_date:
+        type: string
+        required: true
+      base_branch:
+        type: string
+        required: true
+      agent_mode:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Orchestrate assignments
+        id: plan
+        env:
+          PHASE: ${{ inputs.phase }}
+          RUN_DATE: ${{ inputs.run_date }}
+          CYCLE: ${{ inputs.cycle }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+        run: |
+          python -m tools.orchestrate --phase "$PHASE" --out "$RUNNER_TEMP/orch"
+          python - <<'PY'
+          import json, os
+          orch = os.path.join(os.environ["RUNNER_TEMP"], "orch")
+          with open(os.path.join(orch, "assignments.json"), encoding="utf-8") as f:
+              asg = json.load(f)
+          inc = [{"agent": a["agent"]} for a in asg]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"count={len(inc)}\n")
+              # A matrix must not be empty. The agents job is skipped when count is 0.
+              out.write("matrix=" + json.dumps({"include": inc or [{"agent": "_none"}]}) + "\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orch-${{ inputs.phase }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/orch
+          retention-days: 30
+
+  agents:
+    needs: plan
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: agents
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: orch-${{ inputs.phase }}-c${{ inputs.cycle }}
+          path: orch
+      - name: Run agent session
+        env:
+          AGENT_MODE: ${{ inputs.agent_mode }}
+          RUN_DATE: ${{ inputs.run_date }}
+          CYCLE: ${{ inputs.cycle }}
+          AGENT: ${{ matrix.agent }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p "agent-out/$AGENT"
+          bash tools/run_agent.sh "$AGENT" "orch/$AGENT.md" "agent-out/$AGENT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agents-${{ inputs.phase }}-c${{ inputs.cycle }}-${{ matrix.agent }}
+          path: agent-out/${{ matrix.agent }}
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish:
+    needs: [plan, agents]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_BRANCH: ${{ inputs.base_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+      - uses: ./.github/actions/setup-tools
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agents-${{ inputs.phase }}-c${{ inputs.cycle }}-*
+          path: sessions
+      - name: Publish agent output
+        run: |
+          shopt -s nullglob
+          dirs=(sessions/*)
+          if [ ${#dirs[@]} -eq 0 ]; then
+            mkdir -p published
+            echo "no agent output to publish"
+          else
+            python -m tools.publisher --session-dirs "${dirs[@]}" --out published
+          fi
+      - name: Record events in the audit log
+        run: python -m tools.mergebot ingest published
+      - uses: actions/upload-artifact@v4
+        with:
+          name: published-${{ inputs.phase }}-c${{ inputs.cycle }}
+          path: published
+          if-no-files-found: ignore
+          retention-days: 30

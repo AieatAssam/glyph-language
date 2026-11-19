@@ -1,0 +1,12 @@
+{
+  "agent": "designer-min",
+  "session": "2026-11-19/c014/work/designer-min",
+  "phase": "work",
+  "outcome": "ok",
+  "usage": {
+    "input_tokens": 1200,
+    "output_tokens": 300
+  },
+  "started": "2026-11-19T15:00:00Z",
+  "ended": "2026-11-19T15:00:00Z"
+}

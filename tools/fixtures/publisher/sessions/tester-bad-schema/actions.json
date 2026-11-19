@@ -1,0 +1,12 @@
+{
+  "actions": [
+    {
+      "type": "open_pr",
+      "title": "Add math tests",
+      "body": "Missing the class field.",
+      "files": [
+        "conformance/math/add.test"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+name: bench
+
+# Benchmark run. Called from cycle.yml (scope gate) and nightly.yml (scope nightly),
+# and from baseline.yml (scope baseline). Gated by gates.bench in RULES.md,
+# which the caller checks before it calls this workflow.
+# generate holds the AI auth and the held-out key. execute holds no secrets.
+
+on:
+  workflow_call:
+    inputs:
+      scope:
+        type: string
+        required: true
+      cycle:
+        type: string
+        required: true
+      base_branch:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: bench
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Generate programs
+        env:
+          SCOPE: ${{ inputs.scope }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HELDOUT_KEY: ${{ secrets.HELDOUT_KEY }}
+        run: |
+          # Writes only opaque-keyed programs. Held-out task text never leaves this job.
+          python -m bench.harness.generate round 1 --tasks bench/tasks/dev \
+            --out "$RUNNER_TEMP/gen" --lang glyph --opaque
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-programs-${{ inputs.scope }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
+          retention-days: 14
+
+  execute:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          path: base
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: bench-programs-${{ inputs.scope }}-c${{ inputs.cycle }}
+          path: gen
+      - name: Build sandbox from base
+        run: docker build -t glyph-sandbox base/tools/sandbox
+      - name: Execute programs in the sandbox
+        run: |
+          mkdir -p "$RUNNER_TEMP/results"
+          docker run --rm --network none --read-only --memory 4g --cpus 2 --pids-limit 512 \
+            --tmpfs /tmp:rw,size=1g -e PYTHONDONTWRITEBYTECODE=1 -e PYTHONPATH=/src \
+            -v "$PWD/base:/src:ro" -v "$PWD/gen:/in:ro" -v "$RUNNER_TEMP/results:/out" \
+            -w /src glyph-sandbox \
+            python -m bench.harness.execute --in /in --out /out/results.json --lang glyph
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ inputs.scope }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: error
+          retention-days: 30

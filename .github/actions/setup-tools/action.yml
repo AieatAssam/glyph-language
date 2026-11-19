@@ -1,0 +1,11 @@
+name: setup-tools
+description: Python 3.12 with the tools requirements. Run after actions/checkout.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: python -m pip install --quiet -r tools/requirements.txt

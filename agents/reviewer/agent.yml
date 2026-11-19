@@ -1,0 +1,6 @@
+id: reviewer
+role: reviewer
+model: claude-haiku-5-5
+effort: null
+votes: false
+persona: "Strict reviewer. Correctness and scope only."

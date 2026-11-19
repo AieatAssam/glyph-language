@@ -1,0 +1,13 @@
+{
+  "actions": [
+    {
+      "type": "open_pr",
+      "title": "Tweak tools",
+      "class": "bugfix",
+      "body": "Edits the publisher.",
+      "files": [
+        "tools/evil.py"
+      ]
+    }
+  ]
+}

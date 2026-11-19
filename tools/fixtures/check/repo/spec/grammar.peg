@@ -1,0 +1,3 @@
+Program <- Line+
+Line <- Word [\n]
+Word <- [a-zA-Z]+

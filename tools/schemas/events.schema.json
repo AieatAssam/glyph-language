@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "glyph/events.schema.json",
+  "title": "Glyph audit event (pre-hash entry; hash is optional)",
+  "type": "object",
+  "required": ["seq", "ts", "type", "actor", "session", "subject", "data", "idem", "prev_hash"],
+  "additionalProperties": false,
+  "properties": {
+    "seq": {"type": "integer", "minimum": 1},
+    "ts": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T"},
+    "type": {
+      "enum": [
+        "session_started", "session_ended", "session_failed", "escalation",
+        "rfc_opened", "rfc_revised", "comment_posted", "vote_cast", "rfc_decided",
+        "rfc_withdrawn", "rfc_lapsed", "rfc_superseded", "rfc_status",
+        "plan_written", "pr_opened", "pr_updated", "review_posted", "check_run",
+        "gate_blocked", "merged",
+        "bench_run", "overfit_warning",
+        "issue_opened", "issue_closed", "digest_published",
+        "fixed_point_passed", "cutover", "release",
+        "rules_changed", "roster_changed", "constitution_changed", "protected_path_changed",
+        "cycle_started"
+      ]
+    },
+    "actor": {"type": "string", "minLength": 1},
+    "session": {"type": "string"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rfc": {"type": "string", "pattern": "^[0-9]{4}$"},
+        "pr": {"type": "integer", "minimum": 1},
+        "issue": {"type": "integer", "minimum": 1}
+      }
+    },
+    "data": {"type": "object"},
+    "idem": {"type": ["string", "null"]},
+    "prev_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

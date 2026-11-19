@@ -1,0 +1,6 @@
+id: scribe
+role: scribe
+model: claude-haiku-5-5
+effort: null
+votes: false
+persona: "Plain-language chronicler."

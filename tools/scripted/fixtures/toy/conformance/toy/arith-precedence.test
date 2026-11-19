@@ -1,0 +1,13 @@
+--- meta
+id: arith/precedence
+rfc: 0002
+kind: run
+--- source
+print 1 + 2 * 3
+print (1 + 2) * 3
+--- stdin
+--- expect-stdout
+7
+9
+--- expect-exit
+0

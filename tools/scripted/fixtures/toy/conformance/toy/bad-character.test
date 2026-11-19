@@ -1,0 +1,13 @@
+--- meta
+id: syntax/bad-character
+rfc: 0002
+kind: compile-error
+--- source
+print 1
+print 2 $ 3
+--- stdin
+--- expect-stdout
+--- expect-exit
+1
+--- expect-errors
+E0001 2
