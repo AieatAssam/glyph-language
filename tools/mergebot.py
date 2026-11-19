@@ -9,6 +9,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -332,11 +333,18 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     sha_head = check["sha"]
     vpath = Path(root) / "spec" / "VERSION"
     current = vpath.read_text(encoding="utf-8").strip() if vpath.exists() else "0.0.0"
-    minor = pr["class"] in ("language", "stdlib")
-    new_version = _bump(current, minor)
+    files = gitops.changed_files(root, check["base_sha"], sha_head)
+    plan_only = bool(files) and all(R.PLAN_RE.fullmatch(f) for f in files)
     gitops.git(root, "merge", "--squash", sha_head)
-    vpath.parent.mkdir(parents=True, exist_ok=True)
-    vpath.write_text(new_version + "\n", encoding="utf-8")
+    # Implemented once a non-plan PR lands with every subtask of the plan ticked.
+    plan = Path(root) / "rfcs" / f"{pr.get('rfc')}.plan.md"
+    rfc_implemented = (bool(pr.get("rfc")) and not plan_only and plan.exists()
+                       and not re.search(r"^\s*- \[ \]", plan.read_text(encoding="utf-8"), re.M))
+    new_version = current
+    if not plan_only:  # a plan changes no language artefact
+        new_version = _bump(current, rfc_implemented and pr["class"] in ("language", "stdlib"))
+        vpath.parent.mkdir(parents=True, exist_ok=True)
+        vpath.write_text(new_version + "\n", encoding="utf-8")
     trailers = ["Bot: mergebot", "Gate: rules 1-14 pass", f"PR: {n}", f"Check-Sha: {sha_head}"]
     if pr.get("rfc"):
         trailers.append(f"RFC: {pr['rfc']}")
@@ -351,7 +359,6 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     gitops.git(root, "add", "-A", "--", ".")
     gitops.git(root, "commit", "-m", msg, "--no-verify", *(["--author", lead] if lead else []))
     merge_sha = gitops.git(root, "rev-parse", "HEAD").strip()
-    rfc_implemented = bool(pr.get("rfc")) and pr.get("subtask") is None
     _emit(root, "merged", {"pr": int(n)},
           {"sha": merge_sha, "class": pr["class"], "spec_after": new_version,
            "rfc_implemented": rfc_implemented, "breaking": bool(rfc and rfc.get("breaking"))},
