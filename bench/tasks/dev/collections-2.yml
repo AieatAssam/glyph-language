@@ -1,0 +1,54 @@
+id: collections-2
+category: collections
+tier: 1
+prompt: Read a line of integers separated by spaces. Write the largest value on one line.
+tests:
+- input: '-431 26 -323 395 167 -31 291
+
+    '
+  expected: '395
+
+    '
+  visible: true
+- input: '212 -251 202 -456 -419 -449 40
+
+    '
+  expected: '212
+
+    '
+  visible: true
+- input: '-114 -491 322 350 467 -197 400
+
+    '
+  expected: '467
+
+    '
+  visible: false
+- input: '-369 -327 232 -94
+
+    '
+  expected: '232
+
+    '
+  visible: false
+- input: '-111
+
+    '
+  expected: '-111
+
+    '
+  visible: false
+- input: '-80 -309 4
+
+    '
+  expected: '4
+
+    '
+  visible: false
+probe_inputs:
+- '-498
+
+  '
+- '-154
+
+  '

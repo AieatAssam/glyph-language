@@ -1,0 +1,104 @@
+id: data-2
+category: data
+tier: 1
+prompt: Read rows of comma separated words, one row per line. Write the number of fields in each row.
+tests:
+- input: 'ti,ud
+
+    kaS,kXqa,tQ
+
+    n,H,IR,wrq
+
+    L,Ya
+
+    '
+  expected: '2
+
+    3
+
+    4
+
+    2
+
+    '
+  visible: true
+- input: 'DYuW,GcOq
+
+    d,YQS
+
+    '
+  expected: '2
+
+    2
+
+    '
+  visible: true
+- input: 'R
+
+    ZG
+
+    '
+  expected: '1
+
+    1
+
+    '
+  visible: false
+- input: 'eWCR,vEu,cPl
+
+    kbAn,kZq
+
+    '
+  expected: '3
+
+    2
+
+    '
+  visible: false
+- input: 'jVSu,W
+
+    Df,ty,qHZP
+
+    voJD,nxou,na,mP
+
+    eH,EIIH,VYnw
+
+    '
+  expected: '2
+
+    3
+
+    4
+
+    3
+
+    '
+  visible: false
+- input: 'B,bz
+
+    ggsP
+
+    u,i,q,fJy
+
+    E,qREN,UoO,DfEu
+
+    '
+  expected: '2
+
+    1
+
+    4
+
+    4
+
+    '
+  visible: false
+probe_inputs:
+- 'g
+
+  '
+- 'LUc,K
+
+  Mr,gAiL
+
+  '

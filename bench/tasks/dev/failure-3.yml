@@ -1,0 +1,74 @@
+id: failure-3
+category: failure
+tier: 2
+prompt: Read one word. If it contains any digit, write error and stop with exit status one. Otherwise write the word reversed.
+tests:
+- input: 'FRcyHvn
+
+    '
+  expected: 'nvHycRF
+
+    '
+  visible: true
+- input: 'wD
+
+    '
+  expected: 'Dw
+
+    '
+  visible: true
+- input: 'odMy06u
+
+    '
+  expected: 'error
+
+    '
+  visible: false
+  exit: 1
+- input: 'eGr
+
+    '
+  expected: 'rGe
+
+    '
+  visible: false
+- input: 'TJO
+
+    '
+  expected: 'OJT
+
+    '
+  visible: false
+- input: 'NT20y
+
+    '
+  expected: 'error
+
+    '
+  visible: false
+  exit: 1
+probe_inputs:
+- 'HEh
+
+  '
+- 'iv
+
+  '
+variant:
+  prompt: Read one word. If it contains any digit, write error and stop with exit status one. Otherwise write the word in upper case.
+  tests:
+  - input: 'elGmLo5
+
+      '
+    expected: 'error
+
+      '
+    visible: false
+    exit: 1
+  - input: 'irrzXR
+
+      '
+    expected: 'IRRZXR
+
+      '
+    visible: false

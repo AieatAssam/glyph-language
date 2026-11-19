@@ -1,0 +1,55 @@
+id: failure-2
+category: failure
+tier: 1
+prompt: Read a line of integers separated by spaces. If any value is zero, write error and stop with exit status one. Otherwise write the product of all the values.
+tests:
+- input: '4 -1
+
+    '
+  expected: '-4
+
+    '
+  visible: true
+- input: '-1 -2 -1 0 -4 -2
+
+    '
+  expected: 'error
+
+    '
+  visible: true
+  exit: 1
+- input: '5 -3
+
+    '
+  expected: '-15
+
+    '
+  visible: false
+- input: '1 -5 5 1 -4
+
+    '
+  expected: '100
+
+    '
+  visible: false
+- input: '-3 5 2 4
+
+    '
+  expected: '-120
+
+    '
+  visible: false
+- input: '3 -1 2 3
+
+    '
+  expected: '-18
+
+    '
+  visible: false
+probe_inputs:
+- '-5 -2 5 -2 2
+
+  '
+- '-3 -1 3 -4 -5
+
+  '

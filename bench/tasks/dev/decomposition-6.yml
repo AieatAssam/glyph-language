@@ -1,0 +1,122 @@
+id: decomposition-6
+category: decomposition
+tier: 3
+prompt: Read lines of text. Sort the lines by the number of non space characters in each line, largest first. Lines with equal counts keep their original order. Write the sorted lines.
+tests:
+- input: 'cThT
+
+    LSa lVNqoXk
+
+    i
+
+    '
+  expected: 'LSa lVNqoXk
+
+    cThT
+
+    i
+
+    '
+  visible: true
+- input: 'zxco ZY fOP nYFaAEE FihOEEP
+
+    tTVD
+
+    SI
+
+    x xElcwsg SClHTnJ
+
+    '
+  expected: 'zxco ZY fOP nYFaAEE FihOEEP
+
+    x xElcwsg SClHTnJ
+
+    tTVD
+
+    SI
+
+    '
+  visible: true
+- input: 'sDjP
+
+    kq
+
+    PkVuq b DuD BSngJv IyEuIHM
+
+    zRnGPD
+
+    '
+  expected: 'PkVuq b DuD BSngJv IyEuIHM
+
+    zRnGPD
+
+    sDjP
+
+    kq
+
+    '
+  visible: false
+- input: 'cOE
+
+    uhtvbdy lr WCsAk meaLFS
+
+    cWPB SyWRYkN B
+
+    w haQUlF
+
+    '
+  expected: 'uhtvbdy lr WCsAk meaLFS
+
+    cWPB SyWRYkN B
+
+    w haQUlF
+
+    cOE
+
+    '
+  visible: false
+- input: 'KTNs R R
+
+    GIlpFxm i BpKy JcYSR rrBbJm
+
+    '
+  expected: 'GIlpFxm i BpKy JcYSR rrBbJm
+
+    KTNs R R
+
+    '
+  visible: false
+- input: 'y dIRp V HFPA
+
+    GZKhJ Bi
+
+    gJwXhOg YQsJv CvLLSxL GUDUOe vsxLzz
+
+    '
+  expected: 'gJwXhOg YQsJv CvLLSxL GUDUOe vsxLzz
+
+    y dIRp V HFPA
+
+    GZKhJ Bi
+
+    '
+  visible: false
+probe_inputs:
+- 'pkviDJ Al S sIeWmN
+
+  NjaY G aB U
+
+  vvtmTdk
+
+  NT iYa ACjwSS zlHjA
+
+  '
+- 'jg
+
+  q ltp fnHr n
+
+  Tvo mDuxljq dzrWh iXxaJA iBq
+
+  Xl UfYncOX eYx r
+
+  '

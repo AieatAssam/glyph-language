@@ -1,0 +1,54 @@
+id: recursion-1
+category: recursion
+tier: 1
+prompt: Read one integer n from zero to twenty. Write n factorial, computed by a recursive definition.
+tests:
+- input: '17
+
+    '
+  expected: '355687428096000
+
+    '
+  visible: true
+- input: '0
+
+    '
+  expected: '1
+
+    '
+  visible: true
+- input: '13
+
+    '
+  expected: '6227020800
+
+    '
+  visible: false
+- input: '7
+
+    '
+  expected: '5040
+
+    '
+  visible: false
+- input: '20
+
+    '
+  expected: '2432902008176640000
+
+    '
+  visible: false
+- input: '18
+
+    '
+  expected: '6402373705728000
+
+    '
+  visible: false
+probe_inputs:
+- '8
+
+  '
+- '13
+
+  '

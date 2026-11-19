@@ -1,0 +1,362 @@
+id: larger-2
+category: larger
+tier: 2
+prompt: Keep an inventory ledger from commands, one per line. add NAME QTY PRICE raises the stock of NAME by QTY and sets its unit price to PRICE. remove NAME QTY lowers the stock; if the item is unknown or holds less than QTY, reject the command and leave the stock alone. price NAME PRICE changes the unit price of a known item. report appends a report line for every item, sorted by name, showing its quantity, price and value (quantity times price), followed by a total line. Anything malformed or unknown is rejected. Write the log of reports and rejections in order, then the final report, then nothing else.
+tests:
+- input: 'remove oak 2
+
+    add oak 9 5
+
+    price ash 39
+
+    remove fir 2
+
+    remove elm 3
+
+    report
+
+    report
+
+    '
+  expected: 'rejected: unknown item oak
+
+    rejected: unknown item ash
+
+    rejected: unknown item fir
+
+    rejected: unknown item elm
+
+    oak    qty   9 price    5 value     45
+
+    total 45
+
+    oak    qty   9 price    5 value     45
+
+    total 45
+
+    oak    qty   9 price    5 value     45
+
+    total 45
+
+    '
+  visible: true
+- input: 'price oak x
+
+    add elm 2 33
+
+    add elm 3 18
+
+    remove elm 3
+
+    add elm 9 48
+
+    add elm
+
+    report
+
+    report
+
+    report
+
+    '
+  expected: 'rejected: malformed: price oak x
+
+    rejected: malformed: add elm
+
+    elm    qty  11 price   48 value    528
+
+    total 528
+
+    elm    qty  11 price   48 value    528
+
+    total 528
+
+    elm    qty  11 price   48 value    528
+
+    total 528
+
+    elm    qty  11 price   48 value    528
+
+    total 528
+
+    '
+  visible: true
+- input: 'remove fir 4
+
+    add oak 8 46
+
+    remove elm 5
+
+    price fir 33
+
+    price fir 35
+
+    price elm 39
+
+    remove ash 4
+
+    add elm 7 41
+
+    report
+
+    remove ash 2
+
+    price ash 17
+
+    remove ash 4
+
+    report
+
+    report
+
+    '
+  expected: 'rejected: unknown item fir
+
+    rejected: unknown item elm
+
+    rejected: unknown item fir
+
+    rejected: unknown item fir
+
+    rejected: unknown item elm
+
+    rejected: unknown item ash
+
+    elm    qty   7 price   41 value    287
+
+    oak    qty   8 price   46 value    368
+
+    total 655
+
+    rejected: unknown item ash
+
+    rejected: unknown item ash
+
+    rejected: unknown item ash
+
+    elm    qty   7 price   41 value    287
+
+    oak    qty   8 price   46 value    368
+
+    total 655
+
+    elm    qty   7 price   41 value    287
+
+    oak    qty   8 price   46 value    368
+
+    total 655
+
+    elm    qty   7 price   41 value    287
+
+    oak    qty   8 price   46 value    368
+
+    total 655
+
+    '
+  visible: false
+- input: 'remove ash 3
+
+    report
+
+    remove ash 3
+
+    price oak 23
+
+    add ash 3 35
+
+    add ash 4 14
+
+    report
+
+    add ash 7 45
+
+    report
+
+    remove fir 2
+
+    sell ash 2
+
+    report
+
+    '
+  expected: 'rejected: unknown item ash
+
+    total 0
+
+    rejected: unknown item ash
+
+    rejected: unknown item oak
+
+    ash    qty   7 price   14 value     98
+
+    total 98
+
+    ash    qty  14 price   45 value    630
+
+    total 630
+
+    rejected: unknown item fir
+
+    rejected: unknown command sell
+
+    ash    qty  14 price   45 value    630
+
+    total 630
+
+    ash    qty  14 price   45 value    630
+
+    total 630
+
+    '
+  visible: false
+- input: 'remove elm 2
+
+    remove ash 2
+
+    remove ash 5
+
+    add ash 8 28
+
+    report
+
+    remove fir 4
+
+    add elm 7 3
+
+    remove oak 6
+
+    add ash 3 47
+
+    report
+
+    report
+
+    '
+  expected: 'rejected: unknown item elm
+
+    rejected: unknown item ash
+
+    rejected: unknown item ash
+
+    ash    qty   8 price   28 value    224
+
+    total 224
+
+    rejected: unknown item fir
+
+    rejected: unknown item oak
+
+    ash    qty  11 price   47 value    517
+
+    elm    qty   7 price    3 value     21
+
+    total 538
+
+    ash    qty  11 price   47 value    517
+
+    elm    qty   7 price    3 value     21
+
+    total 538
+
+    ash    qty  11 price   47 value    517
+
+    elm    qty   7 price    3 value     21
+
+    total 538
+
+    '
+  visible: false
+- input: 'report
+
+    price ash 47
+
+    remove
+
+    price fir 9
+
+    add elm
+
+    remove ash 4
+
+    add elm
+
+    add elm
+
+    report
+
+    sell ash 2
+
+    sell ash 2
+
+    report
+
+    report
+
+    '
+  expected: 'total 0
+
+    rejected: unknown item ash
+
+    rejected: malformed: remove
+
+    rejected: unknown item fir
+
+    rejected: malformed: add elm
+
+    rejected: unknown item ash
+
+    rejected: malformed: add elm
+
+    rejected: malformed: add elm
+
+    total 0
+
+    rejected: unknown command sell
+
+    rejected: unknown command sell
+
+    total 0
+
+    total 0
+
+    total 0
+
+    '
+  visible: false
+probe_inputs:
+- 'report
+
+  add fir 2 44
+
+  price fir 12
+
+  remove oak 6
+
+  report
+
+  add oak 3 14
+
+  price oak 50
+
+  add oak 1 24
+
+  report
+
+  '
+- 'add oak 4 5
+
+  remove fir 2
+
+  add oak 6 14
+
+  remove
+
+  add ash 1 4
+
+  add elm
+
+  add elm 3 22
+
+  report
+
+  '

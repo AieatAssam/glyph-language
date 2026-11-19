@@ -1,0 +1,123 @@
+id: data-3
+category: data
+tier: 2
+prompt: The first line holds column names separated by commas. Each later line holds the same number of comma separated integers. Write the name of the column with the largest total, on one line.
+tests:
+- input: 'c0cab,c1bba
+
+    1,5
+
+    -6,-7
+
+    3,8
+
+    '
+  expected: 'c1bba
+
+    '
+  visible: true
+- input: 'c0ccb,c1bb,c2c,c3ca
+
+    -3,-3,0,9
+
+    -4,-6,3,-3
+
+    '
+  expected: 'c3ca
+
+    '
+  visible: true
+- input: 'c0ccb,c1ca,c2cb,c3a
+
+    -5,4,-2,-3
+
+    4,-8,-3,4
+
+    -7,2,-1,5
+
+    '
+  expected: 'c3a
+
+    '
+  visible: false
+- input: 'c0c,c1bc
+
+    6,1
+
+    6,-3
+
+    1,7
+
+    3,-9
+
+    '
+  expected: 'c0c
+
+    '
+  visible: false
+- input: 'c0b,c1c
+
+    0,9
+
+    3,-7
+
+    -8,7
+
+    9,-9
+
+    '
+  expected: 'c0b
+
+    '
+  visible: false
+- input: 'c0a,c1a,c2ab
+
+    0,8,-8
+
+    '
+  expected: 'c1a
+
+    '
+  visible: false
+probe_inputs:
+- 'c0a,c1cab,c2a
+
+  -8,-2,1
+
+  '
+- 'c0acc,c1b,c2ac,c3b
+
+  2,-4,-6,-5
+
+  -7,3,4,6
+
+  9,4,-5,-5
+
+  '
+variant:
+  prompt: The first line holds column names separated by commas. Each later line holds the same number of comma separated integers. Write the name of the column with the smallest total, on one line.
+  tests:
+  - input: 'c0b,c1a,c2acb
+
+      2,0,5
+
+      '
+    expected: 'c1a
+
+      '
+    visible: false
+  - input: 'c0c,c1cba,c2b
+
+      -1,-6,6
+
+      5,-9,2
+
+      -3,6,-4
+
+      7,-9,-6
+
+      '
+    expected: 'c1cba
+
+      '
+    visible: false

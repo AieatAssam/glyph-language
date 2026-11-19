@@ -1,0 +1,127 @@
+id: parsing-5
+category: parsing
+tier: 3
+prompt: Read a Roman numeral written in upper case letters. Write its integer value.
+tests:
+- input: 'MMCCXCVI
+
+    '
+  expected: '2296
+
+    '
+  visible: true
+- input: 'MMMDCLXXXII
+
+    '
+  expected: '3682
+
+    '
+  visible: true
+- input: 'MMMCCCLXXXIX
+
+    '
+  expected: '3389
+
+    '
+  visible: false
+- input: 'XLV
+
+    '
+  expected: '45
+
+    '
+  visible: false
+- input: 'XIX
+
+    '
+  expected: '19
+
+    '
+  visible: false
+- input: 'MMMDCXVII
+
+    '
+  expected: '3617
+
+    '
+  visible: false
+probe_inputs:
+- 'MCMXC
+
+  '
+- 'DCCXXX
+
+  '
+variant:
+  prompt: Read an integer from one to three thousand nine hundred ninety nine. Write it as a Roman numeral in upper case letters.
+  tests:
+  - input: '2185
+
+      '
+    expected: 'MMCLXXXV
+
+      '
+    visible: false
+  - input: '3242
+
+      '
+    expected: 'MMMCCXLII
+
+      '
+    visible: false
+  - input: '3838
+
+      '
+    expected: 'MMMDCCCXXXVIII
+
+      '
+    visible: false
+  - input: '3241
+
+      '
+    expected: 'MMMCCXLI
+
+      '
+    visible: false
+  - input: '420
+
+      '
+    expected: 'CDXX
+
+      '
+    visible: false
+  - input: '2740
+
+      '
+    expected: 'MMDCCXL
+
+      '
+    visible: false
+  - input: '1871
+
+      '
+    expected: 'MDCCCLXXI
+
+      '
+    visible: false
+  - input: '3169
+
+      '
+    expected: 'MMMCLXIX
+
+      '
+    visible: false
+  - input: '2801
+
+      '
+    expected: 'MMDCCCI
+
+      '
+    visible: false
+  - input: '218
+
+      '
+    expected: 'CCXVIII
+
+      '
+    visible: false

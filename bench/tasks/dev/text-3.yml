@@ -1,0 +1,115 @@
+id: text-3
+category: text
+tier: 2
+prompt: Read lines. For each line, write the number of vowels, counting a e i o u in either case.
+tests:
+- input: 'f NOcj
+
+    '
+  expected: '1
+
+    '
+  visible: true
+- input: 'kSbq rpXB bj
+
+    ghI KB JylZnwB Rz
+
+    '
+  expected: '0
+
+    1
+
+    '
+  visible: true
+- input: 'qnfxZ ZCzXnB
+
+    QQrzZkh
+
+    zTsSNpT tbKH NfTwWT wkRH
+
+    '
+  expected: '0
+
+    0
+
+    0
+
+    '
+  visible: false
+- input: 'DgHRY
+
+    vHL xV xwXuV eHZb
+
+    vmSOa CIGDX at uiKKg
+
+    '
+  expected: '0
+
+    2
+
+    6
+
+    '
+  visible: false
+- input: 'gQ
+
+    Zzy hfyx tDVS
+
+    '
+  expected: '0
+
+    0
+
+    '
+  visible: false
+- input: 'gRqRg kowtJTi IV xdfNg gnIgj
+
+    '
+  expected: '4
+
+    '
+  visible: false
+probe_inputs:
+- 'JvtWU CR TYs
+
+  L
+
+  zccHeFO JpJ
+
+  '
+- 'zFfBona QlFsP zoffdyd NapVIXO YfcyOa
+
+  Xkg Hzk
+
+  Ct SF Y QDFqpil gpRpVWh
+
+  '
+variant:
+  prompt: Read lines. For each line, write the number of consonants, counting only the ASCII letters that are not vowels.
+  tests:
+  - input: 'eYCEP
+
+      mwG mv R kGTwOp sMIWgS
+
+      UlreyXS
+
+      '
+    expected: '3
+
+      16
+
+      5
+
+      '
+    visible: false
+  - input: 'xtVRMus hDz sqUM wq
+
+      PQjSYn
+
+      '
+    expected: '14
+
+      6
+
+      '
+    visible: false

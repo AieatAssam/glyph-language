@@ -1,0 +1,54 @@
+id: decomposition-1
+category: decomposition
+tier: 1
+prompt: Read a line of words separated by spaces. Write how many of them are longer than three letters.
+tests:
+- input: 'L cYwDJ LLaAYH QYrH nRhcw kOcy zZApd Ez
+
+    '
+  expected: '6
+
+    '
+  visible: true
+- input: 'bt IQ p GFRfj
+
+    '
+  expected: '1
+
+    '
+  visible: true
+- input: 'QjP ArthVo BYkaNm zsLmO
+
+    '
+  expected: '3
+
+    '
+  visible: false
+- input: 'bhT BjiJn NNvys WvZLTL XWTihh
+
+    '
+  expected: '4
+
+    '
+  visible: false
+- input: 'yb cs jHi ET VvUNg ABE hvRJ vISOoY
+
+    '
+  expected: '3
+
+    '
+  visible: false
+- input: 'Rda yMRnfN H oSs IlKnoB PjOX
+
+    '
+  expected: '3
+
+    '
+  visible: false
+probe_inputs:
+- 'FyF Gyyv EUa HURvls OnrGK cJVFQJ
+
+  '
+- 'eANfT GbI Pm
+
+  '

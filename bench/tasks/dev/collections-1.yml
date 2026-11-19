@@ -1,0 +1,144 @@
+id: collections-1
+category: collections
+tier: 1
+prompt: Read integers, one per line. Write them sorted in ascending order, one per line.
+tests:
+- input: '8
+
+    18
+
+    -27
+
+    -2
+
+    -7
+
+    -17
+
+    16
+
+    '
+  expected: '-27
+
+    -17
+
+    -7
+
+    -2
+
+    8
+
+    16
+
+    18
+
+    '
+  visible: true
+- input: '6
+
+    '
+  expected: '6
+
+    '
+  visible: true
+- input: '-42
+
+    -28
+
+    -20
+
+    15
+
+    '
+  expected: '-42
+
+    -28
+
+    -20
+
+    15
+
+    '
+  visible: false
+- input: '-11
+
+    38
+
+    -44
+
+    36
+
+    31
+
+    '
+  expected: '-44
+
+    -11
+
+    31
+
+    36
+
+    38
+
+    '
+  visible: false
+- input: '35
+
+    -4
+
+    15
+
+    '
+  expected: '-4
+
+    15
+
+    35
+
+    '
+  visible: false
+- input: '-12
+
+    -17
+
+    41
+
+    -45
+
+    33
+
+    '
+  expected: '-45
+
+    -17
+
+    -12
+
+    33
+
+    41
+
+    '
+  visible: false
+probe_inputs:
+- '8
+
+  41
+
+  -41
+
+  6
+
+  '
+- '43
+
+  -47
+
+  7
+
+  42
+
+  -36
+
+  '

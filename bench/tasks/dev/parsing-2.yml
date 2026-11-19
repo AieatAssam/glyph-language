@@ -1,0 +1,72 @@
+id: parsing-2
+category: parsing
+tier: 1
+prompt: Read a line of key=value pairs separated by semicolons. Write the keys in order of appearance, one per line.
+tests:
+- input: 'yba=52;b=75;x=20
+
+    '
+  expected: 'yba
+
+    b
+
+    x
+
+    '
+  visible: true
+- input: 'bxb=46;ffy=82;bb=87;yf=1
+
+    '
+  expected: 'bxb
+
+    ffy
+
+    bb
+
+    yf
+
+    '
+  visible: true
+- input: 'fez=10
+
+    '
+  expected: 'fez
+
+    '
+  visible: false
+- input: 'ed=64
+
+    '
+  expected: 'ed
+
+    '
+  visible: false
+- input: 'x=16;c=46;af=89
+
+    '
+  expected: 'x
+
+    c
+
+    af
+
+    '
+  visible: false
+- input: 'ea=90;ezx=27;ya=17
+
+    '
+  expected: 'ea
+
+    ezx
+
+    ya
+
+    '
+  visible: false
+probe_inputs:
+- 'ey=47
+
+  '
+- 'xea=17;cz=77;f=62;c=91
+
+  '

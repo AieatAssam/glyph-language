@@ -1,0 +1,229 @@
+id: larger-6
+category: larger
+tier: 3
+prompt: 'Drive a robot over a grid. The first line holds the width and height. Then come height map rows: a # is a wall, a . is open, and one R marks the start. The robot starts facing north. The last line holds commands: F moves forward one cell, L and R turn left and right, other letters do nothing. A forward move into a wall or off the map is a bump: the robot stays put and the bump is counted. Coordinates have x growing east and y growing south from the top left. Write the robot position as x y, its facing N, E, S or W, and the bump count as x y FACING bumps N. Then write the map again with every visited cell marked o, the walls kept, and the robot marked @.'
+tests:
+- input: '8 5
+
+    .#.....#
+
+    ......##
+
+    ...#.#..
+
+    ##.#....
+
+    R..#.#.#
+
+    LFFRFFRFFLFFRFFFFFRF
+
+    '
+  expected: '2 3 S bumps 9
+
+    .#.....#
+
+    ......##
+
+    ..o#.#..
+
+    ##@#....
+
+    ooo#.#.#
+
+    '
+  visible: true
+- input: '4 4
+
+    .#.#
+
+    .##.
+
+    ...#
+
+    ..#R
+
+    LLLRRFFFRFLFRLFRF
+
+    '
+  expected: '3 3 N bumps 7
+
+    .#.#
+
+    .##.
+
+    ...#
+
+    ..#@
+
+    '
+  visible: true
+- input: '6 3
+
+    ......
+
+    #R...#
+
+    ......
+
+    FFFFFRFL
+
+    '
+  expected: '2 0 N bumps 4
+
+    .o@...
+
+    #o...#
+
+    ......
+
+    '
+  visible: false
+- input: '6 3
+
+    .#..#.
+
+    ..R###
+
+    .#....
+
+    FLLFFFLLLRRFFRFFFFF
+
+    '
+  expected: '4 2 S bumps 6
+
+    .#o.#.
+
+    ..o###
+
+    .#oo@.
+
+    '
+  visible: false
+- input: '8 6
+
+    #.#.....
+
+    .##...#.
+
+    .....#..
+
+    ...#..#.
+
+    #.R...#.
+
+    #....#..
+
+    FFFRFLFRFFLFFF
+
+    '
+  expected: '5 0 N bumps 3
+
+    #.#..@..
+
+    .##ooo#.
+
+    ..oo.#..
+
+    ..o#..#.
+
+    #.o...#.
+
+    #....#..
+
+    '
+  visible: false
+- input: '8 6
+
+    ........
+
+    ...#....
+
+    ....#...
+
+    .....#..
+
+    ....###.
+
+    ..#...R.
+
+    LLFLRFF
+
+    '
+  expected: '6 5 S bumps 3
+
+    ........
+
+    ...#....
+
+    ....#...
+
+    .....#..
+
+    ....###.
+
+    ..#...@.
+
+    '
+  visible: false
+probe_inputs:
+- '7 3
+
+  .......
+
+  #..#R..
+
+  .#.....
+
+  FFRFFLRL
+
+  '
+- '6 5
+
+  ......
+
+  ......
+
+  ...#..
+
+  ......
+
+  .....R
+
+  RFFRRFFFFRFRF
+
+  '
+variant:
+  prompt: 'Drive a robot over a grid. The first line holds the width and height. Then come height map rows: a # is a wall, a . is open, and one R marks the start. The robot starts facing north. The last line holds commands: F moves forward one cell, L and R turn left and right, other letters do nothing. A forward move into a wall or off the map is a bump: the robot stays put. Write the number of distinct cells the robot has stood on, counting the start, and nothing else.'
+  tests:
+  - input: '8 4
+
+      .....#..
+
+      .R......
+
+      #.###...
+
+      ..##....
+
+      FFFLFFFLFLLFLF
+
+      '
+    expected: 'visited 4
+
+      '
+    visible: false
+  - input: '6 3
+
+      ..#...
+
+      R#....
+
+      .#.#.#
+
+      FLLFFFRF
+
+      '
+    expected: 'visited 3
+
+      '
+    visible: false

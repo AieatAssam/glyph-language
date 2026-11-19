@@ -1,0 +1,111 @@
+id: text-6
+category: text
+tier: 3
+prompt: Read lines. For each line write yes if it reads the same forwards and backwards when case and anything that is not a letter are ignored, otherwise write no. A line with no letters counts as yes.
+tests:
+- input: 'nwkkwn
+
+    FYNn
+
+    A
+
+    '
+  expected: 'yes
+
+    no
+
+    yes
+
+    '
+  visible: true
+- input: 'SOVm
+
+    '
+  expected: 'no
+
+    '
+  visible: true
+- input: 'ugH
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+- input: 'vH
+
+    CmUUmC
+
+    QWG
+
+    '
+  expected: 'no
+
+    yes
+
+    no
+
+    '
+  visible: false
+- input: 'T
+
+    dZJ
+
+    EYYE
+
+    '
+  expected: 'yes
+
+    no
+
+    yes
+
+    '
+  visible: false
+- input: 'sa
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+probe_inputs:
+- 'maD
+
+  uxK
+
+  '
+- 'AtjjtA
+
+  DRRD
+
+  '
+variant:
+  prompt: Read lines. For each line write yes if it reads the same forwards and backwards when only case is ignored and spaces are removed, otherwise write no. A line with no letters counts as yes.
+  tests:
+  - input: 'a
+
+      sDDs
+
+      CwmqqmwC
+
+      '
+    expected: 'yes
+
+      yes
+
+      yes
+
+      '
+    visible: false
+  - input: 'UA
+
+      eb
+
+      '
+    expected: 'no
+
+      no
+
+      '
+    visible: false

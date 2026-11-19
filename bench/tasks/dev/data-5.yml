@@ -1,0 +1,117 @@
+id: data-5
+category: data
+tier: 3
+prompt: Read records, one per line, in the form name,score where score is an integer and each name is unique. Write the name with the highest score. When scores tie, write the name that comes first alphabetically.
+tests:
+- input: 'cgg,2
+
+    cdf,4
+
+    fb,4
+
+    '
+  expected: 'cdf
+
+    '
+  visible: true
+- input: 'ac,1
+
+    fabf,1
+
+    '
+  expected: 'ac
+
+    '
+  visible: true
+- input: 'dg,5
+
+    ggg,2
+
+    ffa,4
+
+    c,2
+
+    '
+  expected: 'dg
+
+    '
+  visible: false
+- input: 'eec,3
+
+    gad,5
+
+    '
+  expected: 'gad
+
+    '
+  visible: false
+- input: 'ddb,0
+
+    bd,3
+
+    ee,3
+
+    hc,5
+
+    ed,3
+
+    '
+  expected: 'hc
+
+    '
+  visible: false
+- input: 'ddhd,1
+
+    a,1
+
+    '
+  expected: 'a
+
+    '
+  visible: false
+probe_inputs:
+- 'gd,4
+
+  edc,0
+
+  '
+- 'dh,1
+
+  aebf,4
+
+  bfb,2
+
+  habf,3
+
+  '
+variant:
+  prompt: Read records, one per line, in the form name,score where score is an integer and each name is unique. Write the name with the lowest score. When scores tie, write the name that comes first alphabetically.
+  tests:
+  - input: 'c,0
+
+      dccd,5
+
+      fe,4
+
+      h,2
+
+      '
+    expected: 'c
+
+      '
+    visible: false
+  - input: 'h,0
+
+      ff,2
+
+      bfgg,3
+
+      bg,1
+
+      d,0
+
+      '
+    expected: 'd
+
+      '
+    visible: false

@@ -1,0 +1,84 @@
+id: text-2
+category: text
+tier: 1
+prompt: Read lines. For each line, write its words in reverse order, separated by single spaces.
+tests:
+- input: 'Nt WVFwuPr idMiazZ
+
+    rs
+
+    '
+  expected: 'idMiazZ WVFwuPr Nt
+
+    rs
+
+    '
+  visible: true
+- input: 'zKnB sWjqIs a KLnJ
+
+    QA Zq SZOXJCn GcTMhhZ BIC
+
+    '
+  expected: 'KLnJ a sWjqIs zKnB
+
+    BIC GcTMhhZ SZOXJCn Zq QA
+
+    '
+  visible: true
+- input: 'aLX lE SmPOG SrKCy KbTIQC
+
+    WgnHB
+
+    JIU md
+
+    '
+  expected: 'KbTIQC SrKCy SmPOG lE aLX
+
+    WgnHB
+
+    md JIU
+
+    '
+  visible: false
+- input: 'K
+
+    '
+  expected: 'K
+
+    '
+  visible: false
+- input: 'tVstdxg aezaob
+
+    '
+  expected: 'aezaob tVstdxg
+
+    '
+  visible: false
+- input: 'd
+
+    tlE cSL
+
+    EtdPa WcFu A H HHvslYz
+
+    '
+  expected: 'd
+
+    cSL tlE
+
+    HHvslYz H A WcFu EtdPa
+
+    '
+  visible: false
+probe_inputs:
+- 'eXA KyXm cgP I yWJQoVV
+
+  eMRqAkI
+
+  '
+- 'ZwAaLy J Bpywpf
+
+  wLhGqx gRuR ZV
+
+  uZi
+
+  '

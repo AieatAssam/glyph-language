@@ -1,0 +1,121 @@
+id: decomposition-3
+category: decomposition
+tier: 2
+prompt: Read a grid of lines, each with the same number of single digits separated by spaces. Write the sum of each row on one line separated by spaces, then a line with the sum of each column separated by spaces.
+tests:
+- input: '9 8 1
+
+    4 3 2
+
+    3 8 2
+
+    '
+  expected: '18 9 13
+
+    16 19 5
+
+    '
+  visible: true
+- input: '6 9
+
+    8 8
+
+    7 7
+
+    2 1
+
+    '
+  expected: '15 16 14 3
+
+    23 25
+
+    '
+  visible: true
+- input: '8 7
+
+    0 5
+
+    7 9
+
+    6 8
+
+    '
+  expected: '15 5 16 14
+
+    21 29
+
+    '
+  visible: false
+- input: '6 3 4
+
+    7 2 3
+
+    6 6 6
+
+    '
+  expected: '13 12 18
+
+    19 11 13
+
+    '
+  visible: false
+- input: '4 5
+
+    3 4
+
+    4 3
+
+    '
+  expected: '9 7 7
+
+    11 12
+
+    '
+  visible: false
+- input: '7 4 0
+
+    7 4 5
+
+    '
+  expected: '11 16
+
+    14 8 5
+
+    '
+  visible: false
+probe_inputs:
+- '5 8 0 6
+
+  5 0 7 0
+
+  '
+- '9 4 4
+
+  2 3 1
+
+  '
+variant:
+  prompt: Read a grid of lines, each with the same number of single digits separated by spaces. Write on one line the largest row sum and the largest column sum, separated by a space.
+  tests:
+  - input: '7 0 4 6
+
+      1 9 2 3
+
+      9 8 9 1
+
+      '
+    expected: '27 17
+
+      '
+    visible: false
+  - input: '6 3 2
+
+      6 6 4
+
+      1 4 2
+
+      '
+    expected: '16 13
+
+      '
+    visible: false

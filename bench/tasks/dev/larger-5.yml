@@ -1,0 +1,298 @@
+id: larger-5
+category: larger
+tier: 3
+prompt: 'Run a small bank. Commands, one per line: open NAME creates an account with zero balance; deposit NAME AMOUNT adds money; withdraw NAME AMOUNT takes money out and is rejected if it would leave a negative balance; transfer FROM TO AMOUNT moves money between two existing accounts, and is rejected as a whole if it cannot be done; statement NAME writes every entry for the account with the running balance after each one, then a balance line. Amounts must be positive whole numbers. Opening an account that exists, or using an unknown account, is rejected. Write the statements in the order they were requested, then one line per rejected command as rejected: followed by the reason.'
+tests:
+- input: 'open ann
+
+    open ben
+
+    open cy
+
+    deposit ann 15
+
+    withdraw cy 3
+
+    open ann
+
+    deposit cy 36
+
+    deposit cy 1
+
+    open ann
+
+    '
+  expected: 'rejected: insufficient funds in cy for withdraw
+
+    rejected: exists ann
+
+    rejected: exists ann
+
+    '
+  visible: true
+- input: 'open ann
+
+    open ben
+
+    deposit ben 29
+
+    deposit ben 3
+
+    withdraw cy 22
+
+    withdraw ann 22
+
+    withdraw cy 30
+
+    transfer cy ann 34
+
+    statement ben
+
+    deposit ben 38
+
+    deposit cy 1
+
+    transfer cy ann 13
+
+    statement ben
+
+    statement ben
+
+    '
+  expected: 'ben deposit +29 29
+
+    ben deposit +3 32
+
+    ben balance 32
+
+    ben deposit +29 29
+
+    ben deposit +3 32
+
+    ben deposit +38 70
+
+    ben balance 70
+
+    ben deposit +29 29
+
+    ben deposit +3 32
+
+    ben deposit +38 70
+
+    ben balance 70
+
+    rejected: no account cy
+
+    rejected: insufficient funds in ann for withdraw
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    '
+  visible: true
+- input: 'open ann
+
+    open ben
+
+    open cy
+
+    statement ann
+
+    deposit cy 7
+
+    withdraw ben 28
+
+    transfer ann ben 20
+
+    withdraw cy 16
+
+    withdraw ann 8
+
+    transfer ben ben 19
+
+    withdraw ben 9
+
+    '
+  expected: 'ann balance 0
+
+    rejected: insufficient funds in ben for withdraw
+
+    rejected: insufficient funds in ann for to ben
+
+    rejected: insufficient funds in cy for withdraw
+
+    rejected: insufficient funds in ann for withdraw
+
+    rejected: same account
+
+    rejected: insufficient funds in ben for withdraw
+
+    '
+  visible: false
+- input: 'open ann
+
+    open ben
+
+    deposit ben 39
+
+    open cy
+
+    deposit ann 30
+
+    deposit ben 5
+
+    transfer ben ann 5
+
+    close ann
+
+    deposit ann 39
+
+    statement cy
+
+    '
+  expected: 'cy balance 0
+
+    rejected: unknown command close
+
+    '
+  visible: false
+- input: 'open ann
+
+    open ben
+
+    deposit ann 38
+
+    deposit ben 37
+
+    withdraw cy 17
+
+    deposit cy 5
+
+    transfer ann cy 8
+
+    deposit ann -3
+
+    transfer cy ben 38
+
+    deposit ben 24
+
+    statement ben
+
+    deposit ann 27
+
+    statement cy
+
+    deposit cy -3
+
+    withdraw ben 11
+
+    '
+  expected: 'ben deposit +37 37
+
+    ben deposit +24 61
+
+    ben balance 61
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    rejected: bad amount
+
+    rejected: no account cy
+
+    rejected: no account cy
+
+    rejected: bad amount
+
+    '
+  visible: false
+- input: 'open ann
+
+    open ben
+
+    open cy
+
+    open ben
+
+    open ben
+
+    withdraw ben 34
+
+    deposit cy 22
+
+    deposit cy 23
+
+    transfer ann ben 27
+
+    statement ann
+
+    close ann
+
+    transfer ben cy 8
+
+    deposit cy 14
+
+    '
+  expected: 'ann balance 0
+
+    rejected: exists ben
+
+    rejected: exists ben
+
+    rejected: insufficient funds in ben for withdraw
+
+    rejected: insufficient funds in ann for to ben
+
+    rejected: unknown command close
+
+    rejected: insufficient funds in ben for to cy
+
+    '
+  visible: false
+probe_inputs:
+- 'open ann
+
+  open ben
+
+  open cy
+
+  statement ann
+
+  transfer ann cy 29
+
+  withdraw ann 20
+
+  withdraw ben 3
+
+  withdraw ann 15
+
+  deposit ben 38
+
+  deposit cy 6
+
+  '
+- 'open ann
+
+  open ben
+
+  transfer cy cy 22
+
+  statement ann
+
+  statement ann
+
+  deposit ann 21
+
+  statement ann
+
+  deposit ben 23
+
+  '

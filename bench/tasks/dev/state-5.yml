@@ -1,0 +1,71 @@
+id: state-5
+category: state
+tier: 3
+prompt: Start at position zero on a number line. Read one line of moves made of the letters R and L. R moves one step right and L moves one step left. The position may never go below zero, so such a move is skipped. Write the final position.
+tests:
+- input: 'LRRRRRLRLR
+
+    '
+  expected: '5
+
+    '
+  visible: true
+- input: 'RLRLLRLLRLL
+
+    '
+  expected: '0
+
+    '
+  visible: true
+- input: 'LRRRLLRR
+
+    '
+  expected: '3
+
+    '
+  visible: false
+- input: 'LR
+
+    '
+  expected: '1
+
+    '
+  visible: false
+- input: 'RRRLRRRLLLR
+
+    '
+  expected: '3
+
+    '
+  visible: false
+- input: 'LRRLLRLRRL
+
+    '
+  expected: '1
+
+    '
+  visible: false
+probe_inputs:
+- 'RRLLLLRLLLL
+
+  '
+- 'LRRRRRLLLRL
+
+  '
+variant:
+  prompt: Start at position zero on a number line. Read one line of moves made of the letters R and L. R moves one step right and L moves one step left, with no lower limit. Write the highest position reached during the walk, counting zero.
+  tests:
+  - input: 'R
+
+      '
+    expected: '1
+
+      '
+    visible: false
+  - input: 'RRRRRLLLRLRRRL
+
+      '
+    expected: '5
+
+      '
+    visible: false

@@ -1,0 +1,118 @@
+id: failure-5
+category: failure
+tier: 3
+prompt: The first line is a name to look up. Each following line holds name,value. Write the value for the name. If the name is not present, write error and stop with exit status one.
+tests:
+- input: 'd
+
+    a,28
+
+    d,66
+
+    '
+  expected: '66
+
+    '
+  visible: true
+- input: 'b
+
+    a,33
+
+    c,99
+
+    '
+  expected: 'error
+
+    '
+  visible: true
+  exit: 1
+- input: 'a
+
+    f,59
+
+    c,12
+
+    '
+  expected: 'error
+
+    '
+  visible: false
+  exit: 1
+- input: 'a
+
+    e,77
+
+    c,82
+
+    b,27
+
+    '
+  expected: 'error
+
+    '
+  visible: false
+  exit: 1
+- input: 'c
+
+    c,87
+
+    d,73
+
+    '
+  expected: '87
+
+    '
+  visible: false
+- input: 'a
+
+    a,49
+
+    '
+  expected: '49
+
+    '
+  visible: false
+probe_inputs:
+- 'c
+
+  a,16
+
+  e,44
+
+  '
+- 'c
+
+  a,44
+
+  b,77
+
+  c,8
+
+  '
+variant:
+  prompt: The first line is a name to look up. Each following line holds name,value. Write the value for the name. If the name is not present, write zero and stop with exit status zero.
+  tests:
+  - input: 'b
+
+      b,81
+
+      c,31
+
+      '
+    expected: '81
+
+      '
+    visible: false
+  - input: 'a
+
+      b,41
+
+      c,89
+
+      f,14
+
+      '
+    expected: '0
+
+      '
+    visible: false

@@ -1,0 +1,153 @@
+id: data-4
+category: data
+tier: 2
+prompt: Read rows of comma separated words, one row per line. Write the rows sorted by their first field in ascending order, keeping each row's text unchanged. Rows with equal first fields keep their original order.
+tests:
+- input: 'b,Hvt
+
+    c,G
+
+    a,GnQ
+
+    d,PO
+
+    a,M
+
+    '
+  expected: 'a,GnQ
+
+    a,M
+
+    b,Hvt
+
+    c,G
+
+    d,PO
+
+    '
+  visible: true
+- input: 'b,W
+
+    d,cKt
+
+    b,gs
+
+    c,Zo
+
+    b,F
+
+    '
+  expected: 'b,W
+
+    b,gs
+
+    b,F
+
+    c,Zo
+
+    d,cKt
+
+    '
+  visible: true
+- input: 'a,Ozn
+
+    c,m
+
+    b,n
+
+    '
+  expected: 'a,Ozn
+
+    b,n
+
+    c,m
+
+    '
+  visible: false
+- input: 'c,UYp
+
+    d,j
+
+    '
+  expected: 'c,UYp
+
+    d,j
+
+    '
+  visible: false
+- input: 'd,L
+
+    b,csj
+
+    '
+  expected: 'b,csj
+
+    d,L
+
+    '
+  visible: false
+- input: 'b,T
+
+    c,R
+
+    d,Rq
+
+    d,Nxb
+
+    c,Fo
+
+    '
+  expected: 'b,T
+
+    c,R
+
+    c,Fo
+
+    d,Rq
+
+    d,Nxb
+
+    '
+  visible: false
+probe_inputs:
+- 'b,x
+
+  a,Hcf
+
+  c,mm
+
+  '
+- 'b,F
+
+  d,EYX
+
+  b,q
+
+  d,rK
+
+  '
+variant:
+  prompt: Read rows of comma separated words, one row per line. Write the rows sorted by their first field in descending order, keeping each row's text unchanged. Rows with equal first fields keep their original order.
+  tests:
+  - input: 'a,q
+
+      d,Jl
+
+      '
+    expected: 'd,Jl
+
+      a,q
+
+      '
+    visible: false
+  - input: 'a,J
+
+      b,MAY
+
+      '
+    expected: 'b,MAY
+
+      a,J
+
+      '
+    visible: false

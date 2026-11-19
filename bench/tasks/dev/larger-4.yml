@@ -1,0 +1,356 @@
+id: larger-4
+category: larger
+tier: 3
+prompt: 'Evaluate a mini spreadsheet. Each line is CELL = EXPR. A cell name is a capital letter followed by a row number. An expression is built from integers, cell names, binary + - and *, and parentheses. Cells are evaluated on demand. A reference to a cell that is not defined gives #REF. A cell that depends on itself, directly or through others, gives #CYCLE. A malformed expression gives #ERR. Write every cell as CELL VALUE, sorted by row number, then by column letter.'
+tests:
+- input: 'A1 = 4
+
+    A2 = (A3 - B2) * 3
+
+    A3 = A2 * C1
+
+    A4 = 8
+
+    B1 = A1 * D4
+
+    B2 = 7
+
+    B3 = D1 + A3
+
+    B4 = -1
+
+    C1 = C1 * D4
+
+    D1 = (A1 + B2) * 3
+
+    D2 = A1 + B2
+
+    '
+  expected: 'A1 4
+
+    B1 #REF
+
+    C1 #CYCLE
+
+    D1 33
+
+    A2 #CYCLE
+
+    B2 7
+
+    D2 11
+
+    A3 #CYCLE
+
+    B3 #CYCLE
+
+    A4 8
+
+    B4 #ERR
+
+    '
+  visible: true
+- input: 'A1 = -2
+
+    A3 = 3
+
+    A4 = D1 * A1
+
+    B1 = 9
+
+    B2 = (C1 - B3) * 2
+
+    B3 = (C1 + D2) * 3
+
+    B4 = A2 - C4
+
+    C2 = 5
+
+    D1 = (C2 * 5) * 2
+
+    D4 = C1 - D2
+
+    '
+  expected: 'A1 #ERR
+
+    B1 9
+
+    D1 50
+
+    B2 #REF
+
+    C2 5
+
+    A3 3
+
+    B3 #REF
+
+    A4 #ERR
+
+    B4 #REF
+
+    D4 #REF
+
+    '
+  visible: true
+- input: 'A1 = D3 + 3 +
+
+    A2 = A2 + B1
+
+    A3 = 8
+
+    A4 = D2 + 1 +
+
+    B1 = B3 * B1
+
+    B3 = (D4 - D4) * 2
+
+    B4 = B2 + B3
+
+    C1 = B2 - D2
+
+    C2 = 8
+
+    C3 = (D3 + A3) * 2
+
+    C4 = A4 + 3 +
+
+    D1 = 7
+
+    D2 = B2 * A4
+
+    D3 = 4
+
+    D4 = C2 + 2 +
+
+    '
+  expected: 'A1 #ERR
+
+    B1 #ERR
+
+    C1 #REF
+
+    D1 7
+
+    A2 #CYCLE
+
+    C2 8
+
+    D2 #REF
+
+    A3 8
+
+    B3 #ERR
+
+    C3 24
+
+    D3 4
+
+    A4 #REF
+
+    B4 #REF
+
+    C4 #REF
+
+    D4 #ERR
+
+    '
+  visible: false
+- input: 'A2 = (B3 + A1) * 2
+
+    A4 = -3
+
+    B1 = 7
+
+    B2 = A1 + 4 +
+
+    B3 = -2
+
+    C1 = 4
+
+    C2 = 8
+
+    C3 = (D3 - C4) * 3
+
+    D1 = (A3 * C2) * 1
+
+    D2 = 3
+
+    D4 = A3 * C3
+
+    '
+  expected: 'B1 7
+
+    C1 4
+
+    D1 #REF
+
+    A2 #ERR
+
+    B2 #REF
+
+    C2 8
+
+    D2 3
+
+    B3 #ERR
+
+    C3 #REF
+
+    A4 #ERR
+
+    D4 #REF
+
+    '
+  visible: false
+- input: 'A1 = 9
+
+    A2 = C3 + 2 +
+
+    A3 = 7
+
+    B1 = (D2 + C4) * 2
+
+    B2 = (A1 - A1) * 1
+
+    B3 = 2
+
+    B4 = 0
+
+    C3 = D2 - C3
+
+    C4 = (A2 + D2) * 3
+
+    D2 = 8
+
+    D3 = B1 + B4
+
+    '
+  expected: 'A1 9
+
+    B1 #CYCLE
+
+    A2 #CYCLE
+
+    B2 0
+
+    D2 8
+
+    A3 7
+
+    B3 2
+
+    C3 #CYCLE
+
+    D3 #CYCLE
+
+    B4 0
+
+    C4 #CYCLE
+
+    '
+  visible: false
+- input: 'A1 = (A2 + D1) * 2
+
+    A2 = 8
+
+    A4 = B3 * D2
+
+    B1 = (B2 - A2) * 2
+
+    B2 = 1
+
+    B3 = (B1 + B2) * 2
+
+    B4 = D2 - B1
+
+    C3 = A4 * A2
+
+    C4 = C2 + 3 +
+
+    D1 = A1 + 3 +
+
+    D2 = 4
+
+    D3 = -1
+
+    '
+  expected: 'A1 #CYCLE
+
+    B1 -14
+
+    D1 #CYCLE
+
+    A2 8
+
+    B2 1
+
+    D2 4
+
+    B3 -26
+
+    C3 -832
+
+    D3 #ERR
+
+    A4 -104
+
+    B4 18
+
+    C4 #REF
+
+    '
+  visible: false
+probe_inputs:
+- 'A1 = 3
+
+  A2 = B1 * B3
+
+  A3 = (C3 * D1) * 3
+
+  A4 = A2 * B4
+
+  B1 = D4 + A1
+
+  B3 = 5
+
+  B4 = D1 + B1
+
+  C1 = -3
+
+  C2 = (D1 * A4) * 1
+
+  C3 = (C2 - A2) * 2
+
+  C4 = (A3 * A2) * 1
+
+  D2 = 2
+
+  '
+- 'A1 = (C4 * B1) * 3
+
+  A2 = 5
+
+  A3 = (D4 - D1) * 2
+
+  A4 = A3 + 4 +
+
+  B1 = 2
+
+  B3 = (D4 * D4) * 2
+
+  B4 = B2 + D1
+
+  C1 = B4 * B3
+
+  C2 = 8
+
+  C3 = D1 + 2 +
+
+  D1 = 4
+
+  D3 = C4 * A2
+
+  D4 = 4
+
+  '

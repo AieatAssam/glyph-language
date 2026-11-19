@@ -1,0 +1,113 @@
+id: text-5
+category: text
+tier: 3
+prompt: Read text of any number of lines. Write the most frequent letter, ignoring case and anything that is not a letter. When letters tie, write the one that comes first in the alphabet. If there are no letters, write none.
+tests:
+- input: 'q
+
+    uVj GSEoUX vy
+
+    z sIkI qD
+
+    '
+  expected: 'i
+
+    '
+  visible: true
+- input: 'gh a xfHIH p
+
+    IzHx L mHPG XdVdMO
+
+    AmgWAe eSifv IBY
+
+    mXNeGo
+
+    '
+  expected: 'h
+
+    '
+  visible: true
+- input: 'oaLEoO u
+
+    '
+  expected: 'o
+
+    '
+  visible: false
+- input: 'cz tWDEzk CaZIX
+
+    tcN xM ZJpR SeHm
+
+    jfoR
+
+    Tzgjhh MfAjX aK
+
+    '
+  expected: 'z
+
+    '
+  visible: false
+- input: 'mjgbTEo
+
+    '
+  expected: 'b
+
+    '
+  visible: false
+- input: 'HCKU vmxzlGG Vfj
+
+    v iix jliWMh
+
+    jr Y
+
+    aL O E Zppw hs
+
+    '
+  expected: 'h
+
+    '
+  visible: false
+probe_inputs:
+- 'CoUiwi tgQEv
+
+  jQ WbOzqn
+
+  MNsPwdY Q
+
+  yMLeX LL
+
+  '
+- 'Iiabxy oHLzGZo
+
+  Qmuzeo NfU
+
+  Fx
+
+  L Y JvF
+
+  '
+variant:
+  prompt: Read text of any number of lines. Write the least frequent letter that appears at least once, ignoring case and anything that is not a letter. When letters tie, write the one that comes first in the alphabet. If there are no letters, write none.
+  tests:
+  - input: 'LBxQvw NVqWI UyNUz Gw CbyEBg
+
+      LmQqz qZ rtlSbe RjaPK
+
+      dtAf eseFfx VVfkQ
+
+      V
+
+      '
+    expected: 'c
+
+      '
+    visible: false
+  - input: 'bBn Tsmans UA EdiWtnC sXkdsw
+
+      hnFBe
+
+      '
+    expected: 'c
+
+      '
+    visible: false

@@ -1,0 +1,78 @@
+id: arithmetic-4
+category: arithmetic
+tier: 2
+prompt: Read pairs of positive integers, one pair per line. For each pair write the greatest common divisor and the least common multiple separated by a space.
+tests:
+- input: '221 248
+
+    384 146
+
+    '
+  expected: '1 54808
+
+    2 28032
+
+    '
+  visible: true
+- input: '227 338
+
+    215 365
+
+    '
+  expected: '1 76726
+
+    5 15695
+
+    '
+  visible: true
+- input: '369 298
+
+    '
+  expected: '1 109962
+
+    '
+  visible: false
+- input: '146 84
+
+    '
+  expected: '2 6132
+
+    '
+  visible: false
+- input: '366 221
+
+    167 25
+
+    '
+  expected: '1 80886
+
+    1 4175
+
+    '
+  visible: false
+- input: '163 3
+
+    6 219
+
+    '
+  expected: '1 489
+
+    3 438
+
+    '
+  visible: false
+probe_inputs:
+- '122 242
+
+  245 79
+
+  169 247
+
+  220 193
+
+  '
+- '23 309
+
+  63 327
+
+  '

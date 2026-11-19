@@ -1,0 +1,154 @@
+id: state-6
+category: state
+tier: 3
+prompt: Read lines of the form set NAME VALUE or get NAME. Store values by name. For each get, write the stored value, or the word unset when that name has never been set. Later sets replace earlier values.
+tests:
+- input: 'set y 5
+
+    get z
+
+    set y 4
+
+    get y
+
+    '
+  expected: 'unset
+
+    4
+
+    '
+  visible: true
+- input: 'set z 4
+
+    get w
+
+    get z
+
+    get x
+
+    get y
+
+    get z
+
+    get w
+
+    set y 8
+
+    '
+  expected: 'unset
+
+    4
+
+    unset
+
+    unset
+
+    4
+
+    unset
+
+    '
+  visible: true
+- input: 'set z 6
+
+    get z
+
+    set y 2
+
+    get w
+
+    get z
+
+    '
+  expected: '6
+
+    unset
+
+    6
+
+    '
+  visible: false
+- input: 'get w
+
+    get y
+
+    get y
+
+    set y 3
+
+    get z
+
+    get w
+
+    '
+  expected: 'unset
+
+    unset
+
+    unset
+
+    unset
+
+    unset
+
+    '
+  visible: false
+- input: 'get y
+
+    set y 2
+
+    get w
+
+    '
+  expected: 'unset
+
+    unset
+
+    '
+  visible: false
+- input: 'set y 4
+
+    get w
+
+    get z
+
+    set y 4
+
+    get x
+
+    get z
+
+    '
+  expected: 'unset
+
+    unset
+
+    unset
+
+    unset
+
+    '
+  visible: false
+probe_inputs:
+- 'set z 6
+
+  get x
+
+  get y
+
+  get z
+
+  set y 9
+
+  '
+- 'set x 0
+
+  set y 1
+
+  set y 9
+
+  set x 9
+
+  set z 1
+
+  '

@@ -1,0 +1,71 @@
+id: parsing-4
+category: parsing
+tier: 2
+prompt: Read a date in the form YYYY-MM-DD. Write the day of the week as a number, where Monday is 1 and Sunday is 7.
+tests:
+- input: '2024-06-22
+
+    '
+  expected: '6
+
+    '
+  visible: true
+- input: '2041-05-09
+
+    '
+  expected: '4
+
+    '
+  visible: true
+- input: '1983-11-14
+
+    '
+  expected: '1
+
+    '
+  visible: false
+- input: '1980-04-06
+
+    '
+  expected: '7
+
+    '
+  visible: false
+- input: '2040-01-01
+
+    '
+  expected: '7
+
+    '
+  visible: false
+- input: '1988-01-27
+
+    '
+  expected: '3
+
+    '
+  visible: false
+probe_inputs:
+- '2002-05-06
+
+  '
+- '2020-07-08
+
+  '
+variant:
+  prompt: Read a date in the form YYYY-MM-DD. Write the day of the year as a number, where January 1 is 1.
+  tests:
+  - input: '2013-11-26
+
+      '
+    expected: '330
+
+      '
+    visible: false
+  - input: '2023-05-05
+
+      '
+    expected: '125
+
+      '
+    visible: false

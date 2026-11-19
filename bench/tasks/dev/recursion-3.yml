@@ -1,0 +1,127 @@
+id: recursion-3
+category: recursion
+tier: 2
+prompt: Read a line of up to five digits. Write every distinct arrangement of its digits, one per line, in ascending order.
+tests:
+- input: '6
+
+    '
+  expected: '6
+
+    '
+  visible: true
+- input: '6
+
+    '
+  expected: '6
+
+    '
+  visible: true
+- input: '709
+
+    '
+  expected: '079
+
+    097
+
+    709
+
+    790
+
+    907
+
+    970
+
+    '
+  visible: false
+- input: '0891
+
+    '
+  expected: '0189
+
+    0198
+
+    0819
+
+    0891
+
+    0918
+
+    0981
+
+    1089
+
+    1098
+
+    1809
+
+    1890
+
+    1908
+
+    1980
+
+    8019
+
+    8091
+
+    8109
+
+    8190
+
+    8901
+
+    8910
+
+    9018
+
+    9081
+
+    9108
+
+    9180
+
+    9801
+
+    9810
+
+    '
+  visible: false
+- input: '0000
+
+    '
+  expected: '0000
+
+    '
+  visible: false
+- input: '2
+
+    '
+  expected: '2
+
+    '
+  visible: false
+probe_inputs:
+- '1712
+
+  '
+- '9070
+
+  '
+variant:
+  prompt: Read a line of up to five digits. Write only the distinct arrangements of its digits that are not already in ascending order, one per line, in ascending order.
+  tests:
+  - input: '75
+
+      '
+    expected: '75
+
+      '
+    visible: false
+  - input: '06
+
+      '
+    expected: '60
+
+      '
+    visible: false

@@ -1,0 +1,142 @@
+id: state-1
+category: state
+tier: 1
+prompt: 'Read commands one per line: push followed by an integer, pop, or peek. Start with an empty stack. For each peek write the top value, or the word empty when the stack has no values. Pop removes the top value and writes nothing. Pop on an empty stack does nothing.'
+tests:
+- input: 'peek
+
+    pop
+
+    peek
+
+    push 7
+
+    pop
+
+    pop
+
+    pop
+
+    '
+  expected: 'empty
+
+    empty
+
+    '
+  visible: true
+- input: 'push 3
+
+    pop
+
+    push 5
+
+    push 0
+
+    push 5
+
+    peek
+
+    peek
+
+    peek
+
+    '
+  expected: '5
+
+    5
+
+    5
+
+    '
+  visible: true
+- input: 'peek
+
+    push 3
+
+    peek
+
+    '
+  expected: 'empty
+
+    3
+
+    '
+  visible: false
+- input: 'pop
+
+    push 7
+
+    push 4
+
+    peek
+
+    push 1
+
+    '
+  expected: '4
+
+    '
+  visible: false
+- input: 'peek
+
+    pop
+
+    peek
+
+    peek
+
+    push 4
+
+    pop
+
+    '
+  expected: 'empty
+
+    empty
+
+    empty
+
+    '
+  visible: false
+- input: 'peek
+
+    peek
+
+    pop
+
+    '
+  expected: 'empty
+
+    empty
+
+    '
+  visible: false
+probe_inputs:
+- 'peek
+
+  push 5
+
+  pop
+
+  push 9
+
+  push 6
+
+  push 2
+
+  '
+- 'peek
+
+  push 5
+
+  pop
+
+  push 4
+
+  pop
+
+  peek
+
+  peek
+
+  '

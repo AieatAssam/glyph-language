@@ -1,0 +1,54 @@
+id: recursion-2
+category: recursion
+tier: 1
+prompt: Read one integer n from zero to forty. Write the number of ways to climb n steps when each move takes one step or two steps.
+tests:
+- input: '18
+
+    '
+  expected: '4181
+
+    '
+  visible: true
+- input: '37
+
+    '
+  expected: '39088169
+
+    '
+  visible: true
+- input: '0
+
+    '
+  expected: '1
+
+    '
+  visible: false
+- input: '16
+
+    '
+  expected: '1597
+
+    '
+  visible: false
+- input: '3
+
+    '
+  expected: '3
+
+    '
+  visible: false
+- input: '18
+
+    '
+  expected: '4181
+
+    '
+  visible: false
+probe_inputs:
+- '28
+
+  '
+- '16
+
+  '

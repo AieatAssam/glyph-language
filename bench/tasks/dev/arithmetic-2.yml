@@ -1,0 +1,54 @@
+id: arithmetic-2
+category: arithmetic
+tier: 1
+prompt: Read one integer. Write the sum of its decimal digits, ignoring the sign.
+tests:
+- input: '-938932947
+
+    '
+  expected: '54
+
+    '
+  visible: true
+- input: '108102925
+
+    '
+  expected: '28
+
+    '
+  visible: true
+- input: '-107714632
+
+    '
+  expected: '31
+
+    '
+  visible: false
+- input: '258946489
+
+    '
+  expected: '55
+
+    '
+  visible: false
+- input: '-572258085
+
+    '
+  expected: '42
+
+    '
+  visible: false
+- input: '448641422
+
+    '
+  expected: '35
+
+    '
+  visible: false
+probe_inputs:
+- '810966429
+
+  '
+- '847246849
+
+  '

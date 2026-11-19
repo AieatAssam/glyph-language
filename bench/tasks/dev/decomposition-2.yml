@@ -1,0 +1,72 @@
+id: decomposition-2
+category: decomposition
+tier: 1
+prompt: The first line is a list of words separated by spaces. The second line is a prefix. Write the words that start with the prefix, one per line, in their original order.
+tests:
+- input: 'ba b
+
+    a
+
+    '
+  expected: ''
+  visible: true
+- input: 'b ab bbb a ab bab bab
+
+    a
+
+    '
+  expected: 'ab
+
+    a
+
+    ab
+
+    '
+  visible: true
+- input: 'bbb bba
+
+    a
+
+    '
+  expected: ''
+  visible: false
+- input: 'aba ba aa aa
+
+    bb
+
+    '
+  expected: ''
+  visible: false
+- input: 'ba b abb
+
+    b
+
+    '
+  expected: 'ba
+
+    b
+
+    '
+  visible: false
+- input: 'aa a aab bb b
+
+    b
+
+    '
+  expected: 'bb
+
+    b
+
+    '
+  visible: false
+probe_inputs:
+- 'ab a b
+
+  aa
+
+  '
+- 'bbb b a ab
+
+  a
+
+  '

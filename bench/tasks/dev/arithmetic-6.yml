@@ -1,0 +1,54 @@
+id: arithmetic-6
+category: arithmetic
+tier: 3
+prompt: Read one integer n from zero to five thousand. Write the number of decimal digits in two raised to the power n.
+tests:
+- input: '782
+
+    '
+  expected: '236
+
+    '
+  visible: true
+- input: '3683
+
+    '
+  expected: '1109
+
+    '
+  visible: true
+- input: '2262
+
+    '
+  expected: '681
+
+    '
+  visible: false
+- input: '3167
+
+    '
+  expected: '954
+
+    '
+  visible: false
+- input: '2396
+
+    '
+  expected: '722
+
+    '
+  visible: false
+- input: '3768
+
+    '
+  expected: '1135
+
+    '
+  visible: false
+probe_inputs:
+- '4175
+
+  '
+- '838
+
+  '

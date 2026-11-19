@@ -1,0 +1,71 @@
+id: parsing-3
+category: parsing
+tier: 2
+prompt: Read a line containing only parentheses. Write yes if every opening parenthesis has a matching closing parenthesis in the right order, otherwise write no.
+tests:
+- input: '())
+
+    '
+  expected: 'no
+
+    '
+  visible: true
+- input: '(()()(
+
+    '
+  expected: 'no
+
+    '
+  visible: true
+- input: '()(
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+- input: ')(())())
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+- input: '()))
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+- input: '(
+
+    '
+  expected: 'no
+
+    '
+  visible: false
+probe_inputs:
+- '()))((
+
+  '
+- ')())())))
+
+  '
+variant:
+  prompt: Read a line containing only parentheses. Write the maximum nesting depth of the parentheses. Write zero if there are none.
+  tests:
+  - input: '())
+
+      '
+    expected: '1
+
+      '
+    visible: false
+  - input: ')((()
+
+      '
+    expected: '2
+
+      '
+    visible: false

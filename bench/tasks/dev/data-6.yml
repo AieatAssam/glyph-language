@@ -1,0 +1,86 @@
+id: data-6
+category: data
+tier: 3
+prompt: Read records, one per line, in the form name,score where score is an integer. Write the average score rounded down to an integer, computed over all records.
+tests:
+- input: 'DXrA,15
+
+    '
+  expected: '15
+
+    '
+  visible: true
+- input: 'D,63
+
+    '
+  expected: '63
+
+    '
+  visible: true
+- input: 'wp,75
+
+    qJl,-14
+
+    KnLQ,65
+
+    w,5
+
+    '
+  expected: '32
+
+    '
+  visible: false
+- input: 'PYQb,57
+
+    D,5
+
+    '
+  expected: '31
+
+    '
+  visible: false
+- input: 'FfGZ,41
+
+    yn,73
+
+    erIt,-15
+
+    PWS,47
+
+    '
+  expected: '36
+
+    '
+  visible: false
+- input: 'A,77
+
+    '
+  expected: '77
+
+    '
+  visible: false
+probe_inputs:
+- 'LwSJ,11
+
+  ijqp,11
+
+  SEH,52
+
+  VHy,79
+
+  o,-9
+
+  '
+- 'sV,9
+
+  txq,48
+
+  dVzP,3
+
+  h,68
+
+  gt,-2
+
+  iI,10
+
+  '

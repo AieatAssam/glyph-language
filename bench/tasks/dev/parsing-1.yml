@@ -1,0 +1,54 @@
+id: parsing-1
+category: parsing
+tier: 1
+prompt: Read one expression made of non negative integers joined by plus and minus signs, with no spaces. Write its value.
+tests:
+- input: '13+38
+
+    '
+  expected: '51
+
+    '
+  visible: true
+- input: '6+3-28+2
+
+    '
+  expected: '-17
+
+    '
+  visible: true
+- input: '1-76-69-18+32
+
+    '
+  expected: '-130
+
+    '
+  visible: false
+- input: '0-96
+
+    '
+  expected: '-96
+
+    '
+  visible: false
+- input: '46+75+89
+
+    '
+  expected: '210
+
+    '
+  visible: false
+- input: '25-20+87
+
+    '
+  expected: '92
+
+    '
+  visible: false
+probe_inputs:
+- '30+49
+
+  '
+- '53-49+33+50
+
+  '

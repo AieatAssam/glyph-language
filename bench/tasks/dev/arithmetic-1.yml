@@ -1,0 +1,115 @@
+id: arithmetic-1
+category: arithmetic
+tier: 1
+prompt: Read integers, one per line, until the end of input. Write their sum on one line.
+tests:
+- input: '580
+
+    -596
+
+    -188
+
+    176
+
+    -644
+
+    -828
+
+    '
+  expected: '-1500
+
+    '
+  visible: true
+- input: '899
+
+    -356
+
+    -286
+
+    785
+
+    889
+
+    '
+  expected: '1931
+
+    '
+  visible: true
+- input: '-149
+
+    -662
+
+    767
+
+    '
+  expected: '-44
+
+    '
+  visible: false
+- input: '663
+
+    -643
+
+    -773
+
+    -833
+
+    641
+
+    '
+  expected: '-945
+
+    '
+  visible: false
+- input: '-670
+
+    -243
+
+    -974
+
+    -679
+
+    '
+  expected: '-2566
+
+    '
+  visible: false
+- input: '274
+
+    -524
+
+    -448
+
+    869
+
+    '
+  expected: '171
+
+    '
+  visible: false
+probe_inputs:
+- '-554
+
+  '
+- '77
+
+  '
+variant:
+  prompt: Read integers, one per line, until the end of input. Write the sum of their absolute values on one line.
+  tests:
+  - input: '764
+
+      -603
+
+      '
+    expected: '1367
+
+      '
+    visible: false
+  - input: '-612
+
+      '
+    expected: '612
+
+      '
+    visible: false

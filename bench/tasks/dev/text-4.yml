@@ -1,0 +1,96 @@
+id: text-4
+category: text
+tier: 2
+prompt: Read lines. For each line, write it in upper case with every vowel a e i o u removed.
+tests:
+- input: 'ZLDy FTvWkzj BIbvXV aCzOJaA
+
+    Ij AVKmX fRXwrFh Ahq
+
+    '
+  expected: 'ZLDY FTVWKZJ BBVXV CZJ
+
+    J VKMX FRXWRFH HQ
+
+    '
+  visible: true
+- input: 'ulfn ogh MnGJ
+
+    sNNQSQs pidoHGy P zsoLslA
+
+    qdItEdF NelH qkuZdn fhhSy JwVc
+
+    '
+  expected: 'LFN GH MNGJ
+
+    SNNQSQS PDHGY P ZSLSL
+
+    QDTDF NLH QKZDN FHHSY JWVC
+
+    '
+  visible: true
+- input: 'f twD
+
+    LSXQ kGcYn RD kqDylz FdxIJYG
+
+    cdWA qVyZhYq xgqWzI U ijql
+
+    '
+  expected: 'F TWD
+
+    LSXQ KGCYN RD KQDYLZ FDXJYG
+
+    CDW QVYZHYQ XGQWZ  JQL
+
+    '
+  visible: false
+- input: 'Oalkab tnRO dvc Ox
+
+    WBxWkmV TsyhLMp aLExEo qsjVM
+
+    gY SFZhe kb LhBc RhvsUd
+
+    '
+  expected: 'LKB TNR DVC X
+
+    WBXWKMV TSYHLMP LX QSJVM
+
+    GY SFZH KB LHBC RHVSD
+
+    '
+  visible: false
+- input: 'lkURHwb
+
+    shzKT CNqEJw pybQBnS Mv ws
+
+    '
+  expected: 'LKRHWB
+
+    SHZKT CNQJW PYBQBNS MV WS
+
+    '
+  visible: false
+- input: 'H Me aeo
+
+    ME c mAJbipD gh JF
+
+    njnfJUz wovo fs
+
+    '
+  expected: "H M \nM C MJBPD GH JF\nNJNFJZ WV FS\n"
+  visible: false
+probe_inputs:
+- 'UJW RfdgG dQ
+
+  VnVYd k PJZm
+
+  phlDyRQ tgR daxnk gS
+
+  '
+- 'B gbY myrOX
+
+  De
+
+  ldhBKX mTK QXnv dQniJAT WpMG
+
+  '

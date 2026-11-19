@@ -1,0 +1,71 @@
+id: recursion-4
+category: recursion
+tier: 2
+prompt: Read one integer n from zero to thirty. Write the number of subsets of the numbers one through n whose sum is even. The empty subset counts.
+tests:
+- input: '27
+
+    '
+  expected: '67108864
+
+    '
+  visible: true
+- input: '30
+
+    '
+  expected: '536870912
+
+    '
+  visible: true
+- input: '9
+
+    '
+  expected: '256
+
+    '
+  visible: false
+- input: '28
+
+    '
+  expected: '134217728
+
+    '
+  visible: false
+- input: '1
+
+    '
+  expected: '1
+
+    '
+  visible: false
+- input: '28
+
+    '
+  expected: '134217728
+
+    '
+  visible: false
+probe_inputs:
+- '25
+
+  '
+- '23
+
+  '
+variant:
+  prompt: Read one integer n from zero to thirty. Write the number of subsets of the numbers one through n whose sum is a multiple of three. The empty subset counts.
+  tests:
+  - input: '12
+
+      '
+    expected: '1376
+
+      '
+    visible: false
+  - input: '17
+
+      '
+    expected: '43712
+
+      '
+    visible: false

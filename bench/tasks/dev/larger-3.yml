@@ -1,0 +1,389 @@
+id: larger-3
+category: larger
+tier: 3
+prompt: 'Play a text adventure. The world has five rooms: hall, library, kitchen, cellar and vault. hall connects north to library and east to kitchen. library connects south to hall. kitchen connects west to hall and down to cellar. cellar connects up to kitchen and east to vault, and that east exit is locked until you carry the key. vault connects west to cellar. Items start where they are listed: hall has a lamp, library has a book and a key, kitchen has bread, cellar has wine, vault has gold. Commands, one per line: go DIR moves you; take ITEM and drop ITEM move items between the room and you; look lists the exits and items here; inv lists what you carry. Each command writes one response line. Impossible or unknown commands count as failures. After all commands, write the final line: final ROOM moves N failed M.'
+tests:
+- input: 'take book
+
+    jump north
+
+    jump north
+
+    go east
+
+    dance
+
+    drop lamp
+
+    drop gold
+
+    go west
+
+    '
+  expected: 'no book here
+
+    unknown command jump
+
+    unknown command jump
+
+    you enter the kitchen
+
+    unknown command dance
+
+    you have no lamp
+
+    you have no gold
+
+    you enter the hall
+
+    final hall moves 2 failed 6
+
+    '
+  visible: true
+- input: 'drop gold
+
+    take wine
+
+    take key
+
+    dance
+
+    look
+
+    go east
+
+    go south
+
+    look
+
+    '
+  expected: 'you have no gold
+
+    no wine here
+
+    no key here
+
+    unknown command dance
+
+    hall: exits east, north; you see lamp
+
+    you enter the kitchen
+
+    no way south
+
+    kitchen: exits down, west; you see bread
+
+    final kitchen moves 1 failed 5
+
+    '
+  visible: true
+- input: 'inv
+
+    take wine
+
+    look
+
+    take key
+
+    take wine
+
+    take book
+
+    look
+
+    look
+
+    take lamp
+
+    go north
+
+    dance
+
+    '
+  expected: 'carrying nothing
+
+    no wine here
+
+    hall: exits east, north; you see lamp
+
+    no key here
+
+    no wine here
+
+    no book here
+
+    hall: exits east, north; you see lamp
+
+    hall: exits east, north; you see lamp
+
+    taken lamp
+
+    you enter the library
+
+    unknown command dance
+
+    final library moves 1 failed 5
+
+    '
+  visible: false
+- input: 'go up
+
+    inv
+
+    go east
+
+    inv
+
+    take key
+
+    go down
+
+    drop bread
+
+    look
+
+    go north
+
+    take book
+
+    go south
+
+    take bread
+
+    take lamp
+
+    '
+  expected: 'no way up
+
+    carrying nothing
+
+    you enter the kitchen
+
+    carrying nothing
+
+    no key here
+
+    you enter the cellar
+
+    you have no bread
+
+    cellar: exits east, up; you see wine
+
+    no way north
+
+    no book here
+
+    no way south
+
+    no bread here
+
+    no lamp here
+
+    final cellar moves 2 failed 8
+
+    '
+  visible: false
+- input: 'take gold
+
+    go east
+
+    jump north
+
+    look
+
+    go east
+
+    jump north
+
+    inv
+
+    go up
+
+    '
+  expected: 'no gold here
+
+    you enter the kitchen
+
+    unknown command jump
+
+    kitchen: exits down, west; you see bread
+
+    no way east
+
+    unknown command jump
+
+    carrying nothing
+
+    no way up
+
+    final kitchen moves 1 failed 5
+
+    '
+  visible: false
+- input: 'inv
+
+    drop book
+
+    inv
+
+    drop wine
+
+    dance
+
+    dance
+
+    go west
+
+    take lamp
+
+    take bread
+
+    take book
+
+    take wine
+
+    go east
+
+    '
+  expected: 'carrying nothing
+
+    you have no book
+
+    carrying nothing
+
+    you have no wine
+
+    unknown command dance
+
+    unknown command dance
+
+    no way west
+
+    taken lamp
+
+    no bread here
+
+    no book here
+
+    no wine here
+
+    you enter the kitchen
+
+    final kitchen moves 1 failed 8
+
+    '
+  visible: false
+probe_inputs:
+- 'take lamp
+
+  go west
+
+  go east
+
+  take book
+
+  go south
+
+  take bread
+
+  jump north
+
+  take wine
+
+  take bread
+
+  go west
+
+  go west
+
+  jump north
+
+  go west
+
+  '
+- 'go south
+
+  go west
+
+  go down
+
+  go down
+
+  jump north
+
+  go north
+
+  inv
+
+  take wine
+
+  go east
+
+  go west
+
+  jump north
+
+  drop book
+
+  '
+variant:
+  prompt: 'Play a text adventure. The world has five rooms: hall, library, kitchen, cellar and vault. hall connects north to library and east to kitchen. library connects south to hall. kitchen connects west to hall and down to cellar. cellar connects up to kitchen and east to vault, and that east exit is locked until you carry the key. vault connects west to cellar. Items start where they are listed: hall has a lamp, library has a book and a key, kitchen has bread, cellar has wine, vault has gold. Commands, one per line: go DIR moves you; take ITEM and drop ITEM move items between the room and you; look lists the exits and items here; inv lists what you carry. Impossible or unknown commands count as failures. After all commands, write two lines: failed M, then room ROOM where ROOM is the room you end in.'
+  tests:
+  - input: 'dance
+
+      drop lamp
+
+      take wine
+
+      take lamp
+
+      dance
+
+      go west
+
+      go west
+
+      drop wine
+
+      '
+    expected: 'failed 7
+
+      room hall
+
+      '
+    visible: false
+  - input: 'take key
+
+      go west
+
+      go up
+
+      go down
+
+      dance
+
+      go south
+
+      go west
+
+      take key
+
+      jump north
+
+      take bread
+
+      go up
+
+      inv
+
+      go down
+
+      go west
+
+      '
+    expected: 'failed 13
+
+      room hall
+
+      '
+    visible: false

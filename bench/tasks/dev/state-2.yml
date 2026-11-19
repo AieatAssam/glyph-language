@@ -1,0 +1,176 @@
+id: state-2
+category: state
+tier: 1
+prompt: Start a counter at zero. Read lines that say inc, dec, or reset. After each line write the counter value. The counter may go below zero.
+tests:
+- input: 'reset
+
+    inc
+
+    '
+  expected: '0
+
+    1
+
+    '
+  visible: true
+- input: 'reset
+
+    dec
+
+    reset
+
+    dec
+
+    inc
+
+    inc
+
+    dec
+
+    inc
+
+    dec
+
+    '
+  expected: '0
+
+    -1
+
+    0
+
+    -1
+
+    0
+
+    1
+
+    0
+
+    1
+
+    0
+
+    '
+  visible: true
+- input: 'dec
+
+    reset
+
+    dec
+
+    reset
+
+    '
+  expected: '-1
+
+    0
+
+    -1
+
+    0
+
+    '
+  visible: false
+- input: 'dec
+
+    inc
+
+    inc
+
+    reset
+
+    reset
+
+    reset
+
+    '
+  expected: '-1
+
+    0
+
+    1
+
+    0
+
+    0
+
+    0
+
+    '
+  visible: false
+- input: 'reset
+
+    inc
+
+    '
+  expected: '0
+
+    1
+
+    '
+  visible: false
+- input: 'reset
+
+    dec
+
+    dec
+
+    reset
+
+    reset
+
+    dec
+
+    dec
+
+    dec
+
+    inc
+
+    '
+  expected: '0
+
+    -1
+
+    -2
+
+    0
+
+    0
+
+    -1
+
+    -2
+
+    -3
+
+    -2
+
+    '
+  visible: false
+probe_inputs:
+- 'reset
+
+  dec
+
+  inc
+
+  dec
+
+  inc
+
+  '
+- 'reset
+
+  reset
+
+  dec
+
+  inc
+
+  inc
+
+  reset
+
+  '

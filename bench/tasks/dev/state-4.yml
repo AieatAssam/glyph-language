@@ -1,0 +1,199 @@
+id: state-4
+category: state
+tier: 2
+prompt: Read lines that say enq N or deq. Keep a first in first out queue. A deq line writes the value it removes, or the word none when the queue is empty.
+tests:
+- input: 'enq 90
+
+    enq 37
+
+    deq
+
+    enq 86
+
+    enq 5
+
+    deq
+
+    enq 51
+
+    enq 44
+
+    deq
+
+    '
+  expected: '90
+
+    37
+
+    86
+
+    '
+  visible: true
+- input: 'deq
+
+    deq
+
+    enq 60
+
+    enq 4
+
+    deq
+
+    enq 17
+
+    enq 52
+
+    enq 82
+
+    deq
+
+    '
+  expected: 'none
+
+    none
+
+    60
+
+    4
+
+    '
+  visible: true
+- input: 'enq 56
+
+    deq
+
+    deq
+
+    deq
+
+    enq 1
+
+    enq 53
+
+    enq 71
+
+    deq
+
+    enq 57
+
+    '
+  expected: '56
+
+    none
+
+    none
+
+    1
+
+    '
+  visible: false
+- input: 'enq 58
+
+    deq
+
+    deq
+
+    enq 23
+
+    enq 56
+
+    enq 75
+
+    deq
+
+    '
+  expected: '58
+
+    none
+
+    23
+
+    '
+  visible: false
+- input: 'deq
+
+    enq 99
+
+    enq 65
+
+    deq
+
+    enq 99
+
+    '
+  expected: 'none
+
+    99
+
+    '
+  visible: false
+- input: 'deq
+
+    enq 29
+
+    enq 52
+
+    deq
+
+    deq
+
+    deq
+
+    '
+  expected: 'none
+
+    29
+
+    52
+
+    none
+
+    '
+  visible: false
+probe_inputs:
+- 'deq
+
+  deq
+
+  deq
+
+  enq 49
+
+  deq
+
+  deq
+
+  enq 39
+
+  '
+- 'enq 88
+
+  enq 33
+
+  enq 23
+
+  enq 38
+
+  '
+variant:
+  prompt: Read lines that say enq N or deq. Keep a last in first out stack instead of a queue. A deq line writes the value it removes, or the word none when the stack is empty.
+  tests:
+  - input: 'enq 92
+
+      deq
+
+      '
+    expected: '92
+
+      '
+    visible: false
+  - input: 'enq 32
+
+      deq
+
+      '
+    expected: '32
+
+      '
+    visible: false

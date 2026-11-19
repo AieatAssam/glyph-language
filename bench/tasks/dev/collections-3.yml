@@ -1,0 +1,71 @@
+id: collections-3
+category: collections
+tier: 2
+prompt: Read a line of integers separated by spaces. Write the distinct values in order of first appearance, separated by single spaces.
+tests:
+- input: '0 5 6 3 5 6 2
+
+    '
+  expected: '0 5 6 3 2
+
+    '
+  visible: true
+- input: '2 4 0 5 5 3 4 4 2 6
+
+    '
+  expected: '2 4 0 5 3 6
+
+    '
+  visible: true
+- input: '6 3 6 5 3 2
+
+    '
+  expected: '6 3 5 2
+
+    '
+  visible: false
+- input: '4 3 4 0
+
+    '
+  expected: '4 3 0
+
+    '
+  visible: false
+- input: '4 0 3 2 4 5
+
+    '
+  expected: '4 0 3 2 5
+
+    '
+  visible: false
+- input: '5 3 0
+
+    '
+  expected: '5 3 0
+
+    '
+  visible: false
+probe_inputs:
+- '2 3
+
+  '
+- '5 3
+
+  '
+variant:
+  prompt: Read a line of integers separated by spaces. Write the distinct values in descending order of value, separated by single spaces.
+  tests:
+  - input: '6 1 5 5 0 4
+
+      '
+    expected: '6 5 4 1 0
+
+      '
+    visible: false
+  - input: '6 1 5 4 4
+
+      '
+    expected: '6 5 4 1
+
+      '
+    visible: false

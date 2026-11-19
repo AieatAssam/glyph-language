@@ -1,0 +1,78 @@
+id: text-1
+category: text
+tier: 1
+prompt: Read lines until the end of input. Write each line reversed, character by character.
+tests:
+- input: 'gybADPD
+
+    wvRYP Wya S Da KsIW
+
+    '
+  expected: 'DPDAbyg
+
+    WIsK aD S ayW PYRvw
+
+    '
+  visible: true
+- input: 'CoxQCy
+
+    SkHXcmb
+
+    '
+  expected: 'yCQxoC
+
+    bmcXHkS
+
+    '
+  visible: true
+- input: 'IpjvmNr cFz yKZl GpSYL
+
+    t
+
+    '
+  expected: 'LYSpG lZKy zFc rNmvjpI
+
+    t
+
+    '
+  visible: false
+- input: 'VC MygbnC L
+
+    ZkU
+
+    '
+  expected: 'L CnbgyM CV
+
+    UkZ
+
+    '
+  visible: false
+- input: 'MaX BWhHa
+
+    dpvUh Y jrNoM
+
+    '
+  expected: 'aHhWB XaM
+
+    MoNrj Y hUvpd
+
+    '
+  visible: false
+- input: 'JGDknz kgH HtGJ ypkK
+
+    '
+  expected: 'Kkpy JGtH Hgk znkDGJ
+
+    '
+  visible: false
+probe_inputs:
+- 'aAQPMb fL wKp hsKIa
+
+  okTCtyq cfkRfO R Xg nryWkAt
+
+  '
+- 'N LVCQXT
+
+  Poya Y aurTYWY FVnf
+
+  '

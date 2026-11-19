@@ -1,0 +1,121 @@
+id: decomposition-5
+category: decomposition
+tier: 3
+prompt: Read a sentence on one line. For each word length that appears, in ascending order of length, write a line with the length, a space, and how many words have that length.
+tests:
+- input: 'XD F bBMTwp
+
+    '
+  expected: '1 1
+
+    2 1
+
+    6 1
+
+    '
+  visible: true
+- input: 'xL ozgR QnjZ lo lynMxo mI fnmSa SmUX
+
+    '
+  expected: '2 3
+
+    4 3
+
+    5 1
+
+    6 1
+
+    '
+  visible: true
+- input: 'IKWgG Nmue KIsrMSy v iEFnNv DCPC
+
+    '
+  expected: '1 1
+
+    4 2
+
+    5 1
+
+    6 1
+
+    7 1
+
+    '
+  visible: false
+- input: 'Gc CuD tHFP Tnve UKKISy mrUEUS sPn bWwiUTw gJd uKMmj
+
+    '
+  expected: '2 1
+
+    3 3
+
+    4 2
+
+    5 1
+
+    6 2
+
+    7 1
+
+    '
+  visible: false
+- input: 'eGFZ ush kg mrgfVc SCORb afQzY o csCwP n GEVNDr
+
+    '
+  expected: '1 2
+
+    2 1
+
+    3 1
+
+    4 1
+
+    5 3
+
+    6 2
+
+    '
+  visible: false
+- input: 'HQFsAsh gmuRB aa Q WovNH fYuE OwRx jW r
+
+    '
+  expected: '1 2
+
+    2 2
+
+    4 2
+
+    5 2
+
+    7 1
+
+    '
+  visible: false
+probe_inputs:
+- 'QPwYVu hizaNBG NhT Z HrMDw
+
+  '
+- 'Rkidu UAyXTyt Mrq FUXS
+
+  '
+variant:
+  prompt: Read a sentence on one line. For each even word length that appears, in ascending order of length, write a line with the length, a space, and how many words have that length.
+  tests:
+  - input: 'odhODmO jqUjMaX S EkwyY tbMazZr rB I vdf BVXEhL
+
+      '
+    expected: '2 1
+
+      6 1
+
+      '
+    visible: false
+  - input: 'uJrzTW GBGGdB dxuPx PR j knlPE F mJ Yu
+
+      '
+    expected: '2 3
+
+      6 2
+
+      '
+    visible: false

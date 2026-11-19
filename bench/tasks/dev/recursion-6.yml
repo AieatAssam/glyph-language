@@ -1,0 +1,54 @@
+id: recursion-6
+category: recursion
+tier: 3
+prompt: Read one integer n from zero to thirty. Write the number of ordered ways to write n as a sum of ones, twos and threes.
+tests:
+- input: '16
+
+    '
+  expected: '10609
+
+    '
+  visible: true
+- input: '7
+
+    '
+  expected: '44
+
+    '
+  visible: true
+- input: '30
+
+    '
+  expected: '53798080
+
+    '
+  visible: false
+- input: '29
+
+    '
+  expected: '29249425
+
+    '
+  visible: false
+- input: '20
+
+    '
+  expected: '121415
+
+    '
+  visible: false
+- input: '7
+
+    '
+  expected: '44
+
+    '
+  visible: false
+probe_inputs:
+- '18
+
+  '
+- '25
+
+  '

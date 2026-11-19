@@ -1,0 +1,169 @@
+id: state-3
+category: state
+tier: 2
+prompt: Start with a balance of zero. Each line is deposit N or withdraw N, where N is a positive integer. Write the balance after each line. A withdrawal larger than the balance is ignored.
+tests:
+- input: 'withdraw 21
+
+    withdraw 1
+
+    withdraw 56
+
+    deposit 20
+
+    deposit 10
+
+    '
+  expected: '0
+
+    0
+
+    0
+
+    20
+
+    30
+
+    '
+  visible: true
+- input: 'withdraw 44
+
+    deposit 53
+
+    withdraw 54
+
+    '
+  expected: '0
+
+    53
+
+    53
+
+    '
+  visible: true
+- input: 'withdraw 33
+
+    deposit 8
+
+    withdraw 32
+
+    deposit 12
+
+    withdraw 56
+
+    '
+  expected: '0
+
+    8
+
+    8
+
+    20
+
+    20
+
+    '
+  visible: false
+- input: 'withdraw 15
+
+    withdraw 30
+
+    deposit 35
+
+    deposit 42
+
+    '
+  expected: '0
+
+    0
+
+    35
+
+    77
+
+    '
+  visible: false
+- input: 'deposit 59
+
+    deposit 31
+
+    '
+  expected: '59
+
+    90
+
+    '
+  visible: false
+- input: 'withdraw 4
+
+    deposit 13
+
+    deposit 52
+
+    '
+  expected: '0
+
+    13
+
+    65
+
+    '
+  visible: false
+probe_inputs:
+- 'deposit 45
+
+  deposit 35
+
+  deposit 2
+
+  withdraw 56
+
+  withdraw 24
+
+  deposit 35
+
+  deposit 31
+
+  '
+- 'withdraw 27
+
+  deposit 22
+
+  '
+variant:
+  prompt: Start with a balance of zero. Each line is deposit N or withdraw N, where N is a positive integer. Write the balance after each line. A withdrawal larger than the balance sets the balance to zero.
+  tests:
+  - input: 'deposit 45
+
+      withdraw 50
+
+      '
+    expected: '45
+
+      0
+
+      '
+    visible: false
+  - input: 'deposit 21
+
+      deposit 34
+
+      withdraw 35
+
+      withdraw 13
+
+      withdraw 55
+
+      '
+    expected: '21
+
+      55
+
+      20
+
+      7
+
+      0
+
+      '
+    visible: false

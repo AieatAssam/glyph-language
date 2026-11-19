@@ -1,0 +1,2499 @@
+id: recursion-5
+category: recursion
+tier: 3
+prompt: Read one integer n from one to ten. Print the moves that transfer n disks from peg A to peg C, using peg B as the spare, one move per line written as the source peg and the target peg separated by a space.
+tests:
+- input: '4
+
+    '
+  expected: 'A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    '
+  visible: true
+- input: '10
+
+    '
+  expected: 'A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    C B
+
+    A B
+
+    C A
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    A B
+
+    C A
+
+    C B
+
+    A B
+
+    A C
+
+    B C
+
+    B A
+
+    C A
+
+    B C
+
+    A B
+
+    A C
+
+    B C
+
+    '
+  visible: true
+- input: '2
+
+    '
+  expected: 'A B
+
+    A C
+
+    B C
+
+    '
+  visible: false
+- input: '5
+
+    '
+  expected: 'A C
+
+    A B
+
+    C B
+
+    A C
+
+    B A
+
+    B C
+
+    A C
+
+    A B
+
+    C B
+
+    C A
+
+    B A
+
+    C B
+
+    A C
+
+    A B
+
+    C B
+
+    A C
+
+    B A
+
+    B C
+
+    A C
+
+    B A
+
+    C B
+
+    C A
+
+    B A
+
+    B C
+
+    A C
+
+    A B
+
+    C B
+
+    A C
+
+    B A
+
+    B C
+
+    A C
+
+    '
+  visible: false
+- input: '1
+
+    '
+  expected: 'A C
+
+    '
+  visible: false
+- input: '3
+
+    '
+  expected: 'A C
+
+    A B
+
+    C B
+
+    A C
+
+    B A
+
+    B C
+
+    A C
+
+    '
+  visible: false
+probe_inputs:
+- '8
+
+  '
+- '4
+
+  '
+variant:
+  prompt: Read one integer n from one to ten. Print the moves that transfer n disks from peg 1 to peg 3, using peg 2 as the spare, one move per line written as the source peg and the target peg separated by a space.
+  tests:
+  - input: '4
+
+      '
+    expected: '1 2
+
+      1 3
+
+      2 3
+
+      1 2
+
+      3 1
+
+      3 2
+
+      1 2
+
+      1 3
+
+      2 3
+
+      2 1
+
+      3 1
+
+      2 3
+
+      1 2
+
+      1 3
+
+      2 3
+
+      '
+    visible: false
+  - input: '7
+
+      '
+    expected: '1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      3 1
+
+      2 1
+
+      3 2
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      2 1
+
+      3 2
+
+      3 1
+
+      2 1
+
+      2 3
+
+      1 3
+
+      1 2
+
+      3 2
+
+      1 3
+
+      2 1
+
+      2 3
+
+      1 3
+
+      '
+    visible: false
