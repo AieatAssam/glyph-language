@@ -78,6 +78,11 @@ class Founding(unittest.TestCase):
         asgs = run("design", rules=M1)
         self.assertEqual([x for a in asgs if a.kind == "open" for x in a.header["slugs"]], ["toy-print"])
 
+    def test_scripted_run_stays_a_toy_dry_run_at_m2(self):
+        with mock.patch.dict(os.environ, {"AGENT_MODE": "scripted"}):
+            asgs = run("design")
+        self.assertEqual([x for a in asgs if a.kind == "open" for x in a.header["slugs"]], ["toy-print"])
+
 
 class Caps(unittest.TestCase):
     def test_five_open_rfcs_is_the_ceiling(self):

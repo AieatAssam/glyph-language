@@ -16,7 +16,7 @@ Owner-protected. The merge bot and orchestrator read the block below; changing a
 Rules 1–14 of the build spec section 6, in order. Flags under `gates` switch on later-milestone rules.
 
 ```yaml rules
-milestone: M1
+milestone: M2
 quorum: 5
 accept_ratio: 0.6667
 supermajority_ratio: 0.75

@@ -511,7 +511,8 @@ class Ctx:
     def __init__(self, phase, state, rules, roster, repo, run_date, events):
         self.phase, self.state, self.rules, self.roster = phase, state, rules, roster
         self.repo, self.run_date, self.events = repo, run_date, list(events)
-        self.live = milestone_no(rules) >= 2
+        # Scripted agents only know the toy language, so a scripted run stays an M1 dry run.
+        self.live = milestone_no(rules) >= 2 and os.environ.get("AGENT_MODE", "live") != "scripted"
         self.escalations = escalation_items(state, rules)
 
 

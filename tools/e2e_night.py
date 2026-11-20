@@ -215,7 +215,14 @@ class Harness:
         # (it would otherwise log every protected file as an owner change).
         seed_env = dict(os.environ, GIT_AUTHOR_NAME="glyph-e2e", GIT_AUTHOR_EMAIL="e2e@local",
                         GIT_COMMITTER_NAME="glyph-e2e", GIT_COMMITTER_EMAIL="e2e@local")
-        seed = subprocess.run(["git", "-C", str(REPO), "commit-tree", "HEAD^{tree}", "-m",
+        # The seed drops audit/: a fresh night starts from an empty log, as the live repo did.
+        idx = dict(seed_env, GIT_INDEX_FILE=str(self.tmp / "seed.index"))
+        subprocess.run(["git", "-C", str(REPO), "read-tree", "HEAD"], check=True, env=idx)
+        subprocess.run(["git", "-C", str(REPO), "rm", "-r", "-q", "--cached", "--ignore-unmatch", "audit"],
+                       check=True, env=idx)
+        tree = subprocess.run(["git", "-C", str(REPO), "write-tree"], capture_output=True, text=True,
+                              check=True, env=idx).stdout.strip()
+        seed = subprocess.run(["git", "-C", str(REPO), "commit-tree", tree, "-m",
                                "Harness seed\n\nBot: mergebot"], capture_output=True, text=True,
                               check=True, env=seed_env).stdout.strip()
         subprocess.run(["git", "-C", str(REPO), "push", "-q", str(self.origin),
