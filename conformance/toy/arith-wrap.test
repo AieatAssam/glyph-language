@@ -1,0 +1,15 @@
+--- meta
+id: toy/arith-wrap
+rfc: 0001
+kind: run
+--- source
+print 2147483647
+print 2147483647 + 1
+print 0 - 2147483647 - 1
+--- stdin
+--- expect-stdout
+2147483647
+-2147483648
+-2147483648
+--- expect-exit
+0
