@@ -21,13 +21,15 @@ const QUOTED = /"[^"]*"?/g;
 export function checkMessage(message: string): Problem[] {
   const problems: Problem[] = [];
 
-  // One sentence: no line break, and no full stop, ! or ? outside quoted runs. A final full stop
-  // is left to the trailing-stop rule, so it is not reported twice.
+  // One sentence: no line break, and no ! or ? outside quoted runs, and no full stop that is
+  // followed by a space or the end of the message. A full stop followed by a letter, such as the
+  // one in ".gl" or "main.gl", is part of a name, not a sentence break (owner ruling, 2026-11-20).
+  // A final full stop is left to the trailing-stop rule, so it is not reported twice.
   const body = message.endsWith('.') ? message.slice(0, -1) : message;
   if (/[\r\n]/.test(message)) {
     problems.push({ rule: 'one-sentence', detail: 'contains a line break' });
   }
-  if (/[.!?]/.test(body.replace(QUOTED, '""'))) {
+  if (/[!?]|\.(?=\s|$)/.test(body.replace(QUOTED, '""'))) {
     problems.push({ rule: 'one-sentence', detail: 'contains a full stop, ! or ? before the end' });
   }
 

@@ -51,3 +51,12 @@ test('a full stop inside a quoted run is not a sentence break', () => {
 test('an empty message breaks only the lowercase-first rule', () => {
   assert.deepEqual(rules(''), ['lowercase-first']);
 });
+
+test('one-sentence: a full stop inside a file name is not a sentence break', () => {
+  assert.deepEqual(rules('source file does not end in .gl'), []);
+  assert.deepEqual(rules('unknown module main.gl here'), []);
+});
+
+test('one-sentence: a full stop followed by a space is still a sentence break', () => {
+  assert.deepEqual(rules('see main.gl. then retry'), ['one-sentence']);
+});
