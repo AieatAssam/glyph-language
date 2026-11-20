@@ -90,6 +90,9 @@ _VALIDATORS: dict = {}
 ITEM_JQ = '.[] | {number, body: (.body // ""), head: (.head.ref // "")} | tojson'
 
 
+HARNESS_FILES = {"transcript.jsonl", "stderr.log", "session.json"}  # written by run_agent.sh
+
+
 class PublishError(Exception):
     """A refusal reason. Raised inside one action or one session."""
 
@@ -653,7 +656,7 @@ class Publisher:
                 rel = p.relative_to(sdir).as_posix()
                 if p.is_symlink():
                     raise PublishError(f"symlink in output: {rel}")
-                if name in files:
+                if name in files and rel not in HARNESS_FILES:  # the cap is on what the agent wrote
                     total += p.stat().st_size
         if total > self.rules["max_out_bytes"]:
             raise PublishError(f"output is {total} bytes, over the {self.rules['max_out_bytes']} limit")

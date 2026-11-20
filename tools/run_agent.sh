@@ -102,7 +102,7 @@ else
      claude -p --model "$model" "${effort_flag[@]}" \
      --output-format stream-json --verbose --no-session-persistence \
      --permission-mode acceptEdits \
-     --allowedTools Read Write Edit Glob Grep "Bash(sbx bin/glyphc:*)" "Bash(sbx node --test:*)" "Bash(sbx python3 -m tools.check.run:*)" "Bash(sbx python3 -m tools.check_actions:*)" \
+     --allowedTools Read Write Edit Glob Grep "Bash(sbx bin/glyphc:*)" "Bash(sbx node --test:*)" "Bash(sbx python3 -m tools.check.run:*)" "Bash(sbx python3 -m tools.check_actions:*)" "Bash(sbx wc -c:*)" \
      --disallowedTools WebFetch WebSearch \
      --max-budget-usd "$budget" \
      --settings "$sandbox" \

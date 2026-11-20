@@ -281,6 +281,12 @@ class PublisherTests(unittest.TestCase):
             with self.subTest(type=e["type"]):
                 validator.validate({**e, "seq": 1, "prev_hash": "0" * 64})
 
+    def test_long_transcript_does_not_count_against_the_output_cap(self):
+        big = self.session("big", "designer-min", [COMMENT])
+        (big / "transcript.jsonl").write_bytes(b"x" * 3_000_000)
+        _, rep, _ = self.run_pub([big])
+        self.assertEqual(rep["refused"], [])
+
     def test_bad_agent_bytes_never_abort_the_batch(self):
         bad_mem = self.session("badmem", "designer-min", [COMMENT], memory="placeholder")
         (bad_mem / "MEMORY.md").write_bytes(b"\xff\xfe not utf8")
