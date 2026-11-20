@@ -31,7 +31,11 @@ Each code is listed once in `spec/errors.json` with a message template and a one
 | effects and capabilities | E0400 to E0499 |
 | limits and constants | E0500 to E0599 |
 
-A message template may change wording in a later RFC without changing its code. Tests match on `code`, `span` and `fix`, not on `message`.
+A message template may change wording in a later RFC without changing its code.
+
+## Tests
+
+A compile-error test states its expected records as JSON. The runner compares `code`, `span` and `fix`, not `message`.
 
 ## Runtime traps
 
