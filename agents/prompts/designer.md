@@ -27,6 +27,7 @@ Vote approve, reject or abstain on each RFC you are assigned. The rationale is o
 
 ## Assignments you may get
 
+- Keep every RFC under 25,000 characters. When a revision adds text, cut prose elsewhere; never cut the test plan.
 - `open`: write `rfcs/draft-<slug>.md` in `out/files/` and return one `open_rfc` action with `file` set to the same path.
 - `propose`: as `open`, but grounded in a finding or user issue you cite in Motivation.
 - `comment`: return one `comment` action with one concrete comment, saying what you would cut.

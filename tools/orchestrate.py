@@ -22,7 +22,7 @@ ARCH_PHASES = {"architect", "scribe", "architect-weekly"}  # session ids use cyc
 USER_ROLE = "user"  # users vote from the RFC's Summary and Examples only (see _vote_block)
 USER_SECTIONS = ("summary", "examples")
 DIFF_CAP = 60000
-RFC_CAP = 30000
+RFC_CAP = 80000  # display bound only; designers are asked to stay under 25,000 characters
 
 FOUNDING = (
     {"slug": "name", "title": "The language name", "class": "language"},
@@ -178,7 +178,7 @@ def rfc_text(repo, num: str, rfc: dict) -> str:
     text = _rfc_raw(repo, num, rfc)
     if text is None:
         return f"(RFC {num} is not on {repo.base} yet; branch {rfc.get('branch')})"
-    return text[:RFC_CAP]
+    return text if len(text) <= RFC_CAP else text[:RFC_CAP] + f"\n\n[orchestrator: RFC cut at {RFC_CAP} characters]\n"
 
 
 def user_sections(text: str) -> str:
