@@ -30,6 +30,7 @@ FOUNDING = (
     {"slug": "kernel", "title": "Kernel: integers, booleans, bindings, functions, conditionals, loops, text output", "class": "language"},
     {"slug": "diagnostic-style", "title": "Diagnostic style", "class": "language"},
 )
+COUPLED = {"lexical-syntax": "kernel", "kernel": "lexical-syntax"}
 DEAD = ("rejected", "withdrawn", "lapsed", "superseded")
 TOY = {"slug": "toy-print", "title": "Toy print", "class": "language"}
 
@@ -305,6 +306,20 @@ def plan_design(ctx) -> list[Asg]:
                 spec = {**spec, "slug": f"{spec['slug']}-v{len(tries) + 1}"}
                 why += (f"\n\nAttempt {len(tries) + 1}. RFC {tries[-1]} (`rfcs/{tries[-1]}-{last['slug']}.md`) was "
                         f"{last['status']}. Keep what voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
+            base = spec["slug"].split("-v")[0] if re.search(r"-v\d+$", spec["slug"]) else spec["slug"]
+            if base in COUPLED:  # lexical syntax and kernel must agree: one author writes both, or reads the other
+                other = COUPLED[base]
+                live_other = [n for n in by_num(rfcs) if re.fullmatch(re.escape(other) + r"(-v\d+)?", rfcs[n]["slug"])
+                              and rfcs[n]["status"] not in DEAD]
+                if live_other:
+                    why += ("\n\nIt must be buildable together with the open RFC below. Use its tokens, codes and "
+                            "rules; do not redefine them.\n\n" + rfc_block(repo, live_other[-1], rfcs[live_other[-1]]))
+                pair = next((d for d, items in opened.items()
+                             if any(sp["slug"].startswith(other) for sp, _ in items)), None)
+                if pair and can(pair):
+                    open_rfc(pair, spec, why + "\n\nYou also write the other founding RFC in this session: "
+                             "make the two consistent.")
+                    continue
             for j in range(len(designers)):  # round robin from the founding index
                 d = designers[(k + j) % len(designers)]
                 if can(d) and d not in out:
@@ -379,6 +394,7 @@ def plan_implement(ctx) -> list[Asg]:
     prs = ctx.state.get("prs", {})
     limit = int(rules.get("escalation_failures", 3))
     escalated = {(e["rfc"], e["subtask"]) for e in ctx.escalations}
+    kernel_done = any(r["status"] == "implemented" and re.fullmatch(r"kernel(-v\d+)?", r["slug"]) for r in rfcs.values())
     items = []
     for n in by_num(rfcs):
         r = rfcs[n]
@@ -395,6 +411,8 @@ def plan_implement(ctx) -> list[Asg]:
         nxt = next_subtask(plan)
         if nxt is None:
             continue
+        if ctx.live and not kernel_done and r["slug"].split("-v")[0] not in COUPLED:
+            continue  # no compiler exists until the lexical syntax and kernel are built: build those first
         idx, text = nxt
         pr = int(impl_pr) if impl_pr else None
         fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr else {}

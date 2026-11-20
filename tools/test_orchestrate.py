@@ -84,6 +84,14 @@ class Founding(unittest.TestCase):
         self.assertIn("Trap exit code unclear.", k[0].body)
         self.assertNotIn("ok", k[0].body.split("Attempt 2")[1])
 
+    def test_rejected_lexical_and_kernel_go_to_one_designer(self):
+        st = {"rfcs": {"0003": rfc("0003", DESIGNERS[1], slug="lexical-syntax", status="rejected"),
+                       "0005": rfc("0005", DESIGNERS[2], slug="kernel", status="rejected"),
+                       "0002": rfc("0002", DESIGNERS[0], slug="name", status="accepted"),
+                       "0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="accepted")}}
+        opens = [a for a in run("design", state=st) if a.kind == "open"]
+        self.assertEqual([sorted(a.header["slugs"]) for a in opens], [["kernel-v2", "lexical-syntax-v2"]])
+
     def test_no_proposals_until_founding_rfcs_are_accepted(self):
         st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], slug=s, status="rejected")
                        for i, s in enumerate(["name", "lexical-syntax", "kernel", "diagnostic-style"], 1)}}
@@ -113,7 +121,7 @@ class Caps(unittest.TestCase):
 
     def test_blocked_pr_is_fixed_before_the_next_subtask(self):
         plan = "- [x] 1. Lexer\n- [ ] 2. Parser\n"
-        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], status="implementing")},
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="kernel", status="implementing")},
               "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1,
                              "branch": "agent/impl-0004", "head_sha": "abc"}}}
         ev = [{"type": "check_run", "subject": {"pr": 30}, "data": {"sha": "abc", "rules": {
@@ -126,6 +134,13 @@ class Caps(unittest.TestCase):
         self.assertNotIn("rule 14", a.body)
         a = [x for x in run("implement", state=st, repo=repo, events=[]) if x.kind == "subtask"][0]
         self.assertIn("Implement subtask 2", a.body)
+
+    def test_only_lexical_and_kernel_are_built_before_the_kernel_exists(self):
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="implementing"),
+                       "0016": rfc("0016", DESIGNERS[1], slug="kernel-v4", status="implementing")}}
+        repo = FakeRepo(files={"rfcs/0004.plan.md": "- [ ] 1. a\n", "rfcs/0016.plan.md": "- [ ] 1. b\n"})
+        self.assertEqual([a.header.get("rfc") for a in run("implement", state=st, repo=repo) if a.kind == "subtask"],
+                         ["0016"])
 
     def test_implement_respects_max_implementing(self):
         st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], status="accepted") for i in range(1, 6)}}
