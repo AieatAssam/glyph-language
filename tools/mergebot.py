@@ -338,6 +338,7 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
 
 
 UNTICKED = re.compile(r"^\s*- \[ \]", re.M)
+PLAN_FILE_RE = re.compile(r"rfcs/(\d{4})\.plan\.md")
 
 
 def _plan_open(root, rfc, sha) -> bool:
@@ -357,9 +358,17 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     plan = Path(root) / "rfcs" / f"{pr.get('rfc')}.plan.md"
     rfc_implemented = (bool(pr.get("rfc")) and not plan_only and plan.exists()
                        and not UNTICKED.search(plan.read_text(encoding="utf-8")))
+    # Several founding RFCs share one PR: every plan it touches that is fully ticked is implemented too.
+    touched = {m.group(1) for f in files if (m := PLAN_FILE_RE.fullmatch(f))}
+    if pr.get("rfc"):
+        touched.add(str(pr["rfc"]))
+    rfcs_implemented = [] if plan_only else sorted(
+        k for k in touched if (Path(root) / "rfcs" / f"{k}.plan.md").exists()
+        and not UNTICKED.search((Path(root) / "rfcs" / f"{k}.plan.md").read_text(encoding="utf-8")))
     new_version = current
     if not plan_only:  # a plan changes no language artefact
-        new_version = _bump(current, rfc_implemented and pr["class"] in ("language", "stdlib"))
+        new_version = _bump(current, (rfc_implemented or bool(rfcs_implemented))
+                            and pr["class"] in ("language", "stdlib"))
         vpath.parent.mkdir(parents=True, exist_ok=True)
         vpath.write_text(new_version + "\n", encoding="utf-8")
     trailers = ["Bot: mergebot", "Gate: rules 1-14 pass", f"PR: {n}", f"Check-Sha: {sha_head}"]
@@ -378,7 +387,8 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     merge_sha = gitops.git(root, "rev-parse", "HEAD").strip()
     _emit(root, "merged", {"pr": int(n)},
           {"sha": merge_sha, "class": pr["class"], "spec_after": new_version,
-           "rfc_implemented": rfc_implemented, "breaking": bool(rfc and rfc.get("breaking"))},
+           "rfc_implemented": rfc_implemented, "rfcs_implemented": rfcs_implemented,
+           "breaking": bool(rfc and rfc.get("breaking"))},
           f"merged:{n}:{merge_sha}")
     gitops.commit_all(root, "Audit: merged PR\n\nBot: mergebot", paths=["audit"])
     gitops.remote_sync(root)

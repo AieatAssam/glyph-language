@@ -51,6 +51,16 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(st["spec_version"], "0.2.0")
         self.assertEqual(st["rfcs"]["0007"]["status"], "implemented")
 
+    def test_merged_with_rfcs_implemented_marks_each_rfc(self):
+        other = ev("rfc_opened", {"rfc": "11"}, {"title": "Name", "slug": "name", "author": "designer-min",
+                                                 "class": "language"}, "designer-min")
+        pr = ev("pr_opened", {"pr": 41}, {"branch": "agent/impl-0007", "class": "language",
+                                          "rfc": "0007", "author": "impl-1", "head_sha": "a"}, "impl-1")
+        st = S.replay([OPENED, other, pr, ev("merged", {"pr": 41}, {"spec_after": "0.1.0",
+                                                                    "rfcs_implemented": ["0007", "0011"]})])
+        self.assertEqual(st["rfcs"]["0007"]["status"], "implemented")
+        self.assertEqual(st["rfcs"]["0011"]["status"], "implemented")
+
     def test_gate_blocked_counts_subtask_failures(self):
         pr = ev("pr_opened", {"pr": 9}, {"branch": "b", "class": "language", "rfc": "0007",
                                          "author": "impl-1", "head_sha": "a", "subtask": 2}, "impl-1")

@@ -376,14 +376,14 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(self.git("log", "-1", "--format=%an", "--grep", "Merge PR #2"), "impl-1")
         self.assertEqual(S.load_state(self.root)["prs"]["2"]["status"], "merged")
 
-    def _merge_branch(self, n, branch, files, subtask):
+    def _merge_branch(self, n, branch, files, subtask, rfc="0001"):
         self.commit("audit so far")
         self.git("checkout", "-q", "-b", branch)
         for rel, text in files.items():
             self.write(rel, text)
         head = self.commit(branch)
         self.git("checkout", "-q", "main")
-        self.emit("pr_opened", {"pr": n}, {"branch": branch, "class": "language", "rfc": "0001",
+        self.emit("pr_opened", {"pr": n}, {"branch": branch, "class": "language", "rfc": rfc,
                                            "author": "impl-1", "head_sha": head, "subtask": subtask}, "impl-1")
         self.emit("review_posted", {"pr": n}, {"verdict": "approve", "sha": head}, "reviewer")
         checks = self.root / f"checks{n}"
@@ -406,6 +406,22 @@ class MergebotRepoTests(RepoTestCase):
                   "compiler/stage0/a.ts": "a\n", "conformance/a.test": "a\n", "examples/a.gl": "a\n"}
         self.assertEqual(self._merge_branch(6, "agent/impl-0001-s", bundle, 2)["merged"], 6)
         self.assertEqual(S.load_state(self.root)["rfcs"]["0001"]["status"], "implemented")
+        self.assertEqual((self.root / "spec" / "VERSION").read_text().strip(), "0.1.0")
+
+    def test_one_merge_implements_every_fully_ticked_plan(self):
+        self.emit("rfc_opened", {"rfc": "0011"}, {"title": "Name", "slug": "name", "author": "designer-min",
+                                                  "class": "language"}, "designer-min")
+        self.emit("rfc_opened", {"rfc": "0014"}, {"title": "Syntax", "slug": "lexical-syntax",
+                                                  "author": "designer-min", "class": "language"}, "designer-min")
+        for n in ("0011", "0014"):
+            self.emit("rfc_status", {"rfc": n}, {"rfc": n, "from": "discussion", "to": "implementing",
+                                                 "reason": "test"}, "mergebot")
+        plans = {"rfcs/0011.plan.md": "- [x] 1. a\n", "rfcs/0014.plan.md": "- [x] 1. b\n"}
+        bundle = {**plans, "spec/core/a.md": "a\n", "compiler/stage0/a.ts": "a\n",
+                  "conformance/a.test": "a\n", "examples/a.gl": "a\n"}
+        self.assertEqual(self._merge_branch(7, "agent/impl-0014", bundle, 1, rfc="0014")["merged"], 7)
+        merged = [e for e in audit.load_events(self.root) if e["type"] == "merged"][-1]
+        self.assertEqual(merged["data"]["rfcs_implemented"], ["0011", "0014"])
         self.assertEqual((self.root / "spec" / "VERSION").read_text().strip(), "0.1.0")
 
     def test_mid_plan_gate_failure_is_not_a_stuck_subtask(self):

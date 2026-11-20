@@ -83,6 +83,9 @@ def apply_event(st: dict, ev: dict) -> dict:
             st["spec_version"] = data["spec_after"]
         if data.get("rfc_implemented") and pr.get("rfc") in st["rfcs"]:
             _set_status(st, st["rfcs"][pr["rfc"]], "implemented", ts)
+        for k in data.get("rfcs_implemented") or []:
+            if str(k) in st["rfcs"]:
+                _set_status(st, st["rfcs"][str(k)], "implemented", ts)
     elif t == "issue_opened" and "issue" in subj:
         st["issues"][str(subj["issue"])] = {
             "number": subj["issue"], "title": data.get("title"),

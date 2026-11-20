@@ -31,6 +31,12 @@ FOUNDING = (
     {"slug": "diagnostic-style", "title": "Diagnostic style", "class": "language"},
 )
 COUPLED = {"lexical-syntax": "kernel", "kernel": "lexical-syntax"}
+FOUNDING_SLUGS = {f["slug"] for f in FOUNDING}
+
+
+def _base(slug):
+    return re.sub(r"-v\d+$", "", slug or "")
+
 DEAD = ("rejected", "withdrawn", "lapsed", "superseded")
 TOY = {"slug": "toy-print", "title": "Toy print", "class": "language"}
 
@@ -258,6 +264,16 @@ def _open_pr(prs, n: str, *, subtask: bool) -> str | None:
     return None
 
 
+def _founding_impl_pr(prs, rfcs) -> str | None:
+    """Lowest-numbered open subtask PR of a founding RFC: all founding families share that one PR."""
+    for pn in by_num(prs):
+        p = prs[pn]
+        r = rfcs.get(str(p.get("rfc")))
+        if p.get("status") == "open" and p.get("subtask") is not None and r and _base(r["slug"]) in FOUNDING_SLUGS:
+            return pn
+    return None
+
+
 def plan_design(ctx) -> list[Asg]:
     st, rules, repo, live = ctx.state, ctx.rules, ctx.repo, ctx.live
     rfcs = st.get("rfcs", {})
@@ -402,7 +418,8 @@ def plan_implement(ctx) -> list[Asg]:
             continue
         if _open_pr(prs, n, subtask=False):  # the plan PR is still under review
             continue
-        impl_pr = _open_pr(prs, n, subtask=True)
+        founding = _base(r["slug"]) in FOUNDING_SLUGS
+        impl_pr = _open_pr(prs, n, subtask=True) or (_founding_impl_pr(prs, rfcs) if founding else None)
         path = f"rfcs/{n}.plan.md"
         plan = (repo.read_ref(prs[impl_pr]["branch"], path) if impl_pr else None) or repo.read(path)
         if plan is None:
@@ -410,15 +427,27 @@ def plan_implement(ctx) -> list[Asg]:
             continue
         nxt = next_subtask(plan)
         if nxt is None:
+            if impl_pr and gate_failures(ctx.events, prs[impl_pr]):  # every line ticked but the gate is red: fix first
+                items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=len(parse_plan(plan)),
+                                  text="fix the gate", pr=int(impl_pr), fix=True))
             continue
-        if ctx.live and not kernel_done and r["slug"].split("-v")[0] not in COUPLED:
-            continue  # no compiler exists until the lexical syntax and kernel are built: build those first
+        if ctx.live and not kernel_done and _base(r["slug"]) not in FOUNDING_SLUGS:
+            continue  # no compiler exists until the founding RFCs are built: build those first
         idx, text = nxt
         pr = int(impl_pr) if impl_pr else None
-        fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr else {}
+        # ponytail: failure counts are keyed by subtask index per PR, so only the PR's own RFC reads them
+        fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr and str(prs[impl_pr].get("rfc")) == n else {}
         if int(fails.get(str(idx), 0)) >= limit or (n, idx) in escalated:
             continue
         items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr))
+    seen_prs, unique = set(), []  # two implementers never write one PR branch in the same phase
+    for item in sorted(items, key=lambda i: bool(i.get("fix"))):  # real subtasks before gate fixes
+        if item.get("pr") is not None:
+            if item["pr"] in seen_prs:
+                continue
+            seen_prs.add(item["pr"])
+        unique.append(item)
+    items = unique
     impls = _roles(ctx.roster, "implementer")
     testers = _roles(ctx.roster, "tester")
     out = []
@@ -433,20 +462,30 @@ def plan_implement(ctx) -> list[Asg]:
         else:
             pr_branch = prs.get(str(item["pr"]), {}).get("branch") if item["pr"] else None
             diff = repo.diff(pr_branch) if pr_branch else None
-            how = (f"Update PR {item['pr']} with `update_pr`." if item["pr"]
-                   else f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`).")
+            pr_rfc = prs.get(str(item["pr"]), {}).get("rfc") if item["pr"] else None
+            if item["pr"] and pr_rfc != n:  # the shared founding PR of another RFC
+                how = (f"Update PR {item['pr']} with update_pr (it is the shared founding implementation PR; "
+                       "keep the other RFCs' work in it).")
+            elif item["pr"]:
+                how = f"Update PR {item['pr']} with `update_pr`."
+            else:
+                how = f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`)."
             failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
-            task = (f"Implement subtask {item['subtask']} of RFC {n}: {item['text']}\n"
-                    f"{how} In `files`, include the code, spec, grammar, conformance tests and examples this subtask needs, "
-                    f"and tick its line in `rfcs/{n}.plan.md` (`- [x]`). Keep the change under 400 changed lines.\n\n")
-            if failing:  # a blocked PR is fixed before it grows
+            if item.get("fix"):  # every line ticked and the gate red: fix before anything else
                 task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
                         f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
                         + "\n".join(failing) + "\n\n")
+            else:
+                task = (f"Implement subtask {item['subtask']} of RFC {n}: {item['text']}\n"
+                        f"{how} In `files`, include the code, spec, grammar, conformance tests and examples this subtask needs, "
+                        f"and tick its line in `rfcs/{n}.plan.md` (`- [x]`). Keep the change under 400 changed lines.\n\n")
+                if failing:  # information only: a later subtask may fix these
+                    task += ("Current gate failures on this PR (for information; later subtasks may fix them):\n"
+                             + "\n".join(failing) + "\n\n")
             body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
             out.append(Asg(agent, "implement", "subtask", body, rfc=n, subtask=item["subtask"], pr=item["pr"]))
-            if testers and not any(a.kind == "tests" for a in out):  # one tester session per phase
+            if testers and not item.get("fix") and not any(a.kind == "tests" for a in out):  # one tester session per phase
                 out.append(Asg(testers[0], "implement", "tests", (
                     f"Write the conformance cases for subtask {item['subtask']} of RFC {n}: {item['text']}\n"
                     f"Post one `comment` on the RFC (target `{{\"rfc\": \"{n}\"}}`) listing each case as input, "

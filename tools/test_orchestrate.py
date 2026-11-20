@@ -119,7 +119,7 @@ class Caps(unittest.TestCase):
         opens = [a for a in run("design", state=st) if a.kind == "open"]
         self.assertTrue(all(a.agent != DESIGNERS[0] for a in opens))
 
-    def test_blocked_pr_is_fixed_before_the_next_subtask(self):
+    def test_blocked_pr_is_reported_while_the_next_subtask_is_built(self):
         plan = "- [x] 1. Lexer\n- [ ] 2. Parser\n"
         st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="kernel", status="implementing")},
               "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1,
@@ -129,18 +129,75 @@ class Caps(unittest.TestCase):
             "1": {"ok": True, "detail": ""}}}}]
         repo = FakeRepo(refs={"agent/impl-0004": {"rfcs/0004.plan.md": plan}})
         a = [x for x in run("implement", state=st, repo=repo, events=ev) if x.kind == "subtask"][0]
+        self.assertIn("Implement subtask 2", a.body)
+        self.assertIn("Current gate failures on this PR (for information; later subtasks may fix them):", a.body)
         self.assertIn("rule 3: missing: ['conformance']", a.body)
-        self.assertIn("do not tick another plan line", a.body)
+        self.assertNotIn("do not tick another plan line", a.body)
         self.assertNotIn("rule 14", a.body)
         a = [x for x in run("implement", state=st, repo=repo, events=[]) if x.kind == "subtask"][0]
         self.assertIn("Implement subtask 2", a.body)
+        self.assertNotIn("Current gate failures", a.body)
 
-    def test_only_lexical_and_kernel_are_built_before_the_kernel_exists(self):
+    def test_fix_first_only_when_plan_is_fully_ticked(self):
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="kernel", status="implementing")},
+              "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1,
+                             "branch": "agent/impl-0004", "head_sha": "abc"}}}
+        ev = [{"type": "check_run", "subject": {"pr": 30}, "data": {"sha": "abc", "rules": {
+            "5": {"ok": False, "detail": "bad"}}}}]
+        unticked = FakeRepo(refs={"agent/impl-0004": {"rfcs/0004.plan.md": "- [x] 1. a\n- [ ] 2. b\n"}})
+        a = [x for x in run("implement", state=st, repo=unticked, events=ev) if x.kind == "subtask"][0]
+        self.assertIn("Implement subtask 2", a.body)
+        self.assertNotIn("do not tick another plan line", a.body)
+        ticked = FakeRepo(refs={"agent/impl-0004": {"rfcs/0004.plan.md": "- [x] 1. a\n- [x] 2. b\n"}})
+        a = [x for x in run("implement", state=st, repo=ticked, events=ev) if x.kind == "subtask"][0]
+        self.assertIn("do not tick another plan line", a.body)
+        self.assertIn("rule 5: bad", a.body)
+        self.assertNotIn("tests", [x.kind for x in run("implement", state=st, repo=ticked, events=ev)])
+
+    def test_founding_families_are_built_before_the_kernel_exists(self):
         st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="implementing"),
-                       "0016": rfc("0016", DESIGNERS[1], slug="kernel-v4", status="implementing")}}
-        repo = FakeRepo(files={"rfcs/0004.plan.md": "- [ ] 1. a\n", "rfcs/0016.plan.md": "- [ ] 1. b\n"})
+                       "0016": rfc("0016", DESIGNERS[1], slug="kernel-v4", status="implementing"),
+                       "0017": rfc("0017", DESIGNERS[2], slug="records", status="implementing")}}
+        repo = FakeRepo(files={"rfcs/0004.plan.md": "- [ ] 1. a\n", "rfcs/0016.plan.md": "- [ ] 1. b\n",
+                               "rfcs/0017.plan.md": "- [ ] 1. c\n"})
         self.assertEqual([a.header.get("rfc") for a in run("implement", state=st, repo=repo) if a.kind == "subtask"],
-                         ["0016"])
+                         ["0004", "0016"])
+
+    def test_diagnostic_style_is_built_before_the_kernel(self):
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="accepted")}}
+        repo = FakeRepo(files={"rfcs/0004.plan.md": "- [ ] 1. a\n"})
+        self.assertEqual([a.header.get("rfc") for a in run("implement", state=st, repo=repo) if a.kind == "subtask"],
+                         ["0004"])
+        st["rfcs"]["0017"] = rfc("0017", DESIGNERS[1], slug="records", status="accepted")
+        repo.files["rfcs/0017.plan.md"] = "- [ ] 1. c\n"
+        self.assertNotIn("0017", [a.header.get("rfc") for a in run("implement", state=st, repo=repo)])
+
+    def test_founding_subtasks_share_one_pr(self):
+        st = {"rfcs": {"0011": rfc("0011", DESIGNERS[0], slug="name-v2", status="accepted"),
+                       "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},
+              "prs": {"48": {"number": 48, "rfc": "0014", "status": "open", "subtask": 1,
+                             "branch": "agent/impl-0014", "head_sha": "abc"}}}
+        repo = FakeRepo(files={"rfcs/0011.plan.md": "- [ ] 1. a\n- [ ] 2. b\n",
+                               "rfcs/0014.plan.md": "- [x] 1. a\n- [ ] 2. b\n"})
+        out = run("implement", state=st, repo=repo)
+        subtasks = [a for a in out if a.kind == "subtask"]
+        # One PR, one implementer: 0011 (the lower number) takes PR 48 and 0014 gets no second assignment.
+        self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in subtasks], [("0011", 48)])
+        self.assertIn("Update PR 48 with update_pr (it is the shared founding implementation PR", subtasks[0].body)
+        self.assertNotIn("plan", [a.kind for a in out])  # no new plan PR for 0011
+
+    def test_shared_pr_builds_before_it_is_fixed(self):
+        st = {"rfcs": {"0011": rfc("0011", DESIGNERS[0], slug="name-v2", status="implementing"),
+                       "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},
+              "prs": {"48": {"number": 48, "rfc": "0014", "status": "open", "subtask": 1,
+                             "branch": "agent/impl-0014", "head_sha": "abc"}}}
+        events = [{"type": "check_run", "subject": {"pr": "48"},
+                   "data": {"sha": "abc", "rules": {"5": {"ok": False, "detail": "no tests"}}}}]
+        repo = FakeRepo(files={"rfcs/0011.plan.md": "- [x] 1. a\n",
+                               "rfcs/0014.plan.md": "- [x] 1. a\n- [ ] 2. b\n"})
+        out = [a for a in run("implement", state=st, repo=repo, events=events) if a.kind == "subtask"]
+        self.assertEqual([(a.header.get("rfc"), a.header.get("subtask")) for a in out], [("0014", 2)])
+        self.assertNotIn("do not tick another plan line", out[0].body)
 
     def test_implement_respects_max_implementing(self):
         st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], status="accepted") for i in range(1, 6)}}
