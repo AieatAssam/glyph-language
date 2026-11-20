@@ -669,7 +669,9 @@ class Publisher:
                     if is_protected(rel):
                         raise PublishError(f"output touches protected path {rel}")
 
-    def _run(self, ses: Session, meta: dict):
+    def _run(self, ses: Session, meta: dict) -> bool:
+        """Apply the session's actions. True when at least one open_pr/update_pr added files."""
+        changed = False
         if meta.get("outcome") != "ok":
             raise PublishError(f"session outcome is {meta.get('outcome')}, no actions applied")
         self._tree_check(ses.sdir)
@@ -717,6 +719,19 @@ class Publisher:
                 continue
             self.published.append({"agent": ses.agent, "session": ses.session, "action": t,
                                    "index": i, "result": res})
+            if t in ("open_pr", "update_pr") and a.get("files"):
+                changed = True
+        return changed
+
+    def _noop(self, ses: Session, meta: dict):
+        """A subtask session that changed no files counts toward escalation (subtask_noop)."""
+        rfc = meta.get("rfc")
+        if meta.get("kind") != "subtask" or not isinstance(rfc, str) or not re.fullmatch(r"[0-9]{4}", rfc):
+            return
+        if not isinstance(ses.session, str) or not ses.session or not TS_RE.match(ses.ts or ""):
+            return  # the event would be unusable in the audit log
+        self._event(ses, "noop", "subtask_noop", {"rfc": rfc},
+                    {"rfc": rfc, "subtask": meta.get("subtask"), "pr": meta.get("pr")})
 
     def process_session(self, sdir) -> None:
         sdir = Path(sdir)
@@ -736,16 +751,19 @@ class Publisher:
             self._copy_artifacts(sdir, f"unknown-{sdir.name}")
             return
         ses = Session(sdir, agent, session, self.roster[agent]["role"], ts or "")
+        changed = False
         try:
             if not isinstance(ts, str) or not TS_RE.match(ts):
                 raise PublishError("session.json has no usable timestamp")
             if not isinstance(session, str) or not session:
                 raise PublishError("session.json has no session id")
-            self._run(ses, meta)
+            changed = self._run(ses, meta)
         except PublishError as e:
             self._refuse(agent, session, None, None, str(e))
         except Exception as e:  # never let one session abort the batch
             self._refuse(agent, session, None, None, f"internal error: {type(e).__name__}: {e}")
+        if not changed:
+            self._noop(ses, meta)
         self._copy_artifacts(sdir, agent)
 
     def _copy_artifacts(self, sdir: Path, agent: str):

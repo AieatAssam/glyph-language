@@ -14,7 +14,7 @@
         "rfc_opened", "rfc_revised", "comment_posted", "vote_cast", "rfc_decided",
         "rfc_withdrawn", "rfc_lapsed", "rfc_superseded", "rfc_status",
         "plan_written", "pr_opened", "pr_updated", "review_posted", "check_run",
-        "gate_blocked", "merged",
+        "gate_blocked", "merged", "pr_closed", "subtask_noop",
         "bench_run", "overfit_warning",
         "issue_opened", "issue_closed", "digest_published",
         "fixed_point_passed", "cutover", "release",

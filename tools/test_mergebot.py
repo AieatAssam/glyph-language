@@ -511,6 +511,16 @@ class MergebotRepoTests(RepoTestCase):
         self.assertFalse(MB.cmd_verify(self.root)["ok"])
 
 
+class ClosePrTests(RepoTestCase):
+    def test_close_pr_closes_once_and_records_pr_closed(self):
+        self.assertEqual(MB.close_pr(self.root, 12, "Refused: test"), {"pr": 12, "closed": True})
+        self.assertFalse(MB.close_pr(self.root, 12, "Refused: test")["closed"])
+        closed = [e for e in audit.load_events(self.root) if e["type"] == "pr_closed"]
+        self.assertEqual(len(closed), 1)
+        self.assertEqual(closed[0]["subject"], {"pr": 12})
+        self.assertEqual(closed[0]["idem"], "close:12")
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -578,5 +578,75 @@ class NightSimTest(unittest.TestCase):
             self.assertEqual(st["spec_version"], "0.1.0")
 
 
+class SharedPrAndBriefs(unittest.TestCase):
+    PLAN = "- [x] 1. a\n- [ ] 2. b\n"
+    TESTER = next(a["id"] for a in ROSTER if a["role"] == "tester")
+
+    def state(self, rules_failed, noops=None):
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="kernel", status="implementing")},
+              "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1,
+                             "branch": "agent/impl-0004", "head_sha": "abc"}}}
+        if noops is not None:
+            st["noops"] = noops
+        rules = {"1": {"ok": True, "detail": ""}}
+        rules.update({k: {"ok": False, "detail": "missing"} for k in rules_failed})
+        check = {"type": "check_run", "subject": {"pr": 30}, "data": {"sha": "abc", "rules": rules}}
+        return st, check
+
+    def repo(self):
+        return FakeRepo(refs={"agent/impl-0004": {"rfcs/0004.plan.md": self.PLAN}})
+
+    def subtasks(self, st, events, repo=None):
+        return [x for x in run("implement", state=st, repo=repo or self.repo(), events=events) if x.kind == "subtask"]
+
+    def test_shared_pr_gets_an_early_merge_turn(self):
+        st, check = self.state({"3"})
+        odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
+        a = self.subtasks(st, [check] + odd)[0]
+        self.assertIn("merge early", a.body)
+        self.assertIn("rule 3: missing", a.body)
+        self.assertNotIn("Implement subtask 2", a.body)
+        even = self.subtasks(st, [check] + odd * 2)[0]
+        self.assertIn("Implement subtask 2", even.body)
+        self.assertNotIn("merge early", even.body)
+
+    def test_early_merge_needs_a_failure_only_in_rules_3_and_5(self):
+        st, check = self.state({"3", "2"})
+        odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
+        a = self.subtasks(st, [check] + odd)[0]
+        self.assertNotIn("merge early", a.body)
+        self.assertIn("Implement subtask 2", a.body)
+
+    def test_tester_cases_are_in_the_implementer_brief(self):
+        st, check = self.state(set())
+        ev = [check, {"type": "comment_posted", "actor": self.TESTER, "subject": {"rfc": "0004"},
+                      "data": {"body": "Case 1: 1+1 prints 2, exit 0."}}]
+        a = self.subtasks(st, ev)[0]
+        self.assertIn("## Tester's proposed conformance cases\nCase 1: 1+1 prints 2, exit 0.", a.body)
+        other = ev + [{"type": "comment_posted", "actor": DESIGNERS[0], "subject": {"rfc": "0004"},
+                       "data": {"body": "Designer chatter."}}]
+        self.assertNotIn("Designer chatter.", self.subtasks(st, other)[0].body)
+        long = ev[:1] + [{"type": "comment_posted", "actor": self.TESTER, "subject": {"rfc": "0004"},
+                          "data": {"body": "x" * 9000}}]
+        section = self.subtasks(st, long)[0].body.split("## Tester's proposed conformance cases\n")[1]
+        self.assertLessEqual(len(section.rstrip("\n")), o.TESTER_CAP)
+
+    def test_subtask_with_noop_sessions_is_skipped_and_escalated(self):
+        st, check = self.state(set(), noops={"0004:2": 3})
+        st["prs"] = {}  # no shared PR: the plan comes from the base branch
+        repo = FakeRepo(files={"rfcs/0004.plan.md": self.PLAN})
+        self.assertEqual(self.subtasks(st, [], repo=repo), [])
+        revise = [a for a in run("design", state=st, repo=repo) if a.kind == "revise"]
+        self.assertEqual(len(revise), 1)
+        self.assertIn("3 sessions made no change", revise[0].body)
+        st["noops"] = {"0004:2": 2}
+        self.assertEqual(len(self.subtasks(st, [], repo=repo)), 1)
+
+    def test_architect_brief_lists_open_user_issues(self):
+        st = {"rfcs": {}, "issues": {"5": {"number": 5, "title": "Brackets confuse me", "status": "open"}}}
+        body = run("architect", state=st)[0].body
+        self.assertIn("## Open user issues\n- #5 Brackets confuse me", body)
+
+
 if __name__ == "__main__":
     unittest.main()

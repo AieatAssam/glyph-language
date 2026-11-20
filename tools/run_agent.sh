@@ -117,10 +117,10 @@ fi
 # Copy what the agent produced. The runner owns session.json; the agent never writes it.
 if [ -d "$out_src" ]; then cp -R "$out_src"/. "$outdir"/; fi
 
-python3 - "$outdir" "$agent" "$session" "$phase" "$rc" "$started" "$root" <<'PY'
-import json, sys
+python3 - "$outdir" "$agent" "$session" "$phase" "$rc" "$started" "$root" "$assignment" <<'PY'
+import json, re, sys
 from pathlib import Path
-outdir, agent, session, phase, rc, started, root = sys.argv[1:]
+outdir, agent, session, phase, rc, started, root, assignment = sys.argv[1:]
 out = Path(outdir)
 rc = int(rc)
 outcome = "timeout" if rc in (124, 142) else ("ok" if rc == 0 else "failed")
@@ -142,6 +142,10 @@ if outcome == "ok":
         (out / "stderr.log").open("a", encoding="utf-8").write(f"actions.json invalid: {exc}\n")
 doc = {"agent": agent, "session": session, "phase": phase, "outcome": outcome, "usage": usage,
        "started": started, "ended": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+# The assignment header says what the session was for; the publisher reads kind, rfc, subtask and pr from here.
+m = re.search(r"<!-- assignment (.*?) -->", Path(assignment).read_text(encoding="utf-8"))
+head = json.loads(m.group(1)) if m else {}
+doc.update({k: head[k] for k in ("kind", "rfc", "subtask", "pr") if k in head})
 (out / "session.json").write_text(json.dumps(doc, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 PY
 

@@ -10,7 +10,7 @@ def rfc_key(n) -> str:
 
 def empty_state() -> dict:
     return {
-        "rfcs": {}, "prs": {}, "issues": {}, "cycles": [], "escalations": [],
+        "rfcs": {}, "prs": {}, "issues": {}, "cycles": [], "escalations": [], "noops": {},
         "spec_version": "0.0.0", "head_hash": audit.GENESIS,
     }
 
@@ -77,6 +77,11 @@ def apply_event(st: dict, ev: dict) -> dict:
     elif t == "gate_blocked" and pr is not None and data.get("subtask") is not None:
         key = str(data["subtask"])
         pr["subtask_failures"][key] = pr["subtask_failures"].get(key, 0) + 1
+    elif t == "pr_closed" and pr is not None:
+        pr["status"] = "closed"
+    elif t == "subtask_noop" and rk is not None and data.get("subtask") is not None:
+        key = f"{rk}:{int(data['subtask'])}"
+        st.setdefault("noops", {})[key] = st.get("noops", {}).get(key, 0) + 1
     elif t == "merged" and pr is not None:
         pr["status"] = "merged"
         if data.get("spec_after"):
@@ -102,6 +107,12 @@ def apply_event(st: dict, ev: dict) -> dict:
 
     st["head_hash"] = ev.get("hash", st["head_hash"])
     return st
+
+
+def head_checked(events, pr: int, sha) -> bool:
+    """True when the audit log already holds a check_run for PR `pr` at head `sha`."""
+    return any(ev.get("type") == "check_run" and str((ev.get("subject") or {}).get("pr")) == str(pr)
+               and (ev.get("data") or {}).get("sha") == sha for ev in events)
 
 
 def replay(events) -> dict:

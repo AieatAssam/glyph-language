@@ -1,6 +1,6 @@
 """Deterministic merge bot. No LLM makes any decision here.
 
-Usage: python -m tools.mergebot <open|ingest|decide|merge|close|verify|bootstrap|bench|fixedpoint|cutover> [args]
+Usage: python -m tools.mergebot <open|ingest|decide|merge|close|close-pr|verify|bootstrap|bench|fixedpoint|cutover> [args]
 Root is $GLYPH_ROOT, else the current directory. Timestamps come from $GLYPH_TS or RUN_DATE.
 """
 import argparse
@@ -399,6 +399,20 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
 
 # ---- close: daily digest, transcripts to orphan branch, tag ------------------
 
+def close_pr(root, n: int, reason: str) -> dict:
+    """Close an agent PR on GitHub and record pr_closed. A repeat call for the same PR does nothing."""
+    ok, bad = audit.verify_chain(root)
+    if not ok:
+        raise SystemExit(f"audit chain broken at seq {bad}")
+    if any(e.get("idem") == f"close:{n}" for e in audit.load_events(root)):
+        return {"pr": n, "closed": False}
+    gh.pr_close(int(n), reason, cwd=root)
+    _emit(root, "pr_closed", {"pr": int(n)}, {"reason": reason}, f"close:{n}")
+    gitops.commit_all(root, f"Audit: close PR {n}\n\nBot: mergebot", paths=["audit"])
+    gitops.remote_sync(root)
+    return {"pr": n, "closed": True}
+
+
 def cmd_close(root) -> dict:
     ok, bad = audit.verify_chain(root)
     if not ok:
@@ -637,6 +651,9 @@ def main(argv=None) -> int:
     mg.add_argument("checkdir")
     mg.add_argument("benchdir", nargs="?")
     sub.add_parser("close")
+    cp = sub.add_parser("close-pr")
+    cp.add_argument("pr", type=int)
+    cp.add_argument("--reason", required=True)
     sub.add_parser("verify")
     bs = sub.add_parser("bootstrap")
     bs.add_argument("wasm")
@@ -662,6 +679,8 @@ def main(argv=None) -> int:
         out = cmd_merge(root, a.checkdir, a.benchdir)
     elif a.cmd == "close":
         out = cmd_close(root)
+    elif a.cmd == "close-pr":
+        out = close_pr(root, a.pr, a.reason)
     elif a.cmd == "bench":
         out = cmd_bench(root, a.resultsdir, a.scope, a.heldout)
     elif a.cmd == "fixedpoint":

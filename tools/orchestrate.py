@@ -22,6 +22,7 @@ ARCH_PHASES = {"architect", "scribe", "architect-weekly"}  # session ids use cyc
 USER_ROLE = "user"  # users vote from the RFC's Summary and Examples only (see _vote_block)
 USER_SECTIONS = ("summary", "examples")
 DIFF_CAP = 60000
+TESTER_CAP = 6000  # characters of a tester's proposed cases passed to the implementer
 RFC_CAP = 80000  # display bound only; designers are asked to stay under 25,000 characters
 
 FOUNDING = (
@@ -109,6 +110,12 @@ def escalation_items(state: dict, rules: dict) -> list[dict]:
             if count >= limit and p.get("rfc"):
                 key = (str(p.get("rfc")), int(k))
                 found.setdefault(key, {"rfc": key[0], "subtask": key[1], "notes": f"{count} failed sessions"})
+    for key in sorted(state.get("noops", {}) or {}):  # subtask sessions that changed nothing
+        count = int(state["noops"][key])
+        rfc, sub = key.split(":")
+        if count >= limit:
+            found.setdefault((rfc, int(sub)), {"rfc": rfc, "subtask": int(sub),
+                                               "notes": f"{count} sessions made no change"})
     return [found[k] for k in sorted(found, key=lambda k: (int(k[0] or 0), k[1]))]
 
 
@@ -405,11 +412,22 @@ def gate_failures(events, pr: dict) -> list[str]:
             if isinstance(v, dict) and not v.get("ok") and k != "14"]
 
 
+def _tester_cases(events, testers, rfc: str) -> str:
+    """Body of the latest comment a tester posted on RFC `rfc`, capped; '' when there is none."""
+    found = ""
+    for ev in events:
+        if ev.get("type") == "comment_posted" and ev.get("actor") in testers \
+                and str((ev.get("subject") or {}).get("rfc")) == rfc:
+            found = (ev.get("data") or {}).get("body") or ""
+    return found[:TESTER_CAP]
+
+
 def plan_implement(ctx) -> list[Asg]:
     rfcs, rules, repo = ctx.state.get("rfcs", {}), ctx.rules, ctx.repo
     prs = ctx.state.get("prs", {})
     limit = int(rules.get("escalation_failures", 3))
     escalated = {(e["rfc"], e["subtask"]) for e in ctx.escalations}
+    noops = ctx.state.get("noops", {}) or {}
     kernel_done = any(r["status"] == "implemented" and re.fullmatch(r"kernel(-v\d+)?", r["slug"]) for r in rfcs.values())
     items = []
     for n in by_num(rfcs):
@@ -439,12 +457,22 @@ def plan_implement(ctx) -> list[Asg]:
         pr = int(impl_pr) if impl_pr else None
         # ponytail: failure counts are keyed by subtask index per PR, so only the PR's own RFC reads them
         fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr and str(prs[impl_pr].get("rfc")) == n else {}
-        if int(fails.get(str(idx), 0)) >= limit or (n, idx) in escalated:
+        if int(fails.get(str(idx), 0)) >= limit or int(noops.get(f"{n}:{idx}", 0)) >= limit or (n, idx) in escalated:
             continue
         items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr))
+    # Early merge: the shared founding PR fails only on conformance (rules 3 and 5). On odd turns its
+    # slot goes to a fix item that makes the gate pass, so the PR can merge before its plan is done.
+    turn = sum(1 for e in ctx.events if e.get("type") == "cycle_started")
+    founding_pr = _founding_impl_pr(prs, rfcs)
+    if founding_pr:
+        failed = {re.match(r"- rule (\d+):", ln).group(1) for ln in gate_failures(ctx.events, prs[founding_pr])}
+        mine = [i for i in items if i.get("pr") == int(founding_pr) and not i.get("fix")]
+        if mine and failed and failed <= {"3", "5"}:
+            ref = mine[0]
+            items.append(dict(rfc=ref["rfc"], kind="subtask", r=ref["r"], plan=ref["plan"], subtask=ref["subtask"],
+                              text="merge early", pr=int(founding_pr), fix=True, early=True))
     # Two implementers never write one PR branch in the same phase. RFCs sharing a PR take turns,
     # one per cycle, so a stuck subtask cannot hold the shared PR; gate fixes go last.
-    turn = sum(1 for e in ctx.events if e.get("type") == "cycle_started")
     groups: dict = {}
     for item in items:
         groups.setdefault(item.get("pr"), []).append(item)
@@ -454,8 +482,9 @@ def plan_implement(ctx) -> list[Asg]:
         if item.get("pr") is None:
             unique.append(item)
         elif item is g[0]:
+            early = [i for i in g if i.get("early")]
             real = [i for i in g if not i.get("fix")] or g
-            unique.append(real[turn % len(real)])
+            unique.append(early[0] if early and turn % 2 == 1 else real[turn % len(real)])
     items = unique
     impls = _roles(ctx.roster, "implementer")
     testers = _roles(ctx.roster, "tester")
@@ -480,7 +509,13 @@ def plan_implement(ctx) -> list[Asg]:
             else:
                 how = f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`)."
             failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
-            if item.get("fix"):  # every line ticked and the gate red: fix before anything else
+            if item.get("early"):
+                task = (f"PR {item['pr']} is blocked only by missing conformance tests. Make the gate pass now so the PR "
+                        "can merge early: wire `compiler/stage0/src/main.ts` so `bin/glyphc check` reports at least one "
+                        "real diagnostic, and add at least one `conformance/` `.test` (kind compile-error) and one "
+                        "`examples/` program with its `.expect`, using only features already in the PR. Do not tick plan "
+                        "lines for work you do not finish.\n" + "\n".join(failing) + "\n\n")
+            elif item.get("fix"):  # every line ticked and the gate red: fix before anything else
                 task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
                         f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
                         + "\n".join(failing) + "\n\n")
@@ -493,6 +528,9 @@ def plan_implement(ctx) -> list[Asg]:
                              + "\n".join(failing) + "\n\n")
             body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
+            cases = _tester_cases(ctx.events, testers, n)
+            if cases:
+                body += f"\n## Tester's proposed conformance cases\n{cases}\n"
             out.append(Asg(agent, "implement", "subtask", body, rfc=n, subtask=item["subtask"], pr=item["pr"],
                            branch=pr_branch))
             if testers and not item.get("fix") and not any(a.kind == "tests" for a in out):  # one tester session per phase
@@ -571,7 +609,8 @@ def plan_architect(ctx) -> list[Asg]:
             "constitution, simpler alternatives). File contradictions between spec sections as `open_issue`. "
             "You may open a PR that only touches `architecture/` to update ROADMAP.md.\n\n"
             + "".join(rfc_block(repo, n, rfcs[n]) for n in open_)
-            + f"\n## Spec core\n{spec[:40000]}\n\n## Findings\n{findings_text(repo)}\n\n## Roadmap\n{roadmap_top(repo)}\n")
+            + f"\n## Spec core\n{spec[:40000]}\n\n## Findings\n{findings_text(repo)}\n\n## Roadmap\n{roadmap_top(repo)}\n"
+            f"\n## Open user issues\n{issues_text(ctx.state)}\n")
     return [Asg(arch[0], "architect", "architect", body, rfcs=open_)]
 
 

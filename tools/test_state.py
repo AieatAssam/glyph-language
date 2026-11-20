@@ -82,5 +82,23 @@ class ReplayTests(unittest.TestCase):
         self.assertEqual(S.nights_since(st, {"status_cycle": 3}), 0)
 
 
+class NoopAndCloseTests(unittest.TestCase):
+    def test_subtask_noops_count_per_rfc_and_subtask(self):
+        noop = ev("subtask_noop", {"rfc": "7"}, {"rfc": "0007", "subtask": 2, "pr": 30}, "impl-1")
+        self.assertEqual(S.replay([noop, noop])["noops"], {"0007:2": 2})
+
+    def test_pr_closed_marks_the_pr_closed(self):
+        pr = ev("pr_opened", {"pr": 9}, {"branch": "b", "class": "language", "rfc": "0007",
+                                         "author": "impl-1", "head_sha": "a"}, "impl-1")
+        st = S.replay([pr, ev("pr_closed", {"pr": 9}, {"reason": "refused"}, "mergebot")])
+        self.assertEqual(st["prs"]["9"]["status"], "closed")
+
+    def test_head_checked_needs_same_pr_and_sha(self):
+        events = [ev("check_run", {"pr": 9}, {"sha": "abc"})]
+        self.assertTrue(S.head_checked(events, 9, "abc"))
+        self.assertFalse(S.head_checked(events, 9, "def"))
+        self.assertFalse(S.head_checked(events, 10, "abc"))
+
+
 if __name__ == "__main__":
     unittest.main()

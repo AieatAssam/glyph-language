@@ -504,6 +504,38 @@ class RealGitTests(unittest.TestCase):
         self.assertEqual(self.bare_refs(), ["refs/heads/main"])
 
 
+class SubtaskNoopTests(PublisherTests):
+    def noop_session(self, name, meta_extra, actions, files=None):
+        sdir = self.session(name, "impl-1", actions, files=files)
+        meta = json.loads((sdir / "session.json").read_text(encoding="utf-8"))
+        meta.update(meta_extra)
+        (sdir / "session.json").write_text(json.dumps(meta), encoding="utf-8")
+        return sdir
+
+    def test_subtask_session_without_file_change_emits_subtask_noop(self):
+        sdir = self.noop_session("noop", {"kind": "subtask", "rfc": "0004", "subtask": 2, "pr": 30},
+                                 [{"type": "comment", "target": {"issue": 5}, "body": "Thinking."}])
+        pub, _, _ = self.run_pub([sdir])
+        noops = [e for e in pub.events if e["type"] == "subtask_noop"]
+        self.assertEqual(len(noops), 1)
+        self.assertEqual(noops[0]["subject"], {"rfc": "0004"})
+        self.assertEqual(noops[0]["data"], {"rfc": "0004", "subtask": 2, "pr": 30})
+        self.assertIn("subtask_noop", json.loads((REPO / "tools" / "schemas" / "events.schema.json")
+                                                 .read_text(encoding="utf-8"))["properties"]["type"]["enum"])
+
+    def test_subtask_session_that_changes_files_emits_no_noop(self):
+        sdir = self.noop_session("changed", {"kind": "subtask", "rfc": "0004", "subtask": 2, "pr": 30},
+                                 [{"type": "update_pr", "pr": 30, "body": "More.", "files": ["stdlib/strings.glyph"]}],
+                                 files=STRINGS)
+        pub, _, _ = self.run_pub([sdir])
+        self.assertEqual([e for e in pub.events if e["type"] == "subtask_noop"], [])
+
+    def test_other_sessions_emit_no_noop(self):
+        sdir = self.noop_session("plain", {}, [{"type": "comment", "target": {"issue": 5}, "body": "Hi."}])
+        pub, _, _ = self.run_pub([sdir])
+        self.assertEqual([e for e in pub.events if e["type"] == "subtask_noop"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
 
