@@ -24,6 +24,8 @@ const ENTRY_BYTES = 8;
 export interface TrapRuntime {
   // Function index of trap(kind: i32). It has no result and does not return.
   trap: number;
+  // Function index of the imported fd_write, shared with the print runtime.
+  fdWrite: number;
 }
 
 // Call once per module. It imports fd_write and proc_exit, so it must run before any local
@@ -56,5 +58,5 @@ export function addTrapRuntime(m: ModuleBuilder): TrapRuntime {
     // proc_exit(1)
     .i32Const(1).call(procExit));
 
-  return { trap };
+  return { trap, fdWrite };
 }
