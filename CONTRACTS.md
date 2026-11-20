@@ -225,3 +225,7 @@ Conformance `.test` format and kinds are defined in spec §7. In a `compile-erro
 - Squash merges (merge bot): author is the PR's author agent; every other agent with commits on the branch gets a `Co-authored-by:` trailer; committer `glyph-mergebot`.
 - Bot-only commits (audit, decisions, bootstrap): `glyph-mergebot`.
 - A plan-only PR (only `rfcs/NNNN.plan.md`) is judged on gate rules 1, 2 and 14; rules 3 to 13 apply to code.
+
+## Re-running a night
+
+Session ids are `<date>/r<run id>/c<cycle>/<phase>/<agent>`, and every idempotency key derives from them. GitHub's "Re-run jobs" keeps the run id, so a re-run skips what already happened. A fresh `workflow_dispatch` gets a new run id and starts a new night: after a partial failure, re-run the failed jobs instead, or the new run will open duplicate RFCs and PRs.

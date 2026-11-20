@@ -185,6 +185,9 @@ class Determinism(unittest.TestCase):
                 sessions.append(json.loads((Path(d) / "assignments.json").read_text())[0]["session"])
         self.assertTrue(sessions[0].startswith("2026-11-19/c2/vote/"))
         self.assertTrue(sessions[1].startswith("2026-11-19/r7/c2/vote/"))
+        from tools.lib.audit import cycle_id  # the merge bot's prefix must match the agents'
+        with mock.patch.dict(os.environ, {"GLYPH_RUN": "7"}):
+            self.assertTrue(sessions[1].startswith(cycle_id("2026-11-19", 2) + "/"))
 
     def test_m0_plans_nothing(self):
         self.assertEqual(run("design", rules=dict(M2, milestone="M0")), [])
