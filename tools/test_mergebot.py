@@ -469,6 +469,15 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(out["tag"], "audit-2026-11-19")
         self.assertEqual(self.git("tag", "-l", "audit-2026-11-19"), "audit-2026-11-19")
 
+    def test_second_close_on_one_date_gets_its_own_tag(self):
+        MB.cmd_close(self.root)
+        self.emit("digest_published", {}, {"title": "Again", "body": "second run"}, "scribe")
+        with mock.patch.dict(os.environ, {"GLYPH_RUN": "9"}):
+            out = MB.cmd_close(self.root)
+        self.assertEqual(out["tag"], "audit-2026-11-19-r9")
+        self.assertIn("second run", Path(out["daily"]).read_text())
+        self.assertNotEqual(self.git("rev-parse", "audit-2026-11-19^{}"), self.git("rev-parse", "audit-2026-11-19-r9^{}"))
+
     def test_verify_reports_tamper(self):
         self.emit("cycle_started", {}, {"cycle": "2026-11-19/c1"}, "mergebot")
         self.emit("cycle_started", {}, {"cycle": "2026-11-19/c2"}, "mergebot")
