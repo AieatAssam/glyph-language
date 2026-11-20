@@ -1,0 +1,26 @@
+{
+  "E0001": {
+    "title": "unexpected character",
+    "explanation": "The source contains a character or word that the toy language does not define.",
+    "example": "print 1 $ 2",
+    "fixed": "print 1 + 2"
+  },
+  "E0002": {
+    "title": "expected expression",
+    "explanation": "A statement must start with print, and print must be followed by a value.",
+    "example": "print +",
+    "fixed": "print 1 + 2"
+  },
+  "E0003": {
+    "title": "expected closing parenthesis or end of line",
+    "explanation": "An opening parenthesis was not closed, or a statement continues after a complete expression.",
+    "example": "print (1 + 2",
+    "fixed": "print (1 + 2)"
+  },
+  "E0004": {
+    "title": "integer literal out of range",
+    "explanation": "The literal does not fit in a 32-bit signed integer.",
+    "example": "print 2147483648",
+    "fixed": "print 2147483647"
+  }
+}
