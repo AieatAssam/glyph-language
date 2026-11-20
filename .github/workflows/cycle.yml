@@ -254,21 +254,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: check-c${{ inputs.cycle }}-*
-          path: checks
+          path: ${{ runner.temp }}/checks
           merge-multiple: true
       - name: Fetch bench results
         if: needs.bench.result == 'success'
         uses: actions/download-artifact@v4
         with:
           pattern: bench-gate-c${{ inputs.cycle }}-*
-          path: bench
+          path: ${{ runner.temp }}/bench-gate
           merge-multiple: true
       - name: Apply gate and merge at most one PR
         run: |
-          mkdir -p checks
-          if [ -d bench ]; then python -m tools.mergebot bench bench --scope gate; fi
-          args=(checks)
-          if [ -d bench ]; then args+=(bench); fi
+          # Results live outside the checkout: checks/ and bench/ are tracked, and a dirty tree breaks the bot's pull --rebase.
+          checks="$RUNNER_TEMP/checks" gate="$RUNNER_TEMP/bench-gate"
+          mkdir -p "$checks"
+          if [ -d "$gate" ]; then python -m tools.mergebot bench "$gate" --scope gate; fi
+          args=("$checks")
+          if [ -d "$gate" ]; then args+=("$gate"); fi
           python -m tools.mergebot merge "${args[@]}"
 
   use:
