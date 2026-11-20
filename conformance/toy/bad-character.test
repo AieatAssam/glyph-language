@@ -1,0 +1,13 @@
+--- meta
+id: toy/bad-character
+rfc: 0001
+kind: compile-error
+--- source
+print 1
+print 2 $ 3
+--- stdin
+--- expect-stdout
+--- expect-exit
+1
+--- expect-errors
+E0001 2

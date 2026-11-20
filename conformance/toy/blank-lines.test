@@ -1,0 +1,15 @@
+--- meta
+id: toy/blank-lines
+rfc: 0001
+kind: run
+--- source
+print 1
+
+print (2 + 3) * 2
+
+--- stdin
+--- expect-stdout
+1
+10
+--- expect-exit
+0
