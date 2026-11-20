@@ -49,3 +49,36 @@ export function toJsonLine(record: Diagnostic): string {
   }
   return JSON.stringify(out);
 }
+
+// True when the code is a lexical code, E0001 to E0099 (RFC 0004 section 4).
+export function isLexical(code: string): boolean {
+  const m = /^E(\d{4})$/.exec(code);
+  if (m === null) return false;
+  const n = Number(m[1]);
+  return n >= 1 && n <= 99;
+}
+
+// Returns a new array sorted by span.start, then by code. Records equal on both keep their
+// input order, so the same input always gives the same output. The input is not changed.
+export function sortRecords(records: readonly Diagnostic[]): Diagnostic[] {
+  return records
+    .map((record, index) => ({ record, index }))
+    .sort((a, b) => {
+      if (a.record.span.start !== b.record.span.start) {
+        return a.record.span.start - b.record.span.start;
+      }
+      if (a.record.code !== b.record.code) {
+        return a.record.code < b.record.code ? -1 : 1;
+      }
+      return a.index - b.index;
+    })
+    .map((entry) => entry.record);
+}
+
+// Keeps only the first lexical record, where "first" means first in the order given; call
+// sortRecords before this to get the lowest span.start. The compiler stops after a lexical
+// error, so every other record is dropped too. With no lexical record, returns a copy of the input.
+export function firstLexicalOnly(records: readonly Diagnostic[]): Diagnostic[] {
+  const first = records.find((record) => isLexical(record.code));
+  return first === undefined ? [...records] : [first];
+}
