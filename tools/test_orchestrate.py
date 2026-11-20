@@ -195,6 +195,15 @@ class Caps(unittest.TestCase):
         out = [a for a in run("implement", state=st, repo=repo) if a.kind == "subtask"]
         self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in out], [("0014", 30)])
 
+    def test_blocked_plan_line_yields_the_shared_pr(self):
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="implementing"),
+                       "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},
+              "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1, "branch": "agent/impl-0004"}}}
+        repo = FakeRepo(files={"rfcs/0004.plan.md": "- [x] 1. a\n- [ ] 2. BLOCKED on a lexer.\n",
+                               "rfcs/0014.plan.md": "- [ ] 1. lexer\n"})
+        out = [a for a in run("implement", state=st, repo=repo) if a.kind == "subtask"]
+        self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in out], [("0014", 30)])
+
     def test_shared_pr_builds_before_it_is_fixed(self):
         st = {"rfcs": {"0011": rfc("0011", DESIGNERS[0], slug="name-v2", status="implementing"),
                        "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},

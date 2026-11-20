@@ -434,6 +434,8 @@ def plan_implement(ctx) -> list[Asg]:
         if ctx.live and not kernel_done and _base(r["slug"]) not in FOUNDING_SLUGS:
             continue  # no compiler exists until the founding RFCs are built: build those first
         idx, text = nxt
+        if text.lstrip().upper().startswith("BLOCKED"):
+            continue  # waits on another RFC's work: give the shared PR's slot to one that can move
         pr = int(impl_pr) if impl_pr else None
         # ponytail: failure counts are keyed by subtask index per PR, so only the PR's own RFC reads them
         fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr and str(prs[impl_pr].get("rfc")) == n else {}
