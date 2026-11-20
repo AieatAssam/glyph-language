@@ -51,6 +51,11 @@ if [ "$role" = user ]; then
 fi
 mkdir -p "$scratch/repo"
 rsync -a "${excludes[@]}" "$root/" "$scratch/repo/"
+# A subtask on an existing PR works on that PR's tree, not the base: overlay the branch's files.
+branch="$(python3 -c 'import json,re,sys; m=re.search(r"<!-- assignment (.*?) -->", open(sys.argv[1]).read()); print(json.loads(m.group(1)).get("branch","") if m else "")' "$assignment")"
+if [[ "$branch" =~ ^agent/[A-Za-z0-9._/-]+$ ]] && git -C "$root" fetch -q origin "$branch" 2>/dev/null; then
+  git -C "$root" archive FETCH_HEAD | tar -x -C "$scratch/repo" --exclude=audit --exclude=.work --exclude=bench/heldout.tar.age
+fi
 mkdir -p "$scratch/repo/out"
 
 # Prompt, in contract order: constitution, base, role, persona, memory, assignment.

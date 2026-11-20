@@ -493,7 +493,8 @@ def plan_implement(ctx) -> list[Asg]:
                              + "\n".join(failing) + "\n\n")
             body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
-            out.append(Asg(agent, "implement", "subtask", body, rfc=n, subtask=item["subtask"], pr=item["pr"]))
+            out.append(Asg(agent, "implement", "subtask", body, rfc=n, subtask=item["subtask"], pr=item["pr"],
+                           branch=pr_branch))
             if testers and not item.get("fix") and not any(a.kind == "tests" for a in out):  # one tester session per phase
                 out.append(Asg(testers[0], "implement", "tests", (
                     f"Write the conformance cases for subtask {item['subtask']} of RFC {n}: {item['text']}\n"
