@@ -20,7 +20,8 @@ SUBTASK_PATHS = {
     1: ["spec/card.md", "spec/core/01-toy.md", "spec/errors.json", "spec/grammar.peg", "spec/VERSION",
         "conformance/toy/arith-precedence.test", "conformance/toy/arith-division.test",
         "conformance/toy/arith-wrap.test", "conformance/toy/bad-character.test",
-        "conformance/toy/divide-by-zero.test", "examples/hello-numbers.toy"],
+        "conformance/toy/divide-by-zero.test", "conformance/toy/blank-lines.test",
+        "examples/hello-numbers.toy"],
     2: ["compiler/stage0/src/core.ts", "compiler/stage0/src/browser.ts"],  # each subtask stays under 400 lines
     3: ["compiler/stage0/src/main.ts", "compiler/stage0/src/conformance.test.ts"],
 }

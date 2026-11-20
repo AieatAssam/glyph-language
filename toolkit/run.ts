@@ -63,7 +63,7 @@ export async function run(input: string | Uint8Array, opts: RunOptions = {}): Pr
 
 async function runWasmtime(file: string, opts: RunOptions): Promise<RunResult> {
   const memBytes = (opts.memoryMb ?? DEFAULT_MEMORY_MB) * 1024 * 1024;
-  const args = ['run', '-W', `fuel=${opts.fuel ?? DEFAULT_FUEL}`, '-W', `max-memory-size=${memBytes}`];
+  const args = ['run', '-C', 'cache=n', '-W', `fuel=${opts.fuel ?? DEFAULT_FUEL}`, '-W', `max-memory-size=${memBytes}`];
   if (opts.dir) args.push('--dir', `${resolve(opts.dir)}::.`);
   args.push(file, ...(opts.args ?? []));
   const r = await spawnCapture('wasmtime', args, opts);
