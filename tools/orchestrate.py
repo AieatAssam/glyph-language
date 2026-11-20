@@ -442,13 +442,20 @@ def plan_implement(ctx) -> list[Asg]:
         if int(fails.get(str(idx), 0)) >= limit or (n, idx) in escalated:
             continue
         items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr))
-    seen_prs, unique = set(), []  # two implementers never write one PR branch in the same phase
-    for item in sorted(items, key=lambda i: bool(i.get("fix"))):  # real subtasks before gate fixes
-        if item.get("pr") is not None:
-            if item["pr"] in seen_prs:
-                continue
-            seen_prs.add(item["pr"])
-        unique.append(item)
+    # Two implementers never write one PR branch in the same phase. RFCs sharing a PR take turns,
+    # one per cycle, so a stuck subtask cannot hold the shared PR; gate fixes go last.
+    turn = sum(1 for e in ctx.events if e.get("type") == "cycle_started")
+    groups: dict = {}
+    for item in items:
+        groups.setdefault(item.get("pr"), []).append(item)
+    unique = []
+    for item in items:
+        g = groups[item.get("pr")]
+        if item.get("pr") is None:
+            unique.append(item)
+        elif item is g[0]:
+            real = [i for i in g if not i.get("fix")] or g
+            unique.append(real[turn % len(real)])
     items = unique
     impls = _roles(ctx.roster, "implementer")
     testers = _roles(ctx.roster, "tester")

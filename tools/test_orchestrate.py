@@ -204,6 +204,18 @@ class Caps(unittest.TestCase):
         out = [a for a in run("implement", state=st, repo=repo) if a.kind == "subtask"]
         self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in out], [("0014", 30)])
 
+    def test_rfcs_sharing_a_pr_take_turns_by_cycle(self):
+        st = {"rfcs": {"0011": rfc("0011", DESIGNERS[0], slug="name-v2", status="implementing"),
+                       "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},
+              "prs": {"30": {"number": 30, "rfc": "0011", "status": "open", "subtask": 1, "branch": "agent/x"}}}
+        repo = FakeRepo(files={"rfcs/0011.plan.md": "- [ ] 1. a\n", "rfcs/0014.plan.md": "- [ ] 1. b\n"})
+        picks = []
+        for cycles in (0, 1, 2):
+            ev = [{"type": "cycle_started", "subject": {}, "data": {}}] * cycles
+            out = [a for a in run("implement", state=st, repo=repo, events=ev) if a.kind == "subtask"]
+            picks.append(out[0].header.get("rfc"))
+        self.assertEqual(picks, ["0011", "0014", "0011"])
+
     def test_shared_pr_builds_before_it_is_fixed(self):
         st = {"rfcs": {"0011": rfc("0011", DESIGNERS[0], slug="name-v2", status="implementing"),
                        "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},

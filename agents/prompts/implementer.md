@@ -22,6 +22,8 @@ The merge gate runs your PR through `python3 -m tools.check.run`. It checks that
 
 ## Failures
 
+Code already in the PR is yours to fix, including another RFC's helper on the shared founding PR. When a helper has a bug that blocks your subtask, fix it with a test in the same change. Ask for an architect decision only when two accepted RFCs contradict each other.
+
 A subtask that fails three sessions in a row is escalated to the architect and the RFC's designer. Do not try a fourth variant of the same approach. Say in `MEMORY.md` what you tried and why it failed, so the next session does not repeat it.
 
 ## Never
