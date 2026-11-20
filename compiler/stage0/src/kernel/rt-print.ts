@@ -1,13 +1,14 @@
 // Print runtime (RFC 0020, P2 and P3). Adds two functions:
 //   print_int(v: i64)          writes v in decimal, a leading "-" if negative, no leading zeros, then LF
 //   print_text(ptr: i32, len: i32)  writes len bytes at ptr unchanged, then LF
-// Both write to standard output (fd 1) through fd_write, once per call, so each print finishes
-// before the next statement runs.
+// Both write to standard output (fd 1) through fd_write, and each returns only after its writes
+// finish, so each print finishes before the next statement runs. print_int makes one fd_write
+// call; print_text makes two, one for the bytes and one for the LF.
 //
 // Memory layout, fixed here. Anything the compiler places in memory must start at or above
 // PRINT_RESERVED_END (rt-trap uses 0 .. 143):
 //   256 .. 287   digit buffer for print_int, written from the end backwards
-//   288 .. 303   iovec array for fd_write (one entry for print_int, two for print_text)
+//   288 .. 295   iovec for fd_write (pointer, then length: one entry per call)
 //   304          the LF byte, for print_text
 //
 // ponytail: fd_write may write fewer bytes than asked for. Neither function retries a short write.
@@ -72,14 +73,16 @@ export function addPrintRuntime(m: ModuleBuilder, rt: TrapRuntime): PrintRuntime
     .i32Const(STDOUT).i32Const(IOV).i32Const(1).i32Const(NWRITTEN).call(fdWrite).drop(),
     ['i32', 'i32', 'i32']);
 
-  // Two iovecs: the Text bytes, then the LF byte.
+  // Two fd_write calls, one iovec each: the Text bytes, then the LF byte. A single call with two
+  // iovecs lost the LF when the Text was not empty under node:wasi, so each call takes one iovec.
   const printText = m.addFunc(['i32', 'i32'], [], new Op()
     .i32Const(LF).i32Const(10).i32Store8()
     .i32Const(IOV).localGet(0).i32Store()
     .i32Const(IOV + 4).localGet(1).i32Store()
-    .i32Const(IOV + 8).i32Const(LF).i32Store()
-    .i32Const(IOV + 12).i32Const(1).i32Store()
-    .i32Const(STDOUT).i32Const(IOV).i32Const(2).i32Const(NWRITTEN).call(fdWrite).drop());
+    .i32Const(STDOUT).i32Const(IOV).i32Const(1).i32Const(NWRITTEN).call(fdWrite).drop()
+    .i32Const(IOV).i32Const(LF).i32Store()
+    .i32Const(IOV + 4).i32Const(1).i32Store()
+    .i32Const(STDOUT).i32Const(IOV).i32Const(1).i32Const(NWRITTEN).call(fdWrite).drop());
 
   return { printInt, printText };
 }
