@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 votes:
   designer-prag: approve
   designer-safe: approve

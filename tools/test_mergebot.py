@@ -269,6 +269,14 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(types.count("rules_changed"), 1)
         self.assertEqual(types.count("cycle_started"), 1)
 
+    def test_owner_trailer_supersedes_an_rfc_once(self):
+        self.write("notes.txt", "x\n")
+        self.commit("Drop the toy\n\nOwner-Supersedes-RFC: 0001")
+        MB.cmd_open(self.root)
+        MB.cmd_open(self.root)
+        ev = [e for e in audit.load_events(self.root) if e["type"] == "rfc_superseded"]
+        self.assertEqual([e["subject"] for e in ev], [{"rfc": "0001"}])
+
     def test_bot_commits_are_not_owner_events(self):
         self.write("governance/roster.yml", "agents: []\n")
         self.commit("Audit: roster touch\n\nBot: mergebot")

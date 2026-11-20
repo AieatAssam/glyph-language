@@ -174,7 +174,7 @@ RFC statuses are `draft`, `discussion`, `voting`, `accepted`, `rejected`, `imple
 
 | cmd | does |
 | --- | --- |
-| `open` | Verifies the chain, scans protected-path commits since the last owner event and records them as owner events, and appends `cycle_started` |
+| `open` | Verifies the chain, scans protected-path commits since the last owner event and records them as owner events, records `rfc_superseded` for each `Owner-Supersedes-RFC: NNNN` trailer in an owner commit, and appends `cycle_started` |
 | `ingest PUBDIR...` | Appends the proposed events, idempotent through `idem`. Records `session_*` events from `sessions/*/session.json` with the transcript sha256. Commits `audit/` to `BASE_BRANCH` |
 | `decide` | Moves RFCs `discussion` → `voting` once eligible, tallies `voting` RFCs, lapses expired ones, writes the RFC file to BASE with its status and vote record in front matter, writes `audit/decisions/NNNN.md`, and closes the RFC PR |
 | `merge CHECKDIR [BENCHDIR]` | Applies gate rules 1–14 (spec §6) to candidate PRs using the check and bench result JSON. Squash-merges at most one PR per call with commit trailers, bumps `spec/VERSION` (a minor bump for `language` and `stdlib`, a patch bump otherwise), and records `gate_blocked` or `merged` |

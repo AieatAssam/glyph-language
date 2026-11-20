@@ -60,6 +60,10 @@ def owner_scan(root) -> int:
         body = gitops.git(root, "show", "-s", "--format=%B", sha)
         if "Bot: mergebot" in body:
             continue
+        for n in re.findall(r"^Owner-Supersedes-RFC: (\d{4})\s*$", body, re.M):
+            if _emit(root, "rfc_superseded", {"rfc": n}, {"rfc": n, "commit": sha, "reason": "owner"},
+                     f"owner:{sha}:supersede:{n}"):
+                count += 1
         for path in gitops.git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", sha).split():
             if not R.is_protected(path):
                 continue
