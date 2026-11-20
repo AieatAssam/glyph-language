@@ -1,1 +1,3 @@
-[]
+[
+  {"code": "E0010", "message": "source file does not end in .gl", "meaning": "the path given is not a source file"}
+]
