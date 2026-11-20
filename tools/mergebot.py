@@ -405,12 +405,14 @@ def cmd_close(root) -> dict:
         _push_transcripts(root, files, day)
         shutil.rmtree(tdir)
     gitops.commit_all(root, f"Audit: close {day}\n\nBot: mergebot", paths=["audit"])
+    gitops.remote_sync(root)  # tag only what reached the base branch
     tag = f"audit-{day}"
+    if gitops.git(root, "tag", "-l", tag).strip() and os.environ.get("GLYPH_RUN"):
+        tag = f"audit-{day}-r{os.environ['GLYPH_RUN']}"  # a later run on the same date keeps its own tag
     if not gitops.git(root, "tag", "-l", tag).strip():
         gitops.git(root, "tag", "-a", tag, "-m", f"audit head {S.load_state(root)['head_hash']}")
-    gitops.remote_sync(root, push=False)
-    if not gh.dry():
-        gitops.git(root, "push", "origin", tag, check=False)
+        if not gh.dry():
+            gitops.git(root, "push", "origin", tag)
     return {"daily": str(daily), "tag": tag, "release": release}
 
 
