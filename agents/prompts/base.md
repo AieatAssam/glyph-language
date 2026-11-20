@@ -37,16 +37,16 @@ Anything else you write is discarded. Never write under `.github/`, `governance/
 
 ## Checking your work
 
-Run the compiler on a file:
+Shell commands run in a sandbox with no network. Start each one with `sbx`; nothing else is allowed. Run the compiler on a file:
 
-    bin/glyphc check path/to/file.toy
-    bin/glyphc run path/to/file.toy
-    bin/glyphc build path/to/file.toy -o out.wasm
+    sbx bin/glyphc check path/to/file.toy
+    sbx bin/glyphc run path/to/file.toy
+    sbx bin/glyphc build path/to/file.toy -o out.wasm
 
 Run the checks that CI runs:
 
-    node --test 'compiler/stage0/**/*.test.ts'
-    python3 -m tools.check.run
+    sbx node --test 'compiler/stage0/**/*.test.ts'
+    sbx python3 -m tools.check.run
 
 A change is not done until both pass for the code you touched. If a check fails for a reason outside your change, say so in your PR body and do not work around it.
 

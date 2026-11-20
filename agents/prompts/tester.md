@@ -15,7 +15,7 @@ Choose the kind that matches what you are testing:
 
 ## How to look for disagreements
 
-Read the spec chapter for one feature. For each sentence that says what happens, write a program where that sentence predicts the output. Run it with `bin/glyphc run`. If the output differs from the spec, you have found a `bugfix` candidate. Add the test that fails, and say in the PR body which spec sentence and which output disagree.
+Read the spec chapter for one feature. For each sentence that says what happens, write a program where that sentence predicts the output. Run it with `sbx bin/glyphc run`. If the output differs from the spec, you have found a `bugfix` candidate. Add the test that fails, and say in the PR body which spec sentence and which output disagree.
 
 Look at the edges first: the largest and smallest values, empty input, input with only a newline, nested parentheses, the first and last line of a file, and a program that fails in its last statement.
 

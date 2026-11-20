@@ -1,5 +1,5 @@
 name: setup-claude
-description: Claude Code CLI (pinned) plus what its Linux sandbox needs (bubblewrap, socat, unprivileged user namespaces).
+description: Claude Code CLI (pinned) plus the glyph-sandbox image that agents' sbx command runs in.
 
 runs:
   using: composite
@@ -10,8 +10,7 @@ runs:
     - shell: bash
       run: |
         set -euo pipefail
-        sudo apt-get install -y -qq bubblewrap socat >/dev/null
-        # Ubuntu 24.04 blocks unprivileged user namespaces by default; bubblewrap needs them.
-        sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
         npm install -g --silent --no-audit --no-fund @anthropic-ai/claude-code@2.1.318
         claude --version
+        # Agents' only shell (tools/agent-bin/sbx) runs in this image with no network.
+        docker build -q -t glyph-sandbox "${{ github.action_path }}/../../../tools/sandbox"

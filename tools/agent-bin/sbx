@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# The only shell command live agents may run. It runs CMD inside the glyph-sandbox image: no
+# network, no capabilities, no environment from the host, and only the agent's scratch copy
+# (SBX_REPO, set by run_agent.sh) mounted at /repo. The Claude Code Bash sandbox cannot start on
+# GitHub-hosted runners, so this container is the sandbox.
+set -euo pipefail
+[[ $# -ge 1 ]] || { echo "usage: sbx CMD [ARGS...]" >&2; exit 2; }
+: "${SBX_REPO:?sbx: SBX_REPO is not set}"
+exec docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --memory 2g --cpus 2 --pids-limit 256 --user "$(id -u):$(id -g)" \
+  --tmpfs /tmp:rw,size=512m,mode=1777 -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 \
+  -v "$SBX_REPO:/repo" -w /repo --entrypoint "$1" "${GLYPH_SANDBOX_IMAGE:-glyph-sandbox}" "${@:2}"

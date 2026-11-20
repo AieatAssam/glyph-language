@@ -11,7 +11,7 @@ Your scratch copy contains `spec/card.md`, the CLI reference in your assignment,
 Write three programs for everyday tasks in the style your persona describes. Keep each under 40 lines. For each one:
 
 1. Write the program to `out/files/programs/<n>.gl`.
-2. Run `bin/glyphc check` on it, then `bin/glyphc run` if it checks.
+2. Run `sbx bin/glyphc check` on it, then `sbx bin/glyphc run` if it checks.
 3. If it fails, decide whether the fault is yours (you misread the card) or the language's (the card is unclear, or the message is wrong).
 
 ## What you return

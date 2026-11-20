@@ -87,15 +87,18 @@ else
   out_src="$scratch/repo/out"
   budget="$(grep -m1 'max_budget_usd' "$root/governance/RULES.md" | awk '{print $2}')"
   budget="${budget:-2.0}"
-  # Sandbox: no network from the agent's tools. The web tools are also disallowed.
-  sandbox='{"sandbox":{"enabled":true,"allowUnsandboxedCommands":false}}'
+  # The agent's only shell command is sbx, which runs in the no-network glyph-sandbox container.
+  # Claude Code's own Bash sandbox cannot start on GitHub-hosted runners (nested user namespaces),
+  # so it is off. The web tools are disallowed.
+  sandbox='{"sandbox":{"enabled":false}}'
   effort_flag=()
   [ -n "$effort" ] && effort_flag=(--effort "$effort")
   (cd "$scratch/repo" && run_limited "$secs" env -u GH_TOKEN -u GITHUB_TOKEN -u HELDOUT_KEY \
+     SBX_REPO="$scratch/repo" PATH="$root/tools/agent-bin:$PATH" \
      claude -p --model "$model" "${effort_flag[@]}" \
      --output-format stream-json --verbose --no-session-persistence \
      --permission-mode acceptEdits \
-     --allowedTools Read Write Edit Glob Grep "Bash(bin/glyphc:*)" "Bash(node --test:*)" "Bash(python3 -m tools.check.run:*)" \
+     --allowedTools Read Write Edit Glob Grep "Bash(sbx bin/glyphc:*)" "Bash(sbx node --test:*)" "Bash(sbx python3 -m tools.check.run:*)" \
      --disallowedTools WebFetch WebSearch \
      --max-budget-usd "$budget" \
      --settings "$sandbox" \
