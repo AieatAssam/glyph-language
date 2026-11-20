@@ -88,7 +88,7 @@ else
   budget="$(grep -m1 'max_budget_usd' "$root/governance/RULES.md" | awk '{print $2}')"
   budget="${budget:-2.0}"
   # Sandbox: no network from the agent's tools. The web tools are also disallowed.
-  sandbox='{"sandbox":{"enabled":true}}'
+  sandbox='{"sandbox":{"enabled":true,"allowUnsandboxedCommands":false}}'
   effort_flag=()
   [ -n "$effort" ] && effort_flag=(--effort "$effort")
   (cd "$scratch/repo" && run_limited "$secs" env -u GH_TOKEN -u GITHUB_TOKEN -u HELDOUT_KEY \
