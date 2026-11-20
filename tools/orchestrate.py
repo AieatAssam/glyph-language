@@ -419,7 +419,7 @@ def plan_implement(ctx) -> list[Asg]:
         if _open_pr(prs, n, subtask=False):  # the plan PR is still under review
             continue
         founding = _base(r["slug"]) in FOUNDING_SLUGS
-        impl_pr = _open_pr(prs, n, subtask=True) or (_founding_impl_pr(prs, rfcs) if founding else None)
+        impl_pr = _founding_impl_pr(prs, rfcs) if founding else _open_pr(prs, n, subtask=True)
         path = f"rfcs/{n}.plan.md"
         plan = (repo.read_ref(prs[impl_pr]["branch"], path) if impl_pr else None) or repo.read(path)
         if plan is None:
