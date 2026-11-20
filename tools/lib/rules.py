@@ -83,6 +83,7 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
       pr: {class, role, rfc_present, rfc_status, rfc_accepted_super, changed_files,
            head_sha, reviews: [{agent, verdict, sha}]}
       check_rules: {"4": bool, "5": bool, ..., "12": bool} from the check result (rules 4-12)
+      check_details: {"4": str, ...} the check result's detail per rule, reported for failures
       tests_altered: bool, true when an existing conformance test was removed or changed
       bench: {fitness, baseline, conformance_output_unchanged} or None
       stability: {self_hosted, last_breaking, today} or None (see stability_ok)
@@ -97,6 +98,9 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
 
     def chk(n):
         return bool(cr.get(str(n)))
+
+    def why(n):  # the sandbox check's own detail for a failed rule, so the next session can act on it
+        return "" if chk(n) else str(ctx.get("check_details", {}).get(str(n), ""))[:400]
 
     # 1. Only allowed paths are touched.
     bad = [f for f in files if not path_allowed(pr.get("role"), f)]
@@ -134,8 +138,8 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
         out.append(_res(3, "bundle_together", True, "not required for class"))
 
     # 4 to 5: build and conformance suite. 6: no existing conformance test altered.
-    out.append(_res(4, "compiler_builds", chk(4)))
-    out.append(_res(5, "conformance_passes", chk(5)))
+    out.append(_res(4, "compiler_builds", chk(4), why(4)))
+    out.append(_res(5, "conformance_passes", chk(5), why(5)))
     altered = bool(ctx.get("tests_altered"))
     waived = bool(pr.get("rfc_accepted_super"))
     out.append(_res(6, "no_test_altered", not altered or waived,
@@ -144,11 +148,11 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
     # 7 to 11 come straight from the check result.
     for n, name in ((7, "wasm_valid"), (8, "deterministic"), (9, "token_caps"),
                     (10, "grammar_coverage"), (11, "examples_pass")):
-        out.append(_res(n, name, chk(n)))
+        out.append(_res(n, name, chk(n), why(n)))
 
     # 12 fixed point and 13 benchmark: switched off until the owner flips the gate.
     if gates.get("fixed_point"):
-        out.append(_res(12, "fixed_point", chk(12)))
+        out.append(_res(12, "fixed_point", chk(12), why(12)))
     else:
         out.append(_res(12, "fixed_point", True, "gate off"))
 

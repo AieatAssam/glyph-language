@@ -111,6 +111,22 @@ class Caps(unittest.TestCase):
         opens = [a for a in run("design", state=st) if a.kind == "open"]
         self.assertTrue(all(a.agent != DESIGNERS[0] for a in opens))
 
+    def test_blocked_pr_is_fixed_before_the_next_subtask(self):
+        plan = "- [x] 1. Lexer\n- [ ] 2. Parser\n"
+        st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], status="implementing")},
+              "prs": {"30": {"number": 30, "rfc": "0004", "status": "open", "subtask": 1,
+                             "branch": "agent/impl-0004", "head_sha": "abc"}}}
+        ev = [{"type": "check_run", "subject": {"pr": 30}, "data": {"sha": "abc", "rules": {
+            "3": {"ok": False, "detail": "missing: ['conformance']"}, "14": {"ok": False, "detail": "no approval"},
+            "1": {"ok": True, "detail": ""}}}}]
+        repo = FakeRepo(refs={"agent/impl-0004": {"rfcs/0004.plan.md": plan}})
+        a = [x for x in run("implement", state=st, repo=repo, events=ev) if x.kind == "subtask"][0]
+        self.assertIn("rule 3: missing: ['conformance']", a.body)
+        self.assertIn("do not tick another plan line", a.body)
+        self.assertNotIn("rule 14", a.body)
+        a = [x for x in run("implement", state=st, repo=repo, events=[]) if x.kind == "subtask"][0]
+        self.assertIn("Implement subtask 2", a.body)
+
     def test_implement_respects_max_implementing(self):
         st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], status="accepted") for i in range(1, 6)}}
         self.assertLessEqual(len(run("implement", state=st)), 3)

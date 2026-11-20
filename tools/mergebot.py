@@ -302,6 +302,7 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
                    "changed_files": gitops.changed_files(root, check["base_sha"], check["sha"]),
                    "head_sha": pr["head_sha"], "reviews": pr["reviews"]},
             "check_rules": {k: v.get("ok") for k, v in check.get("rules", {}).items()},
+            "check_details": {k: v.get("detail", "") for k, v in check.get("rules", {}).items()},
             "tests_altered": gitops.removed_test_lines(root, check["base_sha"], check["sha"]),
             "bench": bench,
             "stability": stab,

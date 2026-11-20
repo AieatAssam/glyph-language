@@ -366,6 +366,14 @@ def _latest_check(events, pr: str, sha):
     return found
 
 
+def gate_failures(events, pr: dict) -> list[str]:
+    """Failed gate rules (except review, rule 14) on the PR's current head, one line each."""
+    check = _latest_check(events, str(pr.get("number", "")), pr.get("head_sha")) if pr else None
+    rules = {k: v for k, v in ((check or {}).get("data", {}).get("rules") or {}).items() if str(k).isdigit()}
+    return [f"- rule {k}: {v.get('detail') or 'failed'}" for k, v in sorted(rules.items(), key=lambda kv: int(kv[0]))
+            if isinstance(v, dict) and not v.get("ok") and k != "14"]
+
+
 def plan_implement(ctx) -> list[Asg]:
     rfcs, rules, repo = ctx.state.get("rfcs", {}), ctx.rules, ctx.repo
     prs = ctx.state.get("prs", {})
@@ -409,9 +417,15 @@ def plan_implement(ctx) -> list[Asg]:
             diff = repo.diff(pr_branch) if pr_branch else None
             how = (f"Update PR {item['pr']} with `update_pr`." if item["pr"]
                    else f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`).")
-            body = (f"Implement subtask {item['subtask']} of RFC {n}: {item['text']}\n"
+            failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
+            task = (f"Implement subtask {item['subtask']} of RFC {n}: {item['text']}\n"
                     f"{how} In `files`, include the code, spec, grammar, conformance tests and examples this subtask needs, "
-                    f"and tick its line in `rfcs/{n}.plan.md` (`- [x]`). Keep the change under 400 changed lines.\n\n"
+                    f"and tick its line in `rfcs/{n}.plan.md` (`- [x]`). Keep the change under 400 changed lines.\n\n")
+            if failing:  # a blocked PR is fixed before it grows
+                task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
+                        f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
+                        + "\n".join(failing) + "\n\n")
+            body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
             out.append(Asg(agent, "implement", "subtask", body, rfc=n, subtask=item["subtask"], pr=item["pr"]))
             if testers and not any(a.kind == "tests" for a in out):  # one tester session per phase
