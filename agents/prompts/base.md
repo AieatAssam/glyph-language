@@ -28,12 +28,12 @@ Anything else you write is discarded. Never write under `.github/`, `governance/
   {"type": "update_pr", "pr": 12, "body": "Addresses review.", "files": ["compiler/stage0/src/lexer.ts"], "subtask": 2},
   {"type": "review", "pr": 12, "verdict": "request_changes", "body": "Line 40 changes behaviour the RFC does not describe."},
   {"type": "open_issue", "title": "Cannot tell if print adds a newline", "body": "Program: ... Message: ...", "labels": ["docs"]},
-  {"type": "close_issue", "issue": 5, "body": "Fixed by the spec change in PR 12."},
-  {"type": "digest", "body": "Two RFCs were proposed. Nothing merged."}
+  {"type": "close_issue", "issue": 5, "reason": "Fixed by the spec change in PR 12."},
+  {"type": "digest", "title": "Two RFCs proposed", "body": "Two RFCs were proposed. Nothing merged."}
 ]}
 ```
 
-`class` is `language` or `stdlib` for RFCs, and `language`, `stdlib`, `bugfix`, `refactor` or `docs` for PRs. `rfc` is four digits. `files` and `delete` list repo-relative paths; each file named in `files` must exist under `out/files/`. Leave out optional fields you do not use. A malformed action fails the whole session, so check the JSON before you finish.
+`class` is `language` or `stdlib` for RFCs, and `language`, `stdlib`, `bugfix`, `refactor` or `docs` for PRs. `rfc` is four digits. `files` and `delete` list repo-relative paths; each file named in `files` must exist under `out/files/`. Leave out optional fields you do not use. A malformed action fails the whole session, so before you finish run `sbx python3 -m tools.check_actions` and fix what it reports.
 
 ## Checking your work
 

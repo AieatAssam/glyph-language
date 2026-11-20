@@ -59,6 +59,8 @@ prompt="$scratch/prompt.md"
   cat "$root/governance/CONSTITUTION.md"; printf '\n\n'
   cat "$root/agents/prompts/base.md"; printf '\n\n'
   cat "$root/agents/prompts/$role.md"; printf '\n\n'
+  allowed="$(cd "$root" && python3 -c 'import sys; from tools.publisher import ALLOWED; print(", ".join(sorted(ALLOWED[sys.argv[1]])))' "$role")"
+  printf 'Your role may post only these action types: %s. Any other type is refused.\n\n' "$allowed"
   printf '## Persona\n\n%s\n\n' "$persona"
   if [ -s "$root/agents/$agent/MEMORY.md" ]; then
     printf '## Memory\n\n'; cat "$root/agents/$agent/MEMORY.md"; printf '\n\n'
@@ -98,7 +100,7 @@ else
      claude -p --model "$model" "${effort_flag[@]}" \
      --output-format stream-json --verbose --no-session-persistence \
      --permission-mode acceptEdits \
-     --allowedTools Read Write Edit Glob Grep "Bash(sbx bin/glyphc:*)" "Bash(sbx node --test:*)" "Bash(sbx python3 -m tools.check.run:*)" \
+     --allowedTools Read Write Edit Glob Grep "Bash(sbx bin/glyphc:*)" "Bash(sbx node --test:*)" "Bash(sbx python3 -m tools.check.run:*)" "Bash(sbx python3 -m tools.check_actions:*)" \
      --disallowedTools WebFetch WebSearch \
      --max-budget-usd "$budget" \
      --settings "$sandbox" \
