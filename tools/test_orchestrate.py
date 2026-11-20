@@ -74,6 +74,23 @@ class Founding(unittest.TestCase):
         self.assertNotIn("name", slugs)
         self.assertIn("kernel", slugs)
 
+    def test_rejected_founding_rfc_returns_with_its_objections(self):
+        st = {"rfcs": {"0002": rfc("0002", DESIGNERS[0], slug="kernel", status="rejected",
+                                   votes={"tester": {"vote": "reject", "rationale": "Trap exit code unclear."},
+                                          "impl-1": {"vote": "approve", "rationale": "ok"}})}}
+        opens = [a for a in run("design", state=st) if a.kind == "open"]
+        k = [a for a in opens if "kernel-v2" in a.header["slugs"]]
+        self.assertEqual(len(k), 1)
+        self.assertIn("Trap exit code unclear.", k[0].body)
+        self.assertNotIn("ok", k[0].body.split("Attempt 2")[1])
+
+    def test_no_proposals_until_founding_rfcs_are_accepted(self):
+        st = {"rfcs": {f"{i:04d}": rfc(f"{i:04d}", DESIGNERS[0], slug=s, status="rejected")
+                       for i, s in enumerate(["name", "lexical-syntax", "kernel", "diagnostic-style"], 1)}}
+        st["rfcs"]["0009"] = rfc("0009", DESIGNERS[1], slug="kernel-v2", status="discussion")
+        kinds = {a.kind for a in run("design", state=st)}
+        self.assertNotIn("propose", kinds)
+
     def test_m1_dry_run_opens_toy_print_only(self):
         asgs = run("design", rules=M1)
         self.assertEqual([x for a in asgs if a.kind == "open" for x in a.header["slugs"]], ["toy-print"])

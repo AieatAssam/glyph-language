@@ -30,6 +30,7 @@ FOUNDING = (
     {"slug": "kernel", "title": "Kernel: integers, booleans, bindings, functions, conditionals, loops, text output", "class": "language"},
     {"slug": "diagnostic-style", "title": "Diagnostic style", "class": "language"},
 )
+DEAD = ("rejected", "withdrawn", "lapsed", "superseded")
 TOY = {"slug": "toy-print", "title": "Toy print", "class": "language"}
 
 # Self-hosting readiness checklist (spec section 9). An item is done when an implemented RFC
@@ -288,14 +289,26 @@ def plan_design(ctx) -> list[Asg]:
                 f"Failure notes: {e['notes']}\n\nRevise the RFC so it is implementable, then return `revise_rfc`.\n\n"
                 + rfc_block(repo, e["rfc"], r)), rfc=e["rfc"], subtask=e["subtask"])
 
+    founding_pending = False
     if live:
         for k, spec in enumerate(FOUNDING):
-            if spec["slug"] in slugs:
+            tries = [n for n in by_num(rfcs) if re.fullmatch(re.escape(spec["slug"]) + r"(-v\d+)?", rfcs[n]["slug"])]
+            if not any(rfcs[n]["status"] in ("accepted", "implementing", "implemented") for n in tries):
+                founding_pending = True
+            if any(rfcs[n]["status"] not in DEAD for n in tries):
                 continue
+            why = "Founding RFC: assigned by the orchestrator. Keep it to the minimum the kernel needs."
+            if tries:  # a rejected founding RFC comes back as a new attempt that answers its objections
+                last = rfcs[tries[-1]]
+                objections = "\n".join(f"- {a} ({v['vote']}): {v.get('rationale', '')}"
+                                       for a, v in sorted(last.get("votes", {}).items()) if v["vote"] != "approve")
+                spec = {**spec, "slug": f"{spec['slug']}-v{len(tries) + 1}"}
+                why += (f"\n\nAttempt {len(tries) + 1}. RFC {tries[-1]} (`rfcs/{tries[-1]}-{last['slug']}.md`) was "
+                        f"{last['status']}. Keep what voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
             for j in range(len(designers)):  # round robin from the founding index
                 d = designers[(k + j) % len(designers)]
                 if can(d) and d not in out:
-                    open_rfc(d, spec, "Founding RFC: assigned by the orchestrator. Keep it to the minimum the kernel needs.")
+                    open_rfc(d, spec, why)
                     break
     elif TOY["slug"] not in slugs and designers and can(designers[0]) and free(designers[0]):
         open_rfc(designers[0], TOY, "Milestone M1 dry run: write the smallest RFC that a scripted toy language can implement.")
@@ -308,7 +321,7 @@ def plan_design(ctx) -> list[Asg]:
         out[d] = Asg(d, "design", "open", body, slugs=[s["slug"] for s, _ in items])
 
     any_open = any(rfcs[n]["status"] in ("discussion", "voting") for n in rfcs) or bool(opened)
-    if live and not any_open:
+    if live and not any_open and not founding_pending:  # nothing new until the founding RFCs are accepted
         for i, d in enumerate(designers):
             if free(d) and can(d):
                 out[d] = Asg(d, "design", "propose", (
