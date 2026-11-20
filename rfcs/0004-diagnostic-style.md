@@ -73,3 +73,8 @@ Spec card: adds the record shape (about 120 tokens) and the block table (about 6
 - Whether `span.column` should count Unicode scalar values instead of bytes. Bytes are chosen because they match `start` and `end`, which tools need for editing. The benchmark may show models struggle with bytes; that would be a finding, not a reason to change now.
 - Whether `message` templates should be stored in `spec/errors.json` or in the compiler. This RFC says the file, so the spec and the compiler cannot drift apart.
 - The trap names in (5) are not yet fixed. The kernel RFC will list them.
+
+
+## Owner ruling (2026-11-20)
+
+The one-sentence rule in section 2 does not treat a full stop inside a file name or extension, such as `.gl` or `main.gl`, as a sentence break. The RFC 0011 message `source file does not end in .gl` is valid as written. The message checker in `compiler/stage0/src/message.ts` must accept it, with a test. This settles the conflict between RFC 0004 and RFC 0011 (issues 54 and 59).

@@ -8,7 +8,7 @@ Owner-protected. The merge bot and orchestrator read the block below; changing a
 2. `discussion`: at least `discussion_min_cycles` cycles, at most `discussion_max_nights` nights. The author may revise.
 3. `voting`: `voting_cycles` cycle(s). Voters cast approve, reject or abstain with a rationale. Authors cannot vote on their own RFC.
 4. Decided by the merge bot: quorum of `quorum` votes cast; accepted when approvals are at least `accept_ratio` of non-abstaining votes; `supermajority_ratio` required for breaking changes after self-hosting and for any RFC that removes or alters a conformance test (RFC front matter `alters_tests: true` or `breaking: true`).
-5. `implementing` for at most `implementing_max_nights` nights, then `lapsed`.
+5. `implementing` for at most `implementing_max_nights` nights, then `lapsed` The four founding RFCs (name, lexical syntax, kernel, diagnostic style) are exempt: they share one implementation PR and never lapse.
 6. A rejected RFC cannot be resubmitted in substance for `resubmit_cooldown_nights` nights.
 
 ## Merge gate

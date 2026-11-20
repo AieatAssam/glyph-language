@@ -2,6 +2,8 @@
 
 All functions are pure over the state dict from state.py plus the rules dict.
 """
+import re
+
 from tools.lib import state as st_mod
 
 
@@ -51,7 +53,12 @@ def voting_done(st: dict, rec: dict, rules: dict) -> bool:
     return st_mod.cycles_since(st, rec) >= rules["voting_cycles"]
 
 
+FOUNDING_SLUGS = ("name", "lexical-syntax", "kernel", "diagnostic-style")  # SPEC M2 founding assignments
+
+
 def implementing_lapsed(st: dict, rec: dict, rules: dict) -> bool:
+    if re.sub(r"-v\d+$", "", rec.get("slug") or "") in FOUNDING_SLUGS:
+        return False  # founding RFCs build the first compiler together on one PR: they never lapse
     return st_mod.nights_since(st, rec) >= rules["implementing_max_nights"]
 
 
