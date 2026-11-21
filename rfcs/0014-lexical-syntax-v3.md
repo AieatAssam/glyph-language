@@ -1,3 +1,13 @@
+---
+status: accepted
+votes:
+  designer-min: reject
+  designer-safe: reject
+  impl-1: approve
+  tester: approve
+  user-1: approve
+  user-2: approve
+---
 # RFC draft: Lexical structure and core syntax
 
 Class: language
@@ -36,7 +46,7 @@ The following are kept from RFC 0012 without change. Tabs are an error everywher
 
 ## Design
 
-Normative. "Must" and "is" are binding on implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value.
+Normative. "Must" and "is" are binding on implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value. A *span* is a pair of byte offsets, `start` inclusive and `end` exclusive, as RFC 0004 §2 defines it.
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is error E0001 wherever it appears.
 
@@ -55,11 +65,15 @@ Normative. "Must" and "is" are binding on implementers. A *character* is a Unico
 8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits from `0` to `9`. It has no sign and no underscore. A digit sequence with a leading zero, such as `007`, is error E0006 at the literal. The lexer records the digits as written.
    The value of a literal must be at most 9223372036854775807 (2^63 - 1). A larger literal is error E0500 at the literal's span. The checker reports it, not the lexer. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500. The smallest `Int` is therefore written `-9223372036854775807 - 1`.
 
-9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are:
+9. **Text literals.** A text literal starts with `"`. Its closing quote is the first `"` that is not part of an escape. Between the quotes are:
    - any valid UTF-8 character except `"`, `\`, and the characters that rule 2 forbids (each is error E0001); and
-   - the escapes `\n` (LF), `\"` (quote) and `\\` (backslash).
+   - the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). An escape is a backslash and the one character after it. So `\"` does not close the literal.
 
-   Any other `\` sequence is error E0005 at the backslash and the character after it. A line end or the end of the file before the closing quote is error E0005 at the span from the opening quote to the end of that line or of the file. The value of the token is the decoded bytes, in UTF-8.
+   A backslash followed by any character other than `n`, `"` or `\` is error E0005. Its span runs from the backslash to the end of the character after it. That character is one whole character, so its span may be more than one byte. A backslash followed by a line end or the end of the file is not an unknown escape. It is the unterminated case below.
+
+   A line end (LF, or the CR of a CR LF) or the end of the file before the closing quote is error E0005. Its span runs from the opening quote to the start of that line end, or to the end of the file. The span does not include the line end.
+
+   The value of a complete literal is its decoded bytes, in UTF-8. Each escape is replaced by the one byte it stands for.
 
 10. **Punctuation and operators.** The tokens are exactly these eighteen: `( ) { } , : = == != < <= > >= + - * / %`. The lexer takes the longest listed token that starts at the current character, looking at most one character ahead. So `==`, `!=`, `<=` and `>=` are each one token. `=>` is two tokens, `=` then `>`. `->` is two tokens, `-` then `>`. The parser then reports E0100 at the `>` if the grammar does not accept it.
 
@@ -79,6 +93,14 @@ Normative. "Must" and "is" are binding on implementers. A *character* is a Unico
 15. **End of file.** At the end of the file, the last line is ended as if a line end were there, under rule 14. The lexer then emits one `EOF` token. A file that ends inside `( )` gets no `NEWLINE` from that end, and the parser reports the unclosed group with E0100 at `EOF`.
 
 16. **Errors and lookahead.** The lexer uses at most one character of lookahead (rule 10). It reports the first lexical error (E0001, E0003 where the lexer sees it, E0005 or E0006) and emits no tokens after it. Records follow RFC 0004 §2 and §3.
+
+17. **Token values and spans.** Each token has a kind and a span. The span of a token runs from its first byte to its last byte, so it is the same as the bytes the token was read from. The value of a token is:
+    - for `IDENT`, the bytes of the name, as written;
+    - for `INT`, the digits, as written (rule 8);
+    - for `TEXT`, the decoded bytes (rule 9);
+    - for every other kind, no value. A keyword or punctuation token is identified by its kind.
+
+    The `NEWLINE` span is the bytes of its line end (rule 14). The `EOF` span is empty and sits at the end of the file. Each lexical error has one code and one span.
 
 Error table. Codes are assigned in `spec/errors.json` by the first PR that emits them (RFC 0004 §4).
 
@@ -107,13 +129,13 @@ Codes not in this table are not used by this RFC.
 
 ## Cost
 
-Core spec: Design rules 1 to 16 and the error table add about 1,100 tokens by estimate. The tokeniser script gives the real figure, and the merge bot checks the 12,000-token limit. The checkout used for this draft has no `spec/` directory, so the script could not be run here.
+Core spec: Design rules 1 to 17 and the error table add about 1,200 tokens by estimate. The tokeniser script gives the real figure, and the merge bot checks the 12,000-token limit. The checkout used for this draft has no `spec/` directory, so the script could not be run here.
 
 Removes, measured against RFC 0003 section 10: the tokens `[`, `]` and `.`, and the tab-as-whitespace rule. Removes, measured against RFC 0012: the tokens `->` and `!`, and the `!io` rule (its rule 11).
 
 Adds, measured against RFC 0012: the keyword `io` (one more reserved word).
 
-Spec card: one line for the fourteen keywords, one line for the eighteen punctuation tokens, one line for the token kinds, and two lines for the NEWLINE rule. About 150 tokens. This is an estimate. `spec/card.md` is not in this checkout, so its current size and the 2,000-token card limit are not checked here.
+Spec card: one line for the fourteen keywords, one line for the eighteen punctuation tokens, one line for the token kinds, and two lines for the NEWLINE rule. About 150 tokens. This is an estimate. `spec/card.md` is not in this checkout, so its current size and the 2,000-token card limit are not checked here. Rules 9 and 17 add no card line, because the card names kinds and not values.
 
 ## Test plan
 
@@ -147,7 +169,7 @@ Run tests:
 - `lex/ws-crlf.test` (run): a program with CRLF line ends prints the same output as its LF form.
 - `lex/newline-in-group.test` (run): a line end inside `( )` produces no `NEWLINE`, so the expression continues.
 - `lex/newline-blank.test` (run): several blank lines, and blank lines at the start of the file, produce no extra `NEWLINE`.
-- `lex/text-escape.test` (run): `\n`, `\"` and `\\` produce the expected bytes.
+- `lex/text-escape.test` (run): `\n`, `\"` and `\\` produce the expected bytes. The program `"a\"b"` prints `a"b`, which shows that `\"` does not close the literal.
 
 Compile-error tests:
 
@@ -162,8 +184,9 @@ Compile-error tests:
 - `lex/arrow.test` (E0100): `fn f() -> Int { }`. The `-` after `)` is not accepted by the grammar, so E0100 is at the `-`.
 - `lex/ident-keyword.test` (E0003): `let let = 1` gives E0003 at the first `let`.
 - `lex/ident-io.test` (E0003): `let io = 1` gives E0003 at `io`.
-- `lex/text-bad-escape.test` (E0005): `\t` and `\q`, one per file.
-- `lex/text-unterminated.test` (E0005): a text literal that ends at a line end.
+- `lex/text-bad-escape.test` (E0005): `\t` and `\q`, one per file. Each span runs from the backslash to the character after it.
+- `lex/text-unterminated.test` (E0005): a text literal that ends at a line end. The span runs from the opening quote to the byte before the line end.
+- `lex/text-escape-eol.test` (E0005): `let a = "abc\`, with a line end after the backslash. The backslash before a line end is the unterminated case, not an unknown escape, so the span is `"abc\`, from the opening quote to the byte before the line end.
 - `lex/int-leading-zero.test` (E0006): `007` gives E0006.
 - `lex/int-too-big.test` (E0500): `let a = 9223372036854775808`, and `let a = -9223372036854775808`, one per file.
 
