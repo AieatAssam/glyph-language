@@ -1,0 +1,4 @@
+--- expect-stdout
+1
+--- expect-exit
+0
