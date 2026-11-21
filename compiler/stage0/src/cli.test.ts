@@ -1,4 +1,4 @@
-// Tests for the command-line front end (RFC 0011 subtask 3). Each case calls run with fake writers.
+// Tests for the command-line front end (RFC 0011 subtasks 3 and 4). Each case calls run with fake writers.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { run } from './cli.ts';
@@ -57,14 +57,33 @@ test('build without -o OUT, or with a bad flag or empty OUT, exits 2 with the us
   assert.deepEqual(call(['build', 'main.gl', '-x', 'out.wasm']), { code: 2, out: '', err: USAGE });
 });
 
-test('a path that is not a source file is a usage error for now, not the no-front-end line', () => {
-  // Subtask 4 changes this case to the E0010 record. Until then it is only a usage error.
-  assert.deepEqual(call(['check', 'prog.txt']), { code: 2, out: '', err: USAGE });
-  assert.deepEqual(call(['build', 'PROG.GL', '-o', 'out.wasm']), { code: 2, out: '', err: USAGE });
+const E0010_LINE = (file: string) =>
+  '{"code":"E0010","severity":"error","message":"source file does not end in .gl",' +
+  `"span":{"file":"${file}","start":0,"end":0,"line":1,"column":1}}\n`;
+
+test('a path that is not a source file gives the E0010 record and exits 1, for each subcommand', () => {
+  for (const file of ['prog.txt', 'PROG.GL', 'main.glyph', 'missing.txt']) {
+    assert.deepEqual(call(['check', file]), { code: 1, out: '', err: E0010_LINE(file) }, file);
+    assert.deepEqual(call(['run', file]), { code: 1, out: '', err: E0010_LINE(file) }, file);
+    assert.deepEqual(
+      call(['build', file, '-o', 'out.wasm']),
+      { code: 1, out: '', err: E0010_LINE(file) },
+      file,
+    );
+  }
+});
+
+test('the source-file rule comes before the argument checks for check, run and build', () => {
+  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: E0010_LINE('prog.txt') });
+  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: E0010_LINE('prog.txt') });
+});
+
+test('a path with a directory part is reported with the path as given', () => {
+  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: E0010_LINE('dir/prog.txt') });
 });
 
 test('nothing is written to standard output except for --version', () => {
-  for (const argv of [[], ['check', 'main.gl'], ['check'], ['nope']]) {
+  for (const argv of [[], ['check', 'main.gl'], ['check'], ['nope'], ['check', 'prog.txt']]) {
     assert.equal(call(argv).out, '', argv.join(' '));
   }
 });
