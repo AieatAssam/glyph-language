@@ -21,7 +21,7 @@ The kernel is the smallest part of Glyph that runs a useful program. It has `Int
 
 ## Motivation
 
-RFC 0019 was rejected. It made `>`, `>=` and `<=` syntax errors, which made RFC 0014's run tests `lex/tok-gt`, `lex/tok-ge` and `lex/tok-le` impossible. Here all six comparison tokens are Int operators, so RFC 0014 is unchanged. Comparisons do not chain (G6), which settles `a == b >= c`. Rules G8 to G10 were added so that a statement parser can decide statement boundaries and error positions without guessing. They name no new token and change no expected result in the Test plan.
+RFC 0019 was rejected. This draft keeps all six comparison tokens as operators with Int operands. So RFC 0014's run tests `lex/tok-gt`, `lex/tok-ge` and `lex/tok-le` have a valid position, and RFC 0014 is unchanged. The gap `a == b >= c` is defined by G6. The test plan is complete, and the RFC is kept below 25,000 characters. The Coverage map of RFC 0019 is removed, since the template does not require it.
 
 ## Design
 
@@ -60,18 +60,17 @@ ptype       = "Int" | "Bool"
 rtype       = "Int" | "Bool"
 ```
 
-A NEWLINE inside `( )` is never emitted (RFC 0014 rule 14). Nothing else spans lines. Each block line ends in NEWLINE, except that the last statement may be followed by `}`.
+A NEWLINE inside `( )` is never emitted (RFC 0014 rule 14). Elsewhere the lexer emits a NEWLINE at each line end, and the parser alone decides which NEWLINEs end a statement. G2, G7 and G9 say where. Each block line ends in NEWLINE, except that the last statement may be followed by `}`.
 
-G1. After `fn`, as a parameter name, or after `let` or `var`, a keyword is E0003 (RFC 0014 rule 7). Any other token the grammar rejects is E0100.
-G2. A NEWLINE between `)` and `{`, between `if` or `while` and its block, or inside such a header outside `( )`, is E0100 at that NEWLINE. So is a line end after a binary operator outside `( )`, at the NEWLINE.
-G3. `else` follows the `}` of its `if` on the same line. A NEWLINE before `else` is E0100 at `else`, because `else` cannot start a statement. `else if` is E0100 at `if`.
-G4. An expression statement other than `let`, `var`, assignment, call, `if`, `while` or `return` is E0100 at its first token. A statement is chosen by its first tokens: `let`, `var`, `if`, `while` and `return` by keyword, `IDENT =` as an assignment, and `IDENT (` as a call. Any other start, including a literal, `(`, `-`, `not`, `true`, `false`, `else`, `example`, or an `IDENT` followed by an operator or NEWLINE, is an expression statement.
+G1. After `fn`, as a parameter name, or after `let` or `var`, a keyword is E0003 (RFC 0014 rule 7). Any other token the grammar rejects is E0100 at that token.
+G2. A NEWLINE between `)` and `{`, between `if` or `while` and its block, or inside such a header outside `( )`, is E0100 at that NEWLINE. So is a NEWLINE where an operand is expected after a binary operator outside `( )`, reported at that NEWLINE.
+G3. `else` follows the `}` of its `if` on the same line, and the token after `else` must be `{`. A NEWLINE before `else` ends the `if` statement (G7), so the `else` that starts the next statement is E0100 at `else`. `else if` is E0100 at `if`.
+G4. A statement starting with IDENT is an assignment if the next token is `=`, and a call if it is `(`. A statement starting with any other token that begins an `expr`, or with IDENT followed by any other token, is E0100 at its first token.
 G5. `fn` is allowed only at top level; a `fn` in a block is E0100 at `fn`. `example` is allowed only directly after a function's closing brace or after another example of that function. Elsewhere it is E0100 at `example`.
 G6. Comparisons do not chain. After one `cmp_expr`, a second comparison operator is E0100 at that operator. So `a < b < c`, `a == b >= c` and `a < b >= c` are each E0100 at the second operator.
-G7. A second statement on one line in a block is E0100 at its first token.
-G8. Where a rule above does not name a token, a parse error is E0100 at the first token the grammar cannot accept at that point. EOF counts as a token, so a block that is not closed is E0100 at EOF.
-G9. A statement ends at NEWLINE or at `}`. After `let`, `var`, an assignment, a call or `return`, any other token is E0100 at that token. So `f(1) + 2` is E0100 at `+`, a call form followed by an operator, and `print(1) print(2)` is E0100 at the second `print` (G7). After `if`, the next token is NEWLINE, `}`, or `else` on the same line (G3). After `while`, it is NEWLINE or `}`.
-G10. `return` has an expression unless the next token is NEWLINE or `}`. Otherwise the expression is parsed by the expression rules, and any token the expression cannot take is E0100 at that token (G8).
+G7. After a complete statement (`let`, `var`, assignment, call, `return`, or an `if` or `while` ending in `}`), the next token must be NEWLINE or `}`. Any other token is E0100 at that token. So `print(1) print(2)` is E0100 at the second `print`, and `print(1) + 2` is E0100 at `+`.
+G8. `return` has no expression if the next token is NEWLINE or `}`. Otherwise the tokens that follow form an `expr`.
+G9. In the header of `if` or `while`, the expression ends at the first `{` outside `( )`, and that `{` opens the block. No operand is followed by `{` inside `expr`, so the header has one parse.
 
 ### Types
 
@@ -118,7 +117,7 @@ B5. An inner block may declare a name an outer block declares. A binding or para
 F1. `fn NAME(p1: T1, ...) [: R] [io] block`. `: R` comes before `io`. Both are optional. `fn f() io { }` is valid and has no result.
 F2. A function without `io` may not call an `io` function or `print`. Either is E0400. An example may call neither (EX2).
 F3. A function with a result clause must return on every path. A block returns if one of its statements is `return`, or if it is an `if` with an `else` whose two blocks both return. A `while` never counts. Otherwise E0201 at the closing brace.
-F4. `return expr` needs a result clause and a matching type. A bare `return` is allowed only without a result clause. Otherwise E0200.
+F4. `return expr` needs a result clause and a matching type. A bare `return` (G8) is allowed only without a result clause. Otherwise E0200.
 F5. Recursion is allowed. Termination is not checked. Every run ends by TR2, TR3, or a return from `main`.
 F6. Function names are unique in the file (E0300). A function named `print`, `Int`, `Bool` or `Text` is E0300. Declaration order does not matter. A function name, or `print`, used as a value is E0301.
 F7. Parameters are `Int` or `Bool` (T6). Functions cannot be nested (G5).
@@ -179,12 +178,13 @@ Codes E0200 to E0202, E0300 to E0303 and E0400 were also used by rejected RFCs 0
 - **Only `<`, with swapped or negated forms (RFC 0017, RFC 0018).** Rejected. It has the same conflict, and swapped operands run calls out of order (E10).
 - **Chained comparisons.** Rejected. A chain needs its own meaning table; non-chaining is one rule.
 - **Traps in signatures (principle 3).** Rejected for now; see open question 1.
-- **Unit type, `!io`, `io` before `: R`, unspecified operand order, `Text` parameters.** Rejected as in RFC 0019.
+- **Unit type, `!io`, `io` before `: R`, unspecified operand order, `Text` parameters.** Rejected as in RFC 0019. `!io` needs `!`, which RFC 0014 removed.
+
 ## Cost
 
-Core spec: the grammar, G1 to G10, T1 to T7, E1 to E10, B1 to B5, F1 to F7, M1, P1 to P3, C1 to C3, EX1 to EX3, TR1 to TR3, A1 and the diagnostic table. About 3,150 tokens by estimate. The tokeniser gives the real figure. Compared with RFC 0019, this adds `<=`, `>` and `>=` to `cmp_op` (about 40 tokens), adds G8 to G10 (about 150 tokens), and removes the E0100 message table and the `>=` fix (about 150 tokens). Net change is about -100 tokens plus G8 to G10. No keyword or code is added.
+Core spec: the grammar, G1 to G9, T1 to T7, E1 to E10, B1 to B5, F1 to F7, M1, P1 to P3, C1 to C3, EX1 to EX3, TR1 to TR3, A1 and the diagnostic table. About 3,100 tokens by estimate. The tokeniser gives the real figure. Compared with RFC 0019, this adds `<=`, `>` and `>=` to `cmp_op` (about 40 tokens) and the statement-end rules G7 to G9 (about 120 tokens), and removes the E0100 message table and the `>=` fix (about 150 tokens). Net change is about +10 tokens. No keyword or code is added.
 
-Spec card: one line each for the grammar's shape, the value types, the operator table with the non-chaining rule, E10, the four traps with status 1, the `: R io` order and the NEWLINE rule. About 700 tokens, under the 2,000 limit.
+Spec card: one line each for the grammar's shape, the value types, the operator table with the non-chaining rule, E10, the four traps with status 1, the `: R io` order, and the NEWLINE rule with G7. About 750 tokens, under the 2,000 limit.
 
 Neither figure is measured. `spec/` is absent from this checkout.
 
@@ -228,7 +228,7 @@ Run tests:
 | `trap-min-mod` | the same `m`, `print(m % -1)` | `0`, status 0 |
 | `trap-div` | `print(1 / 0)` | stderr `trap: divide-by-zero`, status 1 |
 | `trap-stack` | `fn f(n: Int): Int { return f(n) }`, then `fn main() io { print(f(1)) }` | stderr `trap: stack-exhausted`, status 1 |
-| `trap-step` | `print("before")`, then `while true { }` in `main` | stdout `before`, stderr `trap: step-exhausted`, status 1 |
+| `trap-step` | `print("before")`, then `while true { }` on the next line, in `main` | stdout `before`, stderr `trap: step-exhausted`, status 1 |
 
 Compile-error tests (record code, span and fix; the rule is in brackets):
 
@@ -237,13 +237,12 @@ Compile-error tests (record code, span and fix; the rule is in brackets):
 | `err-compare-chain` | `print(1 < 2 < 3)`, at the second `<` [G6] | E0100 |
 | `err-compare-chain-ge` | `if 1 == 1 >= 0 { }`, at `>=` [G6] | E0100 |
 | `err-expr-stmt` | statement `1 + 2`, at `1` [G4] | E0100 |
-| `err-call-op` | statement `f(1) + 2` in `main`, at `+` [G9] | E0100 |
-| `err-unclosed` | `fn main() io {` with no closing brace, at EOF [G8] | E0100 |
 | `err-if-expr` | `let x = if true {`, at `if` [C2] | E0100 |
-| `err-else-newline` | `else` on the line after `}` [G3] | E0100 |
+| `err-else-newline` | `else` on the line after `}`, at `else` [G3, G7] | E0100 |
 | `err-else-if` | `} else if true {`, at `if` [G3] | E0100 |
 | `err-if-brace-line` | `if true` and `{ print(1) }` on the next line, at the NEWLINE [G2] | E0100 |
 | `err-stmt-sep` | `print(1) print(2)` in `main`, at the second `print` [G7] | E0100 |
+| `err-stmt-tail` | `print(1) + 2` in `main`, at `+` [G7] | E0100 |
 | `err-fn-nested` | `fn f() { }` inside `main`, at `fn` [G5] | E0100 |
 | `err-example-place` | `example` before the first function, at `example` [G5] | E0100 |
 | `err-text-param` | `fn f(t: Text) io { }`, at `Text` [T6] | E0100 |
@@ -294,10 +293,10 @@ Compile-error tests (record code, span and fix; the rule is in brackets):
 ## Open questions
 
 1. **Traps and principle 3.** Traps are not in signatures. The group should confirm this as an exception to principle 3. A trap marker would be a new RFC, and it would change every arithmetic function.
-2. **Record format.** RFC 0004 section 7 compares `code`, `span` and `fix`; `tools/check/conformance.py` compares `(code, line)`. This draft follows RFC 0004 until the runner changes.
-3. **Leading zero.** RFC 0014 rule 8 gives `007` E0006. RFC 0004's `diag/fix-present.test` expects E0001. This draft does not use `007`.
-4. **Loop limit.** TR3's 1000000000 steps may make `err-example-budget` slow in `check`. A smaller value needs its own decision.
-5. **Slow finite programs.** A naive `fib(60)` makes far more calls than loop steps. It still ends, so it has a defined result. Only a total call-and-loop limit would cut it short, at a cost per call. Reviewers should say whether principle 7 needs one.
+2. **Record format.** RFC 0004 section 7 compares `code`, `span` and `fix`. `CONTRACTS.md` and `tools/check/conformance.py` compare `(code, line)`. This draft follows RFC 0004. Until the runner changes, compile-error tests are checked for code and line only.
+3. **Leading zero.** RFC 0014 rule 8 gives `007` E0006. RFC 0004's `diag/fix-present.test` expects E0001. This draft does not use `007`. The conflict belongs to RFC 0014 or RFC 0004.
+4. **Loop limit.** TR3's 1000000000 steps may make `err-example-budget` slow in `check`, and may exceed the gate's fuel cap first. Reviewers may want a smaller value, which needs its own decision.
+5. **Slow finite programs.** A naive `fib(60)` makes far more calls than loop steps. It still ends, so it has a defined result. Reviewers should say whether principle 7 needs a total call-and-loop limit.
 6. **Precedence of `not`.** The `unary` rule makes `not a == b` read as `(not a) == b`. Changing it changes `unary` and the precedence list.
-7. **Limits not checked.** The token caps could not be measured, since `spec/` is absent. Expected outputs are hand-derived; no build or conformance run was done.
+7. **Limits not checked.** The 12,000-token core cap and the 2,000-token card cap could not be checked, since `spec/` is absent. The expected outputs are hand-derived, and no build or conformance run was done here.
 8. **Text scope.** `Text` has no operations in the kernel. The standard library RFC must add them before text-processing programs can be written.
