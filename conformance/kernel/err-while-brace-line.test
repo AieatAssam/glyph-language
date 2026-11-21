@@ -1,0 +1,14 @@
+--- meta
+id: kernel/err-while-brace-line
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  var i = 0
+  while i < 3
+  {
+    i = i + 1
+  }
+}
+--- expect-errors
+E0100 3

@@ -1,0 +1,10 @@
+--- meta
+id: kernel/err-while-expr
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(while true { })
+}
+--- expect-errors
+E0100 2

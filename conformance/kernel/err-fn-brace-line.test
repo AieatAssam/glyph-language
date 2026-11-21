@@ -1,0 +1,11 @@
+--- meta
+id: kernel/err-fn-brace-line
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io
+{
+  print(1)
+}
+--- expect-errors
+E0100 1
