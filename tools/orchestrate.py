@@ -516,14 +516,21 @@ def plan_implement(ctx) -> list[Asg]:
                 how = f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`)."
             failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
             if item.get("early"):
-                task = (f"PR {item['pr']} cannot merge until one program works end to end. Make the gate pass now so "
-                        "the PR can merge early: build the thinnest vertical slice from features already in the PR. Wire "
-                        "`compiler/stage0/src/main.ts` so `bin/glyphc check` and `bin/glyphc run` handle the smallest "
-                        "useful program; write `spec/grammar.peg` with only the productions that program uses; add one "
-                        "`conformance/` `.test` of kind `run` that covers every production in it, one of kind "
-                        "`compile-error`, and one `examples/` program with its `.expect`. If that does not fit in one "
-                        "subtask's line cap, do the next piece towards it and record what remains in `MEMORY.md`. Do "
-                        "not tick plan lines for work you do not finish.\n" + "\n".join(failing) + "\n\n")
+                task = (f"PR {item['pr']} cannot merge until one program works end to end. So that it can merge early, build a walking skeleton "
+                        "for the single program `fn main() io { print(1) }` before any other plan line. Do exactly one "
+                        "stage this session: the first one in this list that the PR diff below does not have yet.\n"
+                        "1. Lexer entry point: one function that turns that program's source into tokens, using the "
+                        "lexer pieces already in the PR.\n"
+                        "2. Parser for exactly that program's shape, producing a small tree.\n"
+                        "3. Code generation with the toolkit's `ModuleBuilder` and the print runtime in the PR, wired "
+                        "into `compiler/stage0/src/main.ts` so `bin/glyphc run` prints `1`.\n"
+                        "4. `spec/grammar.peg` with only the productions that program uses, one `conformance/` `.test` "
+                        "of kind `run` for it, and `examples/` with the program and its `.expect`.\n"
+                        "This is the first increment of the plan's later lexer, parser and codegen subtasks, not a "
+                        "stand-in: write it narrow, with unit tests, and later subtasks widen it. Do not wait for those "
+                        "subtasks, and do not end the session without code. This overrides notes in your `MEMORY.md` "
+                        "that say to stop. Tick no plan line; record the stage you finished in `MEMORY.md`.\n"
+                        + "\n".join(failing) + "\n\n")
             elif item.get("fix"):  # every line ticked and the gate red: fix before anything else
                 task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
                         f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
