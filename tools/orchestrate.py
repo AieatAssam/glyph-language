@@ -611,8 +611,14 @@ def plan_review(ctx) -> list[Asg]:
     if cut:
         ready = ready[:1]
     parts = []
+    shared = _founding_impl_pr(prs, ctx.state.get("rfcs", {}))
     for n in ready:
         p = prs[n]
+        if n == shared:
+            parts.append(f"PR {n} is the shared founding implementation PR. By owner ruling it carries the work of all "
+                         "four founding RFCs (name, lexical syntax, kernel, diagnostic style) and the walking skeleton "
+                         "that first makes one program compile and run. Work from those RFCs is in scope here: do not "
+                         "ask for it to be split out. Unfinished plan lines are expected; review what is there.\n")
         if cut:
             parts.append(f"The diff of PR {n} below is cut at {DIFF_CAP} characters. Your checkout holds this PR's full "
                          "files: read every changed file the diff does not show with Read and Grep before you decide. "

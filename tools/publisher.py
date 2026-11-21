@@ -332,13 +332,14 @@ class Publisher:
             raise PublishError(f"git {args[0]} failed: {res.stderr.decode(errors='replace').strip()[:300]}")
         return res.stdout.decode().strip()
 
-    def _base_bytes(self, path: str) -> bytes:
-        """The file as it is on the base branch; b"" when the base has no such file."""
+    def _base_bytes(self, path: str, branch: str | None = None) -> bytes:
+        """The file as it is on `branch` (default: the base branch); b"" when it has no such file."""
+        branch = branch or self.base
         if self.git_real:
-            self._git(["fetch", "--quiet", "origin", f"refs/heads/{self.base}"])
+            self._git(["fetch", "--quiet", "origin", f"refs/heads/{branch}"])
             ref = "FETCH_HEAD"
         else:
-            ref = self.base
+            ref = branch
         res = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=self.root, capture_output=True)
         return res.stdout if res.returncode == 0 else b""
 
@@ -441,16 +442,18 @@ class Publisher:
                 if bad:
                     raise PublishError(f"{p}: {bad}")
 
-    def _items(self, ses: Session, action: str, files, delete) -> list:
+    def _items(self, ses: Session, action: str, files, delete, against: str | None = None) -> list:
+        """`against`: the branch the changed-line cap is measured from. An update is one subtask on top of
+        its PR branch, so it is measured from that branch, not from the base the whole PR started at."""
         items = [(validate_repo_path(p), self._src(ses, p)) for p in files]
         items += [(validate_repo_path(p), None) for p in delete]
         if not items:
             raise PublishError("no files to change")
         self._check_write(ses, action, items)
-        total = sum(changed_lines(self._base_bytes(p), d or b"") for p, d in items)
+        total = sum(changed_lines(self._base_bytes(p, against), d or b"") for p, d in items)
         limit = self.rules["subtask_max_changed_lines"]
         if total > limit:
-            raise PublishError(f"{total} changed lines against {self.base}, over the {limit} limit")
+            raise PublishError(f"{total} changed lines against {against or self.base}, over the {limit} limit")
         return items
 
     # ----- action handlers -----------------------------------------------
@@ -599,7 +602,7 @@ class Publisher:
         head = self._gh(["pr", "view", str(pr), "--json", "headRefName", "--jq", ".headRefName"])
         if not head.startswith("agent/"):
             raise PublishError(f"PR {pr} head {head} is not an agent/* branch")
-        items = self._items(ses, "update_pr", a["files"], a.get("delete", []))
+        items = self._items(ses, "update_pr", a["files"], a.get("delete", []), against=head)
         return self._update_branch(ses, i, pr, head, items, a, body=a.get("body"))
 
     def _h_review(self, ses, i, a):
