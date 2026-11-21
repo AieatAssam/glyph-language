@@ -7,11 +7,16 @@ Milestones follow the build spec (`docs/SPEC.md`, section 13). The orchestrator 
 - M0: protected infrastructure (tools, toolkit, sandbox, audit log, publisher, merge bot, orchestrator, CI).
 - M1: a full dry run with scripted agents on a toy language, on a separate branch. None of it is on `main`: the language starts empty.
 
-## M2: Founding convention (current)
+## M2a: Founding convention (done 2026-11-20)
 
-- The orchestrator assigns the four founding RFCs to designers: 0001 the language's name, 0002 lexical structure and core syntax, 0003 the kernel (integers, booleans, bindings, functions, conditionals, loops, text output), 0004 the diagnostic style.
-- The first implemented RFC creates `spec/` (core, card, grammar, error catalogue) and `compiler/stage0`, which compiles kernel programs to WebAssembly.
-- Done when the four RFCs are decided by real votes, stage 0 runs kernel programs in CI and the playground, at least 40 conformance tests pass, grammar coverage is complete, and the spec card exists within its cap.
+- The four founding RFCs were decided by real votes: name (0011), lexical structure and core syntax (0014), kernel (0020), diagnostic style (0004). Earlier attempts were rejected and came back as numbered retries.
+
+## M2b: Bootstrap (current)
+
+- All four founding RFCs are built on one shared implementation PR. Nothing merges until one program works end to end, because the gate needs `spec/grammar.peg`, a passing `run` conformance test for every production, and a passing example.
+- So the order is vertical, not horizontal: first the thinnest slice that lexes, parses, compiles and runs one program, merged early; then the remaining plan lines, each widening the grammar with its own tests.
+- No new RFCs are proposed until that first merge puts a compiler on `main`. A feature debated with no compiler to try it on is a guess.
+- Done when stage 0 runs kernel programs in CI and the playground, at least 40 conformance tests pass, grammar coverage is complete, and the spec card exists within its cap.
 
 ## M3 and later
 

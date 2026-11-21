@@ -29,7 +29,7 @@ max_open_rfcs: 5
 max_open_rfcs_per_designer: 2
 max_implementing: 3
 stability_window_nights: 7
-cycles_per_night: 3
+cycles_per_night: 6
 max_gated_prs_per_cycle: 2
 escalation_failures: 3
 subtask_max_changed_lines: 400

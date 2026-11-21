@@ -359,7 +359,9 @@ def plan_design(ctx) -> list[Asg]:
         out[d] = Asg(d, "design", "open", body, slugs=[s["slug"] for s, _ in items])
 
     any_open = any(rfcs[n]["status"] in ("discussion", "voting") for n in rfcs) or bool(opened)
-    if live and not any_open and not founding_pending:  # nothing new until the founding RFCs are accepted
+    # Nothing new until the founding RFCs are accepted and a compiler is on main to try ideas against
+    # (spec/grammar.peg arrives with the first implementation merge).
+    if live and not any_open and not founding_pending and repo.read("spec/grammar.peg") is not None:
         for i, d in enumerate(designers):
             if free(d) and can(d):
                 out[d] = Asg(d, "design", "propose", (
