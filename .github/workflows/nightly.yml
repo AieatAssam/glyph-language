@@ -8,8 +8,9 @@ name: nightly
 on:
   schedule:
     - cron: "17 3 * * *"
-    # Bootstrap runs: every three hours until the kernel RFC is implemented (setup then skips them).
-    - cron: "17 0,6,9,12,15,18,21 * * *"
+    # Bootstrap runs: every hour until the kernel RFC is implemented (setup then skips them).
+    # A run takes about 50 minutes and the concurrency group queues at most one more.
+    - cron: "17 0-2,4-23 * * *"
   workflow_dispatch:
     inputs:
       base_branch:
