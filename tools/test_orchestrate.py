@@ -242,6 +242,14 @@ class Caps(unittest.TestCase):
         self.assertEqual(len(asgs), 1)
         self.assertEqual(len(asgs[0].header["prs"]), 2)
 
+    def test_a_cut_diff_is_reviewed_alone_on_the_pr_branch(self):
+        prs = {str(i): {"status": "open", "head_sha": f"s{i}", "branch": f"b{i}", "class": "language"} for i in (1, 2)}
+        events = [{"type": "check_run", "subject": {"pr": str(i)}, "data": {"sha": f"s{i}", "rules": {"r": {"ok": True}}}}
+                  for i in (1, 2)]
+        a = run("review", state={"prs": prs}, events=events, repo=FakeRepo(diffs={"b1": "x" * o.DIFF_CAP}))[0]
+        self.assertEqual((a.header["prs"], a.header["branch"]), ([1], "b1"))
+        self.assertIn("is cut at", a.body)
+
     def test_review_scheduled_while_only_rule_14_fails(self):
         prs = {"1": {"status": "open", "head_sha": "s1", "branch": "b1", "class": "language"}}
         events = [{"type": "check_run", "subject": {"pr": "1"},

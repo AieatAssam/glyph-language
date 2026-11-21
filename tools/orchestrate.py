@@ -422,6 +422,15 @@ def last_refusal(events, pr) -> str:
     return ""
 
 
+def changes_requested(events, pr) -> str:
+    """Body of the latest review on `pr` when it asks for changes; '' otherwise."""
+    for ev in reversed(events):
+        if ev.get("type") == "review_posted" and (ev.get("subject") or {}).get("pr") == pr:
+            d = ev.get("data") or {}
+            return (d.get("body") or "see the review on the PR") if d.get("verdict") == "request_changes" else ""
+    return ""
+
+
 def _tester_cases(events, testers, rfc: str) -> str:
     """Body of the latest comment a tester posted on RFC `rfc`, capped; '' when there is none."""
     found = ""
@@ -557,6 +566,10 @@ def plan_implement(ctx) -> list[Asg]:
             if refused:
                 task = ("Your last update to this PR was refused whole, so nothing was published. Send the same work "
                         f"again with this fixed: {refused}\n\n") + task
+            asked = changes_requested(ctx.events, item["pr"]) if item["pr"] else ""
+            if asked:
+                task = ("The reviewer asked for changes on this PR. Answer each point in this update, before or with "
+                        f"your assignment:\n{asked}\n\n") + task
             body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
             cases = _tester_cases(ctx.events, testers, n)
@@ -593,13 +606,22 @@ def plan_review(ctx) -> list[Asg]:
     ready = ready[:int(rules.get("max_gated_prs_per_cycle", 2))]
     if not ready:
         return []
+    # A diff at the cap is cut off: review that PR alone, on a checkout of its branch, so the rest can be read.
+    cut = len(repo.diff(prs[ready[0]].get("branch")) or "") >= DIFF_CAP
+    if cut:
+        ready = ready[:1]
     parts = []
     for n in ready:
         p = prs[n]
+        if cut:
+            parts.append(f"The diff of PR {n} below is cut at {DIFF_CAP} characters. Your checkout holds this PR's full "
+                         "files: read every changed file the diff does not show with Read and Grep before you decide. "
+                         "A cut diff is not a reason to request changes.\n")
         parts.append(f"### PR {n} (branch {p.get('branch')}, class {p.get('class')}, rfc {p.get('rfc') or '-'})\n\n"
                      f"```diff\n{repo.diff(p.get('branch')) or '(diff unavailable)'}\n```\n")
     body = "Review each PR below with one `review` action (approve or request_changes). Correctness and scope only.\n\n" + "\n".join(parts)
-    return [Asg(rev, "review", "review", body, prs=[int(x) for x in ready])]
+    return [Asg(rev, "review", "review", body, prs=[int(x) for x in ready],
+                branch=prs[ready[0]].get("branch") if cut else None)]
 
 
 def plan_use(ctx) -> list[Asg]:

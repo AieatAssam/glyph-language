@@ -612,7 +612,7 @@ class Publisher:
             self._gh(["pr", "review", str(pr), "--comment", "--body-file", "-"],
                      stdin=self._text(ses, key, f"**Verdict: {verdict}**\n\n{a['body']}"))
         sha = self._gh(["pr", "view", str(pr), "--json", "headRefOid", "--jq", ".headRefOid"])
-        self._event(ses, i, "review_posted", {"pr": pr}, {"verdict": a["verdict"], "sha": sha})
+        self._event(ses, i, "review_posted", {"pr": pr}, {"verdict": a["verdict"], "sha": sha, "body": str(a.get("body") or "")[:1500]})
         return {"pr": pr, "verdict": a["verdict"]}
 
     def _h_open_issue(self, ses, i, a):
