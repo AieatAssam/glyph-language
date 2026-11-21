@@ -1,4 +1,4 @@
-// Tests for lex (RFC 0014 rules 1 to 12 and 16, without NEWLINE). Each case is one byte string; no file is read.
+// Tests for lex (RFC 0014 rules 1 to 16). Each case is one byte string; no file is read.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
@@ -11,30 +11,32 @@ const kinds = (text: string) => src(text).tokens.map((t) => t.kind);
 
 const PROGRAM = 'fn main() io { print(1) }';
 
-test('the walking-skeleton program gives its token kinds in order, ending in EOF', () => {
+test('the walking-skeleton program gives its token kinds in order, ending in NEWLINE and EOF', () => {
   assert.deepEqual(kinds(PROGRAM), [
     Kind.KW_FN, Kind.IDENT, Kind.LPAREN, Kind.RPAREN, Kind.KW_IO,
-    Kind.LBRACE, Kind.IDENT, Kind.LPAREN, Kind.INT, Kind.RPAREN, Kind.RBRACE, Kind.EOF,
+    Kind.LBRACE, Kind.IDENT, Kind.LPAREN, Kind.INT, Kind.RPAREN, Kind.RBRACE,
+    Kind.NEWLINE, Kind.EOF,
   ]);
   assert.equal(src(PROGRAM).error, null);
 });
 
-test('the program tokens have exact spans and the names and digits keep their text', () => {
+test('the program tokens have exact spans, and the names and digits keep their text', () => {
   const { tokens } = src(PROGRAM);
   assert.deepEqual(tokens[0], { kind: Kind.KW_FN, start: 0, end: 2 });
   assert.deepEqual(tokens[1], { kind: Kind.IDENT, start: 3, end: 7, text: 'main' });
   assert.deepEqual(tokens[8], { kind: Kind.INT, start: 21, end: 22, text: '1' });
-  assert.deepEqual(tokens[11], { kind: Kind.EOF, start: PROGRAM.length, end: PROGRAM.length });
+  assert.deepEqual(tokens[11], { kind: Kind.NEWLINE, start: PROGRAM.length, end: PROGRAM.length });
+  assert.deepEqual(tokens[12], { kind: Kind.EOF, start: PROGRAM.length, end: PROGRAM.length });
 });
 
-test('an LF or CR LF after the program changes no token', () => {
-  const plain = src(PROGRAM).tokens;
-  assert.deepEqual(src(PROGRAM + '\n').tokens.slice(0, -1), plain.slice(0, -1));
-  assert.deepEqual(src(PROGRAM + '\r\n').tokens.slice(0, -1), plain.slice(0, -1));
+test('an LF or CR LF after the program changes no token kind, and only the NEWLINE span grows', () => {
+  assert.deepEqual(kinds(PROGRAM + '\n'), kinds(PROGRAM));
+  assert.deepEqual(kinds(PROGRAM + '\r\n'), kinds(PROGRAM));
+  assert.deepEqual(src(PROGRAM + '\r\n').tokens.at(-2), { kind: Kind.NEWLINE, start: 25, end: 27 });
 });
 
 test('a comment is skipped, and a // inside it does not start a token', () => {
-  assert.deepEqual(kinds('fn // print("x")\nmain'), [Kind.KW_FN, Kind.IDENT, Kind.EOF]);
+  assert.deepEqual(kinds('fn // print("x")\nmain'), [Kind.KW_FN, Kind.NEWLINE, Kind.IDENT, Kind.NEWLINE, Kind.EOF]);
 });
 
 test('an empty file gives only EOF at offset 0', () => {
@@ -45,13 +47,34 @@ test('a file of only spaces and line ends gives only EOF', () => {
   assert.deepEqual(kinds('  \n\r\n '), [Kind.EOF]);
 });
 
+test('a file with no final line end still gets the final NEWLINE, and EOF is last', () => {
+  assert.deepEqual(kinds('let a = 1'), [Kind.KW_LET, Kind.IDENT, Kind.ASSIGN, Kind.INT, Kind.NEWLINE, Kind.EOF]);
+});
+
+test('a file that ends inside ( ) gets no NEWLINE from its last line end', () => {
+  assert.deepEqual(kinds('f(1'), [Kind.IDENT, Kind.LPAREN, Kind.INT, Kind.EOF]);
+});
+
+test('a line end inside ( ) gives no NEWLINE', () => {
+  assert.deepEqual(kinds('f(1\n)'), [Kind.IDENT, Kind.LPAREN, Kind.INT, Kind.RPAREN, Kind.NEWLINE, Kind.EOF]);
+});
+
 test('==, !=, <= and >= are one token each', () => {
-  assert.deepEqual(kinds('== != <= >='), [Kind.EQ, Kind.NE, Kind.LE, Kind.GE, Kind.EOF]);
+  assert.deepEqual(kinds('== != <= >='), [Kind.EQ, Kind.NE, Kind.LE, Kind.GE, Kind.NEWLINE, Kind.EOF]);
 });
 
 test('=> is = then >, and -> is - then >', () => {
-  assert.deepEqual(kinds('=>'), [Kind.ASSIGN, Kind.GT, Kind.EOF]);
-  assert.deepEqual(kinds('->'), [Kind.MINUS, Kind.GT, Kind.EOF]);
+  assert.deepEqual(kinds('=>'), [Kind.ASSIGN, Kind.GT, Kind.NEWLINE, Kind.EOF]);
+  assert.deepEqual(kinds('->'), [Kind.MINUS, Kind.GT, Kind.NEWLINE, Kind.EOF]);
+});
+
+test('a text literal is lexed to a TEXT token with its decoded value', () => {
+  const { tokens, error } = src('print("a")');
+  assert.equal(error, null);
+  assert.deepEqual(tokens[2], { kind: Kind.TEXT, start: 6, end: 9, text: 'a' });
+  assert.deepEqual(tokens.map((t) => t.kind), [
+    Kind.IDENT, Kind.LPAREN, Kind.TEXT, Kind.RPAREN, Kind.NEWLINE, Kind.EOF,
+  ]);
 });
 
 test('an integer with a leading zero is E0006 over the whole literal, with no tokens', () => {
@@ -92,6 +115,48 @@ test('a byte error inside a comment still stops the scan, and is reported', () =
   assert.deepEqual(src('fn // a\tb\nmain'), { tokens: [], error: { code: 'E0001', start: 7, end: 8 } });
 });
 
-test('a text literal is not lexed yet, so lex throws rather than mis-lex it', () => {
-  assert.throws(() => src('print("a")'), /text literal at byte 6/);
+// Cases from the tester's proposal for subtask 9. Offsets are bytes from 0.
+
+test('case 1: a valid file with LF gives its kinds, a NEWLINE at 9..10 and EOF at 10', () => {
+  assert.deepEqual(src('let a = 1\n'), {
+    tokens: [
+      { kind: Kind.KW_LET, start: 0, end: 3 },
+      { kind: Kind.IDENT, start: 4, end: 5, text: 'a' },
+      { kind: Kind.ASSIGN, start: 6, end: 7 },
+      { kind: Kind.INT, start: 8, end: 9, text: '1' },
+      { kind: Kind.NEWLINE, start: 9, end: 10 },
+      { kind: Kind.EOF, start: 10, end: 10 },
+    ],
+    error: null,
+  });
+});
+
+test('case 2: a valid file with CR LF gives NEWLINE at 9..11 and EOF at 11', () => {
+  const { tokens, error } = src('let a = 1\r\n');
+  assert.equal(error, null);
+  assert.deepEqual(tokens.at(-2), { kind: Kind.NEWLINE, start: 9, end: 11 });
+  assert.deepEqual(tokens.at(-1), { kind: Kind.EOF, start: 11, end: 11 });
+});
+
+test('case 3: an empty file gives EOF at 0..0 only', () => {
+  assert.deepEqual(src(''), { tokens: [{ kind: Kind.EOF, start: 0, end: 0 }], error: null });
+});
+
+test('case 4: E0005 at byte 10 is reported, not the tab at byte 30 that comes later', () => {
+  const text = 'let a = 12"abc\nlet c = 4      \tx\n';
+  assert.deepEqual(src(text), { tokens: [], error: { code: 'E0005', start: 10, end: 14 } });
+});
+
+test('case 5: a tab at byte 5 is reported, and the E0005 at byte 10 is not reached', () => {
+  const text = 'let a\t= 12"abc\n';
+  assert.deepEqual(src(text), { tokens: [], error: { code: 'E0001', start: 5, end: 6 } });
+});
+
+test('case 6: an invalid byte at 4 stops the scan, so the bad escape at 11 is not reported', () => {
+  const text = Buffer.concat([Buffer.from('let '), Buffer.from([0xff]), Buffer.from(' a = "\\q"\n')]);
+  assert.deepEqual(lex(text), { tokens: [], error: { code: 'E0001', start: 4, end: 5 } });
+});
+
+test('case 7: a tab inside a text literal is E0001 at the tab, not E0005', () => {
+  assert.deepEqual(src('let a = "x\ty"\n'), { tokens: [], error: { code: 'E0001', start: 10, end: 11 } });
 });
