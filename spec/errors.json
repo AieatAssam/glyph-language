@@ -1,4 +1,5 @@
 [
   {"code": "E0010", "message": "source file does not end in .gl", "meaning": "the path given is not a source file"},
-  {"code": "E0100", "message": "unexpected token", "meaning": "the grammar does not accept this token at this position"}
+  {"code": "E0100", "message": "unexpected token", "meaning": "the grammar does not accept this token at this position"},
+  {"code": "E0500", "message": "integer literal is above the Int range", "meaning": "an integer literal is larger than 9223372036854775807"}
 ]
