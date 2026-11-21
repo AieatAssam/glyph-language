@@ -464,10 +464,14 @@ def plan_implement(ctx) -> list[Asg]:
     # slot goes to a fix item that makes the gate pass, so the PR can merge before its plan is done.
     turn = sum(1 for e in ctx.events if e.get("type") == "cycle_started")
     founding_pr = _founding_impl_pr(prs, rfcs)
+    stuck = False  # the founding PR hit the escalation threshold: its early item wins every turn
     if founding_pr:
         failed = {re.match(r"- rule (\d+):", ln).group(1) for ln in gate_failures(ctx.events, prs[founding_pr])}
+        blocked = sum(1 for e in ctx.events if e.get("type") == "gate_blocked"
+                      and str((e.get("subject") or {}).get("pr")) == str(founding_pr))
+        stuck = blocked >= limit
         mine = [i for i in items if i.get("pr") == int(founding_pr) and not i.get("fix")]
-        if mine and failed and failed <= {"3", "5"}:
+        if mine and failed and failed <= {"3", "5", "10"}:  # 10: no spec/grammar.peg yet
             ref = mine[0]
             items.append(dict(rfc=ref["rfc"], kind="subtask", r=ref["r"], plan=ref["plan"], subtask=ref["subtask"],
                               text="merge early", pr=int(founding_pr), fix=True, early=True))
@@ -484,7 +488,7 @@ def plan_implement(ctx) -> list[Asg]:
         elif item is g[0]:
             early = [i for i in g if i.get("early")]
             real = [i for i in g if not i.get("fix")] or g
-            unique.append(early[0] if early and turn % 2 == 1 else real[turn % len(real)])
+            unique.append(early[0] if early and (stuck or turn % 2 == 1) else real[turn % len(real)])
     items = unique
     impls = _roles(ctx.roster, "implementer")
     testers = _roles(ctx.roster, "tester")
@@ -510,11 +514,14 @@ def plan_implement(ctx) -> list[Asg]:
                 how = f"No PR yet: open one with `open_pr` (rfc `{n}`, subtask `{item['subtask']}`)."
             failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
             if item.get("early"):
-                task = (f"PR {item['pr']} is blocked only by missing conformance tests. Make the gate pass now so the PR "
-                        "can merge early: wire `compiler/stage0/src/main.ts` so `bin/glyphc check` reports at least one "
-                        "real diagnostic, and add at least one `conformance/` `.test` (kind compile-error) and one "
-                        "`examples/` program with its `.expect`, using only features already in the PR. Do not tick plan "
-                        "lines for work you do not finish.\n" + "\n".join(failing) + "\n\n")
+                task = (f"PR {item['pr']} cannot merge until one program works end to end. Make the gate pass now so "
+                        "the PR can merge early: build the thinnest vertical slice from features already in the PR. Wire "
+                        "`compiler/stage0/src/main.ts` so `bin/glyphc check` and `bin/glyphc run` handle the smallest "
+                        "useful program; write `spec/grammar.peg` with only the productions that program uses; add one "
+                        "`conformance/` `.test` of kind `run` that covers every production in it, one of kind "
+                        "`compile-error`, and one `examples/` program with its `.expect`. If that does not fit in one "
+                        "subtask's line cap, do the next piece towards it and record what remains in `MEMORY.md`. Do "
+                        "not tick plan lines for work you do not finish.\n" + "\n".join(failing) + "\n\n")
             elif item.get("fix"):  # every line ticked and the gate red: fix before anything else
                 task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
                         f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
@@ -591,7 +598,8 @@ def plan_scribe(ctx) -> list[Asg]:
     if not scribes:
         return []
     recent = ctx.events[-60:]
-    lines = [f"- {e.get('seq')} {e.get('ts')} {e.get('type')} {e.get('actor')} {canon(e.get('subject'))}" for e in recent]
+    lines = [f"- {e.get('seq')} {e.get('ts')} {e.get('type')} {e.get('actor')} {canon(e.get('subject'))} "
+             f"{canon(e.get('data'))[:200]}" for e in recent]
     body = ("Write tonight's digest with one `digest` action: plain language, what was proposed, voted, "
             "implemented, merged, refused or failed. Quote no agent text longer than one sentence.\n\n"
             "## Recent events\n" + ("\n".join(lines) or "(none)"))

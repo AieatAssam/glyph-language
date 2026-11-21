@@ -610,12 +610,24 @@ class SharedPrAndBriefs(unittest.TestCase):
         self.assertIn("Implement subtask 2", even.body)
         self.assertNotIn("merge early", even.body)
 
+    def test_early_merge_covers_a_missing_grammar(self):
+        st, check = self.state({"3", "5", "10"})
+        odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
+        self.assertIn("spec/grammar.peg", self.subtasks(st, [check] + odd)[0].body)
+
     def test_early_merge_needs_a_failure_only_in_rules_3_and_5(self):
         st, check = self.state({"3", "2"})
         odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
         a = self.subtasks(st, [check] + odd)[0]
         self.assertNotIn("merge early", a.body)
         self.assertIn("Implement subtask 2", a.body)
+
+    def test_escalated_shared_pr_gets_the_early_merge_on_every_turn(self):
+        st, check = self.state({"3"})
+        even = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}] * 2
+        gate = {"type": "gate_blocked", "subject": {"pr": 30}, "data": {"pr": 30, "rule": 3, "subtask": None}}
+        self.assertIn("Implement subtask 2", self.subtasks(st, [check] + even + [gate] * 2)[0].body)
+        self.assertIn("merge early", self.subtasks(st, [check] + even + [gate] * 3)[0].body)
 
     def test_tester_cases_are_in_the_implementer_brief(self):
         st, check = self.state(set())
@@ -641,6 +653,13 @@ class SharedPrAndBriefs(unittest.TestCase):
         self.assertIn("3 sessions made no change", revise[0].body)
         st["noops"] = {"0004:2": 2}
         self.assertEqual(len(self.subtasks(st, [], repo=repo)), 1)
+
+    def test_scribe_digest_lines_carry_event_data(self):
+        ev = [{"seq": 1, "ts": "t", "type": "vote_cast", "actor": "a", "subject": {"rfc": "0004"},
+               "data": {"vote": "approve", "zlong": "x" * 500}}]
+        line = [ln for ln in run("scribe", state={}, events=ev)[0].body.splitlines() if ln.startswith("- 1 ")][0]
+        self.assertIn('"vote":"approve"', line)
+        self.assertNotIn("x" * 201, line)
 
     def test_architect_brief_lists_open_user_issues(self):
         st = {"rfcs": {}, "issues": {"5": {"number": 5, "title": "Brackets confuse me", "status": "open"}}}
