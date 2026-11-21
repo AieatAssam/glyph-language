@@ -1,0 +1,11 @@
+--- meta
+id: kernel/pe-unary-plus
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let p = +1
+    print(p)
+}
+--- expect-errors
+E0100 2

@@ -1,0 +1,13 @@
+--- meta
+id: kernel/pe-cmp-chain-ge
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let a = 1
+    let b = 1
+    let c = 0
+    if a == b >= c { print(1) }
+}
+--- expect-errors
+E0100 5

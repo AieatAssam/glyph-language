@@ -1,0 +1,12 @@
+--- meta
+id: kernel/err-if-expr
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let x = if true {
+        print(1)
+    }
+}
+--- expect-errors
+E0100 2
