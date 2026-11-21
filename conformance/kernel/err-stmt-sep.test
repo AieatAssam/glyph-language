@@ -4,7 +4,7 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  print(1) print(2)
+    print(1) print(2)
 }
 --- expect-errors
 E0100 2

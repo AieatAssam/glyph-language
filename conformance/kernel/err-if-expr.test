@@ -4,8 +4,9 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  let x = if true { 1 } else { 2 }
-  print(x)
+    let x = if true {
+        print(1)
+    }
 }
 --- expect-errors
 E0100 2

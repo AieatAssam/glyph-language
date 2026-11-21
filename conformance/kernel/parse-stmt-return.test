@@ -1,0 +1,32 @@
+--- meta
+id: kernel/parse-stmt-return
+rfc: 0020
+kind: run
+--- source
+fn add(a: Int, b: Int): Int {
+    return a + b
+}
+
+fn stop(n: Int) io {
+    if n == 0 {
+        return
+    }
+    print(n)
+}
+
+fn f(a: Int, b: Int) io {
+    print(a + b)
+}
+
+fn main() io {
+    print(add(1, 2))
+    stop(0)
+    stop(5)
+    f(1, 2)
+}
+--- expect-stdout
+3
+5
+3
+--- expect-exit
+0
