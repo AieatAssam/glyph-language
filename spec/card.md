@@ -1,3 +1,7 @@
+# Glyph
+
+Source: *.gl, compiler glyphc
+
 # Card: diagnostics
 
 Diagnostic: one JSON object per line on standard error.
