@@ -441,6 +441,10 @@ def _tester_cases(events, testers, rfc: str) -> str:
     return found[:TESTER_CAP]
 
 
+def turn_of(ctx) -> int:
+    return sum(1 for e in ctx.events if e.get("type") == "cycle_started")
+
+
 def plan_implement(ctx) -> list[Asg]:
     rfcs, rules, repo = ctx.state.get("rfcs", {}), ctx.rules, ctx.repo
     prs = ctx.state.get("prs", {})
@@ -448,7 +452,7 @@ def plan_implement(ctx) -> list[Asg]:
     escalated = {(e["rfc"], e["subtask"]) for e in ctx.escalations}
     noops = ctx.state.get("noops", {}) or {}
     kernel_done = any(r["status"] == "implemented" and re.fullmatch(r"kernel(-v\d+)?", r["slug"]) for r in rfcs.values())
-    items = []
+    items, blocked = [], []
     for n in by_num(rfcs):
         r = rfcs[n]
         if r["status"] not in ("accepted", "implementing"):
@@ -471,17 +475,21 @@ def plan_implement(ctx) -> list[Asg]:
         if ctx.live and not kernel_done and _base(r["slug"]) not in FOUNDING_SLUGS:
             continue  # no compiler exists until the founding RFCs are built: build those first
         idx, text = nxt
-        if text.lstrip().upper().startswith("BLOCKED"):
-            continue  # waits on another RFC's work: give the shared PR's slot to one that can move
         pr = int(impl_pr) if impl_pr else None
+        if text.lstrip().upper().startswith("BLOCKED"):
+            # waits on another RFC's work: give the shared PR's slot to one that can move
+            blocked.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr, recheck=True))
+            continue
         # ponytail: failure counts are keyed by subtask index per PR, so only the PR's own RFC reads them
         fails = (prs[impl_pr].get("subtask_failures") or {}) if impl_pr and str(prs[impl_pr].get("rfc")) == n else {}
         if int(fails.get(str(idx), 0)) >= limit or int(noops.get(f"{n}:{idx}", 0)) >= limit or (n, idx) in escalated:
             continue
         items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr))
+    if not items and blocked:  # everything left says BLOCKED: someone must look whether that is still true
+        items = [blocked[turn_of(ctx) % len(blocked)]]
     # Early merge: the shared founding PR fails only on conformance (rules 3 and 5). On odd turns its
     # slot goes to a fix item that makes the gate pass, so the PR can merge before its plan is done.
-    turn = sum(1 for e in ctx.events if e.get("type") == "cycle_started")
+    turn = turn_of(ctx)
     founding_pr = _founding_impl_pr(prs, rfcs)
     stuck = False  # the founding PR hit the escalation threshold: its early item wins every turn
     if founding_pr:
@@ -555,6 +563,14 @@ def plan_implement(ctx) -> list[Asg]:
                 task = (f"The merge gate failed on PR {item['pr']}'s current head. Make it pass before any new "
                         f"subtask: fix every rule below with `update_pr`, and do not tick another plan line.\n"
                         + "\n".join(failing) + "\n\n")
+            elif item.get("recheck"):
+                task = (f"Every remaining plan line on this PR is marked BLOCKED. Subtask {item['subtask']} of RFC {n} says: "
+                        f"{item['text']}\nCheck whether that blocker still holds against the PR diff below. Since those "
+                        "notes were written: the conformance runner follows RFC 0004 (`glyphc check FILE`, JSON Lines "
+                        "on stderr, byte-offset spans, `expect-errors` lines may be JSON records); `print` is defined "
+                        "by accepted RFC 0020; a lexer entry point, a parser and code generation exist. If the blocker "
+                        "is gone, remove the BLOCKED note from the line, implement it and tick it. If part of it "
+                        f"remains, do the part that can be done and rewrite the line to name exactly what is left. {how}\n\n")
             else:
                 task = (f"Implement subtask {item['subtask']} of RFC {n}: {item['text']}\n"
                         f"{how} In `files`, include the code, spec, grammar, conformance tests and examples this subtask needs, "
@@ -595,8 +611,10 @@ def plan_review(ctx) -> list[Asg]:
     ready = []
     for n in by_num(prs):
         p = prs[n]
-        if p.get("status") != "open" or any(r.get("agent") == rev and r.get("sha") == p.get("head_sha")
-                                            for r in p.get("reviews", [])):
+        mine = [r for r in p.get("reviews", []) if r.get("agent") == rev and r.get("sha") == p.get("head_sha")]
+        # An approval of this head stands. A request for changes is looked at again each cycle until the
+        # head moves, so a review made on a wrong premise cannot hold the PR for good.
+        if p.get("status") != "open" or (mine and mine[-1].get("verdict") == "approve"):
             continue
         check = _latest_check(ctx.events, n, p.get("head_sha"))
         rules_ok = check and check["data"].get("rules") and all(  # 14 is the review itself
@@ -619,6 +637,12 @@ def plan_review(ctx) -> list[Asg]:
                          "four founding RFCs (name, lexical syntax, kernel, diagnostic style) and the walking skeleton "
                          "that first makes one program compile and run. Work from those RFCs is in scope here: do not "
                          "ask for it to be split out. Unfinished plan lines are expected; review what is there.\n")
+        again = changes_requested(ctx.events, int(n)) if any(
+            r.get("agent") == rev and r.get("sha") == p.get("head_sha") for r in p.get("reviews", [])) else ""
+        if again:
+            parts.append(f"You asked for changes on PR {n} and its head has not moved since. Your review said:\n{again}\n"
+                         "Read it against the notes above and the code. Approve if what remains is not a correctness "
+                         "problem in this diff; otherwise repeat only the points that still stand.\n")
         if cut:
             parts.append(f"The diff of PR {n} below is cut at {DIFF_CAP} characters. Your checkout holds this PR's full "
                          "files: read every changed file the diff does not show with Read and Grep before you decide. "

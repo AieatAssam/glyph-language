@@ -72,6 +72,10 @@ def apply_event(st: dict, ev: dict) -> dict:
     elif t == "pr_updated" and pr is not None:
         if data.get("head_sha"):
             pr["head_sha"] = data["head_sha"]
+        # No-ops escalate only when they come in a row: a published update to the PR clears its counts.
+        for key in [k for k, n in st.get("noop_pr", {}).items() if n == pr["number"]]:
+            st["noops"].pop(key, None)
+            st["noop_pr"].pop(key, None)
     elif t == "review_posted" and pr is not None:
         pr["reviews"].append({"agent": actor, "verdict": data.get("verdict"), "sha": data.get("sha")})
     elif t == "gate_blocked" and pr is not None and data.get("subtask") is not None:
@@ -79,9 +83,12 @@ def apply_event(st: dict, ev: dict) -> dict:
         pr["subtask_failures"][key] = pr["subtask_failures"].get(key, 0) + 1
     elif t == "pr_closed" and pr is not None:
         pr["status"] = "closed"
-    elif t == "subtask_noop" and rk is not None and data.get("subtask") is not None:
+    elif t == "subtask_noop" and rk is not None and data.get("subtask") is not None and not data.get("refused"):
+        # A session whose update the publisher refused did the work: that is not a stuck subtask.
         key = f"{rk}:{int(data['subtask'])}"
         st.setdefault("noops", {})[key] = st.get("noops", {}).get(key, 0) + 1
+        if data.get("pr"):
+            st.setdefault("noop_pr", {})[key] = int(data["pr"])
     elif t == "merged" and pr is not None:
         pr["status"] = "merged"
         if data.get("spec_after"):
