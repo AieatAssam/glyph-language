@@ -376,9 +376,9 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(self.git("log", "-1", "--format=%an", "--grep", "Merge PR #2"), "impl-1")
         self.assertEqual(S.load_state(self.root)["prs"]["2"]["status"], "merged")
 
-    def _merge_branch(self, n, branch, files, subtask, rfc="0001"):
+    def _merge_branch(self, n, branch, files, subtask, rfc="0001", start="main"):
         self.commit("audit so far")
-        self.git("checkout", "-q", "-b", branch)
+        self.git("checkout", "-q", "-b", branch, start)
         for rel, text in files.items():
             self.write(rel, text)
         head = self.commit(branch)
@@ -392,6 +392,19 @@ class MergebotRepoTests(RepoTestCase):
         (checks / f"{n}.json").write_text(json.dumps({"pr": n, "sha": head, "base_sha": self.git("rev-parse", "main"),
                                                       "rules": rules}), encoding="utf-8")
         return MB.cmd_merge(self.root, checks)
+
+    def test_a_branch_cut_before_its_plan_merged_wins_the_plan_conflict(self):
+        self.emit("rfc_opened", {"rfc": "0001"}, {"title": "T", "slug": "t", "author": "designer-min",
+                                                  "class": "language"}, "designer-min")
+        self.emit("rfc_status", {"rfc": "0001"}, {"rfc": "0001", "from": "discussion", "to": "implementing",
+                                                  "reason": "test"}, "mergebot")
+        old = self.commit("audit so far")
+        plan = "- [ ] 1. lexer\n- [ ] 2. codegen\n"
+        self.assertEqual(self._merge_branch(5, "agent/impl-0001", {"rfcs/0001.plan.md": plan}, None)["merged"], 5)
+        bundle = {"rfcs/0001.plan.md": plan.replace("[ ] 1", "[x] 1") + "- [ ] 3. more\n", "spec/core/a.md": "a\n",
+                  "compiler/stage0/a.ts": "a\n", "conformance/a.test": "a\n", "examples/a.gl": "a\n"}
+        self.assertEqual(self._merge_branch(6, "agent/impl-0001-s", bundle, 2, start=old)["merged"], 6)
+        self.assertEqual((self.root / "rfcs" / "0001.plan.md").read_text(), bundle["rfcs/0001.plan.md"])
 
     def test_plan_merge_does_not_implement_rfc_or_bump_spec(self):
         self.emit("rfc_opened", {"rfc": "0001"}, {"title": "T", "slug": "t", "author": "designer-min",

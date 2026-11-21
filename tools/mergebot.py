@@ -353,7 +353,13 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     current = vpath.read_text(encoding="utf-8").strip() if vpath.exists() else "0.0.0"
     files = gitops.changed_files(root, check["base_sha"], sha_head)
     plan_only = bool(files) and all(R.PLAN_RE.fullmatch(f) for f in files)
-    gitops.git(root, "merge", "--squash", sha_head)
+    # A founding branch re-adds plan files that plan PRs merged after it was cut. The branch's copy is
+    # the one with the ticks, so plan-only conflicts go to the branch. Any other conflict stops the merge.
+    probe = gitops.git(root, "merge-tree", "--write-tree", "--name-only", "HEAD", sha_head, check=False)
+    clash = [f for f in probe.split("\n\n")[0].splitlines()[1:] if f]
+    if any(not PLAN_FILE_RE.fullmatch(f) for f in clash):
+        raise RuntimeError(f"PR {n} conflicts with the base in {clash}")
+    gitops.git(root, "merge", "--squash", *(["-X", "theirs"] if clash else []), sha_head)
     # Implemented once a non-plan PR lands with every subtask of the plan ticked.
     plan = Path(root) / "rfcs" / f"{pr.get('rfc')}.plan.md"
     rfc_implemented = (bool(pr.get("rfc")) and not plan_only and plan.exists()
