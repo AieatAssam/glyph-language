@@ -59,6 +59,6 @@ test('a syntax error gives a reason with E0100 and the byte offset', () => {
   assert.equal(reasonOf('fn main() { print(1) }'), 'E0100 at byte 10');
 });
 
-test('a text literal, which is not lexed yet, gives a reason and does not throw', () => {
-  assert.match(reasonOf('fn main() io { print("a") }'), /text literal/);
+test('a text literal, which the parser does not accept yet, gives E0100 at its byte and does not throw', () => {
+  assert.equal(reasonOf('fn main() io { print("a") }'), 'E0100 at byte 21');
 });

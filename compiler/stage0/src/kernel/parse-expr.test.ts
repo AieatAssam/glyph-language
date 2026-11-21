@@ -14,7 +14,12 @@ function parseText(text: string): Expr | ExprError {
   assert.equal(error, null);
   const r = parseExpr(tokens, 0);
   if ('error' in r) return r.error;
-  assert.equal(tokens[r.next].kind, Kind.EOF, 'expression did not reach the end of the file');
+  // A text with no final line end ends in a NEWLINE before EOF (RFC 0014 rule 15). The expression
+  // parser stops before NEWLINE, because the statement parser decides what a NEWLINE ends, so the
+  // helper skips that one token and then requires EOF.
+  let end = r.next;
+  if (tokens[end].kind === Kind.NEWLINE) end += 1;
+  assert.equal(tokens[end].kind, Kind.EOF, 'expression did not reach the end of the file');
   return r.expr;
 }
 
