@@ -629,6 +629,15 @@ class SharedPrAndBriefs(unittest.TestCase):
         self.assertIn("Implement subtask 2", self.subtasks(st, [check] + even + [gate] * 2)[0].body)
         self.assertIn("merge early", self.subtasks(st, [check] + even + [gate] * 3)[0].body)
 
+    def test_a_refused_update_is_quoted_in_the_next_brief(self):
+        st, check = self.state({"3"})
+        noop = {"type": "subtask_noop", "subject": {"rfc": "0004"},
+                "data": {"rfc": "0004", "subtask": 2, "pr": 30, "refused": ["meta: 'rfc' is a required property"]}}
+        self.assertIn("refused whole", self.subtasks(st, [check, noop])[0].body)
+        self.assertIn("'rfc' is a required property", self.subtasks(st, [check, noop])[0].body)
+        done = {"type": "pr_updated", "subject": {"pr": 30}, "data": {"files": ["a"]}}
+        self.assertNotIn("refused whole", self.subtasks(st, [check, noop, done])[0].body)
+
     def test_tester_cases_are_in_the_implementer_brief(self):
         st, check = self.state(set())
         ev = [check, {"type": "comment_posted", "actor": self.TESTER, "subject": {"rfc": "0004"},

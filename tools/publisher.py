@@ -731,7 +731,9 @@ class Publisher:
         if not isinstance(ses.session, str) or not ses.session or not TS_RE.match(ses.ts or ""):
             return  # the event would be unusable in the audit log
         self._event(ses, "noop", "subtask_noop", {"rfc": rfc},
-                    {"rfc": rfc, "subtask": meta.get("subtask"), "pr": meta.get("pr")})
+                    {"rfc": rfc, "subtask": meta.get("subtask"), "pr": meta.get("pr"),
+                     # why nothing landed: the next brief quotes these so the agent can fix them
+                     "refused": [str(r["reason"])[:300] for r in self.refused if r.get("session") == ses.session][:3]})
 
     def process_session(self, sdir) -> None:
         sdir = Path(sdir)

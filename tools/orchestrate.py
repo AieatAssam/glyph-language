@@ -414,6 +414,14 @@ def gate_failures(events, pr: dict) -> list[str]:
             if isinstance(v, dict) and not v.get("ok") and k != "14"]
 
 
+def last_refusal(events, pr) -> str:
+    """Refusal reasons of the latest session on `pr` when it published nothing; '' otherwise."""
+    for ev in reversed(events):
+        if ev.get("type") in ("pr_updated", "subtask_noop") and (ev.get("data") or {}).get("pr", (ev.get("subject") or {}).get("pr")) == pr:
+            return "; ".join((ev.get("data") or {}).get("refused") or []) if ev["type"] == "subtask_noop" else ""
+    return ""
+
+
 def _tester_cases(events, testers, rfc: str) -> str:
     """Body of the latest comment a tester posted on RFC `rfc`, capped; '' when there is none."""
     found = ""
@@ -525,7 +533,10 @@ def plan_implement(ctx) -> list[Asg]:
                         "3. Code generation with the toolkit's `ModuleBuilder` and the print runtime in the PR, wired "
                         "into `compiler/stage0/src/main.ts` so `bin/glyphc run` prints `1`.\n"
                         "4. `spec/grammar.peg` with only the productions that program uses, one `conformance/` `.test` "
-                        "of kind `run` for it, and `examples/` with the program and its `.expect`.\n"
+                        "of kind `run` for it (its `--- meta` block needs `id`, `rfc` and `kind`; `id` is the path "
+                        "under `conformance/` without `.test`), and `examples/` with the program and its `.expect`.\n"
+                        "5. All four exist: make every gate rule listed below pass. The gate compiles tests and "
+                        "examples with `bin/glyphc build <file> -o <out.wasm>`, so that command must work.\n"
                         "This is the first increment of the plan's later lexer, parser and codegen subtasks, not a "
                         "stand-in: write it narrow, with unit tests, and later subtasks widen it. Do not wait for those "
                         "subtasks, and do not end the session without code. This overrides notes in your `MEMORY.md` "
@@ -542,6 +553,10 @@ def plan_implement(ctx) -> list[Asg]:
                 if failing:  # information only: a later subtask may fix these
                     task += ("Current gate failures on this PR (for information; later subtasks may fix them):\n"
                              + "\n".join(failing) + "\n\n")
+            refused = last_refusal(ctx.events, item["pr"]) if item["pr"] else ""
+            if refused:
+                task = ("Your last update to this PR was refused whole, so nothing was published. Send the same work "
+                        f"again with this fixed: {refused}\n\n") + task
             body = (task +
                     f"## Plan\n{item['plan']}\n\n{head}\n## Current PR diff\n{diff or '(no diff yet)'}\n")
             cases = _tester_cases(ctx.events, testers, n)

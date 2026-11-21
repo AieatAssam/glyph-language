@@ -519,7 +519,7 @@ class SubtaskNoopTests(PublisherTests):
         noops = [e for e in pub.events if e["type"] == "subtask_noop"]
         self.assertEqual(len(noops), 1)
         self.assertEqual(noops[0]["subject"], {"rfc": "0004"})
-        self.assertEqual(noops[0]["data"], {"rfc": "0004", "subtask": 2, "pr": 30})
+        self.assertEqual(noops[0]["data"], {"rfc": "0004", "subtask": 2, "pr": 30, "refused": []})
         self.assertIn("subtask_noop", json.loads((REPO / "tools" / "schemas" / "events.schema.json")
                                                  .read_text(encoding="utf-8"))["properties"]["type"]["enum"])
 

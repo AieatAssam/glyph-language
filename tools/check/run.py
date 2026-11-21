@@ -12,6 +12,7 @@ import argparse
 import json
 import re
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -220,13 +221,18 @@ def run_checks(repo, artifacts=None):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="tools.check.run")
-    ap.add_argument("--repo", required=True)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--repo", default=".")
+    ap.add_argument("--out")  # omitted (agent sessions): print one line per rule instead
     ap.add_argument("--pr", type=int)
     ap.add_argument("--sha")
     ap.add_argument("--base-sha")
     a = ap.parse_args(argv)
     untrusted.harden()
+    if not a.out:
+        with tempfile.TemporaryDirectory() as tmp:
+            for k, v in run_checks(a.repo, Path(tmp))["rules"].items():
+                print("rule %s: %s %s" % (k, "ok" if v.get("ok") else "FAIL", v.get("detail", "")))
+        return 0
     result = run_checks(a.repo, Path(a.out).parent)
     result = {"pr": a.pr, "sha": a.sha, "base_sha": a.base_sha, **result}
     Path(a.out).write_bytes(canon(result))

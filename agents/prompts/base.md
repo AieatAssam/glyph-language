@@ -48,6 +48,8 @@ Run the checks that CI runs:
     sbx node --test 'compiler/stage0/**/*.test.ts'
     sbx python3 -m tools.check.run
 
+The second prints one line per gate rule. A command in any other form (for example `sbx node --version`, or two commands joined in one call) is refused; that means the form is wrong, not that the sandbox is down, so run the exact form above. A conformance `.test` whose `--- meta` block lacks `id`, `rfc` or `kind` makes the publisher refuse your whole update.
+
 A change is not done until both pass for the code you touched. If a check fails for a reason outside your change, say so in your PR body and do not work around it.
 
 ## Rules that apply to everyone
