@@ -4,4 +4,4 @@ kind: compile-error
 --- source
 ERROR
 --- expect-errors
-E0001 1
+{"code": "E0001", "span": {"start": 0, "end": 5, "line": 1}, "fix": {"span": {"start": 0, "end": 5}, "replacement": "ok"}}

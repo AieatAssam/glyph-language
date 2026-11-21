@@ -7,14 +7,17 @@ written to main.gl with one trailing newline.
 Kinds and pass conditions:
   run            compiles, runs under the execution caps, stdout and exit match expect-stdout, expect-exit
   trap           compiles, runs, exit code matches expect-exit and expect-stderr is a substring of stderr
-  compile-error  `glyphc check --json` exits 1 and the error (code, line) multiset equals expect-errors
-                 (one `CODE LINE` per line)
+  compile-error  `glyphc check FILE` exits 1 and its error records match expect-errors. Each
+                 non-empty expect-errors line is either `CODE LINE` (compares code and span.line) or
+                 a JSON object (compares `code`, and `span` and `fix` where the object gives them,
+                 matching the keys it gives). The multisets must be equal.
   fmt            `glyphc fmt` output equals expect-stdout and formatting the output again changes nothing
-  fix            applying the first error's fix edits yields a program that `glyphc check` accepts
+  fix            applying the first error's fix to the UTF-8 source yields a program that `glyphc check` accepts
 
-Assumed glyphc behaviour (SPEC section 8 CLI table): `check FILE --json` prints one diagnostic
-object per line; `build FILE -o OUT`; `fmt FILE` prints formatted text. Columns are 1-based and
-fix edit ranges are end-exclusive.
+Assumed glyphc behaviour (RFC 0004, SPEC section 8 CLI table): `check FILE` writes diagnostics as
+JSON Lines to standard error, one record per line, with `span` byte offsets (end exclusive) and
+1-based line and column, and an optional single `fix` `{span, replacement}`. Non-JSON lines are
+ignored. `build FILE -o OUT`; `fmt FILE` prints formatted text.
 """
 from __future__ import annotations
 
@@ -115,30 +118,63 @@ def _strip_nl(s):
     return s[:-1] if s.endswith("\n") else s
 
 
-def _offsets(text):
-    starts = [0]
-    for i, ch in enumerate(text):
-        if ch == "\n":
-            starts.append(i + 1)
-    return starts
+def apply_fix(data, fix):
+    """Apply one RFC 0004 fix to UTF-8 bytes: replace [span.start, span.end) with the replacement."""
+    s, e = fix["span"]["start"], fix["span"]["end"]
+    return data[:s] + fix["replacement"].encode("utf-8") + data[e:]
 
 
-def apply_edits(text, edits):
-    starts = _offsets(text)
-
-    def off(pos):
-        line, col = pos
-        return starts[line - 1] + (col - 1)
-
-    spans = sorted(((off(e["start"]), off(e["end"]), e["replacement"]) for e in edits),
-                   key=lambda t: t[0], reverse=True)
-    for s, e, rep in spans:
-        text = text[:s] + rep + text[e:]
-    return text
+def _diagnostics(err):
+    recs = []
+    for ln in err.splitlines():
+        if not ln.lstrip().startswith("{"):
+            continue
+        try:
+            recs.append(json.loads(ln))
+        except ValueError:
+            continue
+    return recs
 
 
-def _diagnostics(out):
-    return [json.loads(ln) for ln in out.splitlines() if ln.strip()]
+def _subset(want, got):
+    """True if every key the expected value gives matches the actual value (dicts recurse)."""
+    if isinstance(want, dict):
+        return isinstance(got, dict) and all(k in got and _subset(v, got[k])
+                                             for k, v in want.items())
+    return want == got
+
+
+def _matches(exp, act):
+    if isinstance(exp, tuple):  # ("line", (code, line))
+        return act.get("code") == exp[1][0] and act.get("span", {}).get("line") == exp[1][1]
+    if exp.get("code") != act.get("code"):
+        return False
+    if "span" in exp and not _subset(exp["span"], act.get("span") or {}):
+        return False
+    return "fix" not in exp or _subset(exp["fix"], act.get("fix") or {})
+
+
+def _perfect(exps, acts):
+    """True if the expected entries and actual records pair one to one."""
+    if not exps:
+        return not acts
+    for i, a in enumerate(acts):
+        if _matches(exps[0], a) and _perfect(exps[1:], acts[:i] + acts[i + 1:]):
+            return True
+    return False
+
+
+def _expected(text):
+    out = []
+    for ln in text.split("\n"):
+        if not ln.strip():
+            continue
+        if ln.lstrip().startswith("{"):
+            out.append(json.loads(ln))
+        else:
+            code, line = ln.split()
+            out.append(("line", (code, int(line))))
+    return out
 
 
 def _host(repo_host, mode, req, tmp):
@@ -208,19 +244,14 @@ def run_one(repo, path, work, caps, host):
                     return rec
 
         elif kind == "compile-error":
-            rc, out, err = _glyphc(repo, ["check", str(src), "--json"], work)
+            rc, _, err = _glyphc(repo, ["check", str(src)], work)
             if rc != 1:
                 rec["detail"] = "expected compile failure, rc %d" % rc
                 return rec
-            actual = sorted((d["code"], d["span"]["start"][0])
-                            for d in _diagnostics(out) if d.get("severity") == "error")
-            expected = []
-            for ln in sec["expect-errors"].split("\n"):
-                if ln.strip():
-                    code, line = ln.split()
-                    expected.append((code, int(line)))
-            if actual != sorted(expected):
-                rec["detail"] = "errors %s, expected %s" % (actual, sorted(expected))
+            actual = [d for d in _diagnostics(err) if d.get("severity") == "error"]
+            expected = _expected(sec["expect-errors"])
+            if len(actual) != len(expected) or not _perfect(expected, actual):
+                rec["detail"] = "errors %s, expected %s" % (actual, sec["expect-errors"])
                 return rec
 
         elif kind == "fmt":
@@ -239,15 +270,15 @@ def run_one(repo, path, work, caps, host):
                 return rec
 
         elif kind == "fix":
-            rc, out, _ = _glyphc(repo, ["check", str(src), "--json"], work)
-            fixable = [d for d in _diagnostics(out)
-                       if d.get("severity") == "error" and d.get("fix", {}).get("edits")]
+            _, _, err = _glyphc(repo, ["check", str(src)], work)
+            fixable = [d for d in _diagnostics(err)
+                       if d.get("severity") == "error" and d.get("fix")]
             if not fixable:
-                rec["detail"] = "no error with fix edits"
+                rec["detail"] = "no error with a fix"
                 return rec
-            fixed = apply_edits(rec["source"], fixable[0]["fix"]["edits"])
+            fixed = apply_fix(rec["source"].encode("utf-8"), fixable[0]["fix"])
             fixed_path = work / "fixed.gl"
-            fixed_path.write_text(fixed, encoding="utf-8")
+            fixed_path.write_bytes(fixed)
             rc2, _, _ = _glyphc(repo, ["check", str(fixed_path)], work)
             if rc2 != 0:
                 rec["detail"] = "fixed program still fails to check"

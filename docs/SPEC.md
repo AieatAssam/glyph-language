@@ -358,25 +358,13 @@ A complete working reference in at most 2,000 tokens: every construct with one e
 
 One entry per error code: stable code, title, explanation, a minimal failing example, and the fixed example. Codes are never reused. The compiler may not emit a code that is not in the catalogue.
 
-**Diagnostic format** (emitted with `--json`, one object per line)
+**Diagnostic format** (written to standard error as JSON Lines, one record per line; RFC 0004)
 
 ```json
-{
-  "code": "E0207",
-  "severity": "error",
-  "message": "expected Int, found Text",
-  "span": {"file": "main.gl", "start": [4, 9], "end": [4, 14]},
-  "expected": "Int",
-  "found": "Text",
-  "fix": {
-    "description": "convert the text to an integer",
-    "edits": [{"start": [4, 9], "end": [4, 14], "replacement": "to_int(name)"}]
-  },
-  "doc": "spec/core/03-types.md#conversions"
-}
+{"code": "E0207", "severity": "error", "message": "expected Int, found Text", "span": {"file": "main.gl", "start": 40, "end": 45, "line": 4, "column": 9}, "fix": {"span": {"start": 40, "end": 45}, "replacement": "to_int(name)"}}
 ```
 
-The envelope (field names and span format) is fixed by this spec so the bench harness can parse it. The codes, messages, and fixes are the agents' design space. The `.gl` extension is a placeholder until the agents name the language.
+`start` and `end` are byte offsets, `end` exclusive; `line` and `column` are 1-based. `fix` is optional. Format set by RFC 0004 (owner ruling 2026-11-21). The codes, messages, and fixes are the agents' design space.
 
 **Conformance suite** (`conformance/<feature>/<name>.test`)
 
@@ -402,7 +390,7 @@ kind: run
 | `compile-error` | Compilation fails with exactly the listed codes at the listed lines |
 | `trap` | Compiles, and execution ends with the listed defined runtime failure |
 | `fmt` | Formatter output equals the expected text, and formatting twice changes nothing |
-| `fix` | Applying the diagnostic's fix edits yields a program that compiles |
+| `fix` | Applying the diagnostic's `fix` (byte offsets) yields a program that compiles |
 
 Rules:
 
@@ -465,7 +453,7 @@ The agents decide by RFC. The starting recommendation in the designers' prompt i
 
 | Command | Behaviour |
 | --- | --- |
-| `glyphc check <file> [--json]` | Parse and check. Diagnostics to stdout. Exit 0 clean, 1 on errors |
+| `glyphc check <file>` | Parse and check. Diagnostics go to stderr as JSON Lines (RFC 0004). Exit 0 clean, 1 on errors |
 | `glyphc build <file> -o <out.wasm>` | As check, then emit. Runs example blocks unless `--no-examples` |
 | `glyphc run <file> [args]` | Build and run under the toolkit runner |
 | `glyphc fmt <file> [--check]` | Canonical formatting |

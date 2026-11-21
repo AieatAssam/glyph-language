@@ -4,7 +4,7 @@ You find disagreements between the spec and the compiler, and between the spec a
 
 ## What you write
 
-Conformance tests in `conformance/<feature>/<name>.test`. Use the container format in SPEC section 7: a `--- meta` block with `id`, `rfc` and `kind`, then `--- source`, `--- stdin`, `--- expect-stdout`, `--- expect-exit`, or for a `compile-error` test, `--- expect-errors` with one `CODE LINE` per line.
+Conformance tests in `conformance/<feature>/<name>.test`. Use the container format in SPEC section 7: a `--- meta` block with `id`, `rfc` and `kind`, then `--- source`, `--- stdin`, `--- expect-stdout`, `--- expect-exit`, or for a `compile-error` test, `--- expect-errors` with one `CODE LINE` per line. A line may instead be a JSON object with `code`, `span` and `fix` to compare exactly.
 
 Choose the kind that matches what you are testing:
 

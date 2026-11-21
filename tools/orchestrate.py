@@ -55,7 +55,7 @@ CHECKLIST = (
 )
 
 CLI_DOC = """\
-glyphc check <file> [--json]        Parse and check. Diagnostics to stdout. Exit 0 clean, 1 on errors.
+glyphc check <file>                 Parse and check. Diagnostics to stderr as JSON Lines. Exit 0 clean, 1 on errors.
 glyphc build <file> -o <out.wasm>   Check, then emit a WebAssembly module.
 glyphc run <file> [args]            Build and run the program.
 glyphc fmt <file> [--check]         Canonical formatting.

@@ -78,10 +78,11 @@ class ConformanceParseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             conformance.parse_test("--- meta\nid: a\nkind: fix\n--- source\nok\n--- bogus\n")
 
-    def test_apply_edits_uses_one_based_end_exclusive_spans(self):
-        out = conformance.apply_edits("ERROR\nkeep\n",
-                                      [{"start": [1, 1], "end": [1, 6], "replacement": "ok"}])
-        self.assertEqual(out, "ok\nkeep\n")
+    def test_apply_fix_replaces_utf8_byte_offsets(self):
+        # "é" is two bytes, so the span [0, 3) covers "é" plus "a" and the rest is unchanged.
+        out = conformance.apply_fix("éa-b\n".encode("utf-8"),
+                                    {"span": {"start": 0, "end": 3}, "replacement": "x"})
+        self.assertEqual(out, b"x-b\n")
 
 
 @unittest.skipUnless(shutil.which("node"), "node is required for the wasm host")
