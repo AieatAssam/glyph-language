@@ -646,8 +646,14 @@ class SharedPrAndBriefs(unittest.TestCase):
         done = {"type": "pr_updated", "subject": {"pr": 30}, "data": {"files": ["a"]}}
         self.assertNotIn("refused whole", self.subtasks(st, [check, noop, done])[0].body)
 
-    def test_tester_cases_are_in_the_implementer_brief(self):
+    def test_a_green_head_is_held_until_it_is_reviewed(self):
         st, check = self.state(set())
+        self.assertEqual(self.subtasks(st, [check]), [])
+        st["prs"]["30"]["reviews"] = [{"agent": "reviewer", "verdict": "request_changes", "sha": "abc"}]
+        self.assertEqual(len(self.subtasks(st, [check])), 1)
+
+    def test_tester_cases_are_in_the_implementer_brief(self):
+        st, check = self.state({"5"})
         ev = [check, {"type": "comment_posted", "actor": self.TESTER, "subject": {"rfc": "0004"},
                       "data": {"body": "Case 1: 1+1 prints 2, exit 0."}}]
         a = self.subtasks(st, ev)[0]

@@ -441,6 +441,14 @@ def _tester_cases(events, testers, rfc: str) -> str:
     return found[:TESTER_CAP]
 
 
+def awaiting_review(events, pr: dict) -> bool:
+    """The PR's head passed every gate rule but review, and no review of that head exists yet."""
+    check = _latest_check(events, str(pr.get("number", "")), pr.get("head_sha"))
+    rules = (check or {}).get("data", {}).get("rules") or {}
+    green = bool(rules) and all(v.get("ok") for k, v in rules.items() if k != "14")
+    return green and not any(r.get("sha") == pr.get("head_sha") for r in pr.get("reviews", []))
+
+
 def turn_of(ctx) -> int:
     return sum(1 for e in ctx.events if e.get("type") == "cycle_started")
 
@@ -461,6 +469,8 @@ def plan_implement(ctx) -> list[Asg]:
             continue
         founding = _base(r["slug"]) in FOUNDING_SLUGS
         impl_pr = _founding_impl_pr(prs, rfcs) if founding else _open_pr(prs, n, subtask=True)
+        if impl_pr and awaiting_review(ctx.events, prs[impl_pr]):
+            continue  # the gate passed this head: leave it still for one cycle so the review can land on it
         path = f"rfcs/{n}.plan.md"
         plan = (repo.read_ref(prs[impl_pr]["branch"], path) if impl_pr else None) or repo.read(path)
         if plan is None:
@@ -580,8 +590,10 @@ def plan_implement(ctx) -> list[Asg]:
                              + "\n".join(failing) + "\n\n")
             refused = last_refusal(ctx.events, item["pr"]) if item["pr"] else ""
             if refused:
-                task = ("Your last update to this PR was refused whole, so nothing was published. Send the same work "
-                        f"again with this fixed: {refused}\n\n") + task
+                task = (f"Your last update to this PR was refused whole, so nothing was published. The reason: {refused}\n"
+                        "Fix that in this session. If the reason is the changed-line limit, the subtask is too big for "
+                        "one update: publish a working part of it now with its tests, do not tick the plan line, and "
+                        "rewrite the line to say what part is left.\n\n") + task
             asked = changes_requested(ctx.events, item["pr"]) if item["pr"] else ""
             if asked:
                 task = ("The reviewer asked for changes on this PR. Answer each point in this update, before or with "
@@ -629,12 +641,15 @@ def plan_review(ctx) -> list[Asg]:
     if cut:
         ready = ready[:1]
     parts = []
-    shared = _founding_impl_pr(prs, ctx.state.get("rfcs", {}))
+    rfcs = ctx.state.get("rfcs", {})
+    shared = _founding_impl_pr(prs, rfcs)
+    founding_list = ", ".join(f"RFC {k} {rfcs[k]['slug']}" for k in by_num(rfcs)
+                              if _base(rfcs[k]["slug"]) in FOUNDING_SLUGS and rfcs[k]["status"] in ("accepted", "implementing"))
     for n in ready:
         p = prs[n]
         if n == shared:
             parts.append(f"PR {n} is the shared founding implementation PR. By owner ruling it carries the work of all "
-                         "four founding RFCs (name, lexical syntax, kernel, diagnostic style) and the walking skeleton "
+                         f"four founding RFCs ({founding_list}) and the walking skeleton "
                          "that first makes one program compile and run. Work from those RFCs is in scope here: do not "
                          "ask for it to be split out. Unfinished plan lines are expected; review what is there.\n")
         again = changes_requested(ctx.events, int(n)) if any(
