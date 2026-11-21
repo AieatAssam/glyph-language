@@ -8,7 +8,8 @@ name: nightly
 on:
   schedule:
     - cron: "17 3 * * *"
-    # Bootstrap runs: every hour until the kernel RFC is implemented (setup then skips them).
+    # Fast runs: every hour until main holds fast_until_conformance_tests (RULES.md) conformance
+    # tests (setup then skips them).
     # A run takes about 50 minutes and the concurrency group queues at most one more.
     - cron: "17 0-2,4-23 * * *"
   workflow_dispatch:
@@ -80,13 +81,12 @@ jobs:
           card_ok = os.path.exists("spec/card.md") and os.path.exists("bin/glyphc")
           nightly_bench = "true" if rules.get("gates", {}).get("bench") or card_ok else "false"
           fixed_point = "true" if rules.get("gates", {}).get("fixed_point") else "false"
-          # A bootstrap run (any schedule but the 03:17 one) does nothing once a kernel RFC is implemented.
+          # A fast run (any schedule but the 03:17 one) does nothing once the implementation is far enough
+          # along: the conformance suite on this branch has reached the owner's target.
           skip = "false"
           if os.environ.get("SCHEDULE") not in ("", "17 3 * * *"):
-              from tools.lib import state
-              done = any(r["status"] == "implemented" and re.fullmatch(r"kernel(-v\d+)?", r.get("slug") or "")
-                         for r in state.load_state(".")["rfcs"].values())
-              skip = "true" if done else "false"
+              have = len(list(pathlib.Path("conformance").rglob("*.test")))
+              skip = "true" if have >= int(rules.get("fast_until_conformance_tests", 0)) else "false"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write(f"skip={skip}\n")
               out.write(f"run_date={run_date}\n")
