@@ -1,0 +1,18 @@
+# Grammar for the walking-skeleton program of RFC 0020 (kernel-v8), and nothing wider:
+#
+#   fn main() io { print(1) }
+#
+# Each production is the RFC 0020 production of the same name, restricted to the spelling this
+# program uses (single spaces, one line). Later kernel subtasks widen this file one production at a
+# time, each with a conformance test that reaches it.
+#
+# ponytail: spacing is fixed to the program's spelling, and the source is one line. Ceiling: any
+# other layout is rejected here, although RFC 0020's lexer accepts it. Upgrade path: the kernel
+# parser subtasks (plan 6 to 8) add the optional spacing and NEWLINE productions.
+
+program  <- fn_decl "\n"? !.
+fn_decl  <- "fn " ident "() io " block
+block    <- "{ " call " }"
+call     <- ident "(" int ")"
+ident    <- [A-Za-z_] [A-Za-z0-9_]*
+int      <- [0-9]+
