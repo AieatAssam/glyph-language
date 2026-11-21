@@ -1,0 +1,11 @@
+--- meta
+id: kernel/pe-cmp-chain-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let a = 1
+    if a == 1 != true { print(1) }
+}
+--- expect-errors
+E0100 3
