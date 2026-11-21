@@ -8,6 +8,8 @@ name: nightly
 on:
   schedule:
     - cron: "17 3 * * *"
+    # Bootstrap runs: every three hours until the kernel RFC is implemented (setup then skips them).
+    - cron: "17 0,6,9,12,15,18,21 * * *"
   workflow_dispatch:
     inputs:
       base_branch:
@@ -48,6 +50,7 @@ jobs:
       agent_mode: ${{ steps.vars.outputs.agent_mode }}
       nightly_bench: ${{ steps.vars.outputs.nightly_bench }}
       fixed_point: ${{ steps.vars.outputs.fixed_point }}
+      skip: ${{ steps.vars.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +63,7 @@ jobs:
           CYCLES_IN: ${{ inputs.cycles }}
           BASE_IN: ${{ inputs.base_branch || 'main' }}
           MODE_IN: ${{ inputs.agent_mode || 'live' }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
           python3 - <<'PY'
           import datetime, os, pathlib, re, yaml
@@ -75,7 +79,15 @@ jobs:
           card_ok = os.path.exists("spec/card.md") and os.path.exists("bin/glyphc")
           nightly_bench = "true" if rules.get("gates", {}).get("bench") or card_ok else "false"
           fixed_point = "true" if rules.get("gates", {}).get("fixed_point") else "false"
+          # A bootstrap run (any schedule but the 03:17 one) does nothing once a kernel RFC is implemented.
+          skip = "false"
+          if os.environ.get("SCHEDULE") not in ("", "17 3 * * *"):
+              from tools.lib import state
+              done = any(r["status"] == "implemented" and re.fullmatch(r"kernel(-v\d+)?", r.get("slug") or "")
+                         for r in state.load_state(".")["rfcs"].values())
+              skip = "true" if done else "false"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"skip={skip}\n")
               out.write(f"run_date={run_date}\n")
               out.write(f"cycles={cycles}\n")
               out.write(f"bench_on={bench_on}\n")
@@ -87,6 +99,7 @@ jobs:
 
   open:
     needs: setup
+    if: needs.setup.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -226,7 +239,7 @@ jobs:
 
   bench-nightly:
     needs: [setup, cycle-1, cycle-2, cycle-3, cycle-4, cycle-5, cycle-6]
-    if: always() && needs.setup.outputs.nightly_bench == 'true'
+    if: always() && needs.setup.outputs.nightly_bench == 'true' && needs.setup.outputs.skip != 'true'
     uses: ./.github/workflows/bench.yml
     permissions:
       contents: write
@@ -302,7 +315,7 @@ jobs:
 
   close:
     needs: [setup, scribe]
-    if: always() && needs.setup.result == 'success'
+    if: always() && needs.setup.result == 'success' && needs.setup.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
