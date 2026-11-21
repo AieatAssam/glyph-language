@@ -94,7 +94,9 @@ else
   out_src="$scratch/repo/out"
   budget="$(grep -m1 'max_budget_usd' "$root/governance/RULES.md" | awk '{print $2}')"
   budget="${budget:-2.0}"
-  # Auto-compact at about 300k tokens: cheaper, and it keeps sessions out of the long-context zone.
+  # Auto-compact early: cheaper, and it keeps sessions out of the long-context zone.
+  # 200k tokens for Haiku, 300k for every other model (Opus). AGENT_COMPACT_WINDOW overrides both.
+  case "$model" in *haiku*) compact=200000 ;; *) compact=300000 ;; esac
   # The agent's only shell command is sbx, which runs in the no-network glyph-sandbox container.
   # Claude Code's own Bash sandbox cannot start on GitHub-hosted runners (nested user namespaces),
   # so it is off. The web tools are disallowed.
@@ -103,7 +105,7 @@ else
   [ -n "$effort" ] && effort_flag=(--effort "$effort")
   (cd "$scratch/repo" && run_limited "$secs" env -u GH_TOKEN -u GITHUB_TOKEN -u HELDOUT_KEY \
      SBX_REPO="$scratch/repo" PATH="$root/tools/agent-bin:$PATH" \
-     CLAUDE_CODE_AUTO_COMPACT_WINDOW="${AGENT_COMPACT_WINDOW:-300000}" \
+     CLAUDE_CODE_AUTO_COMPACT_WINDOW="${AGENT_COMPACT_WINDOW:-$compact}" \
      claude -p --model "$model" "${effort_flag[@]}" \
      --output-format stream-json --verbose --no-session-persistence \
      --permission-mode acceptEdits \
