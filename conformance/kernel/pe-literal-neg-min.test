@@ -1,0 +1,11 @@
+--- meta
+id: kernel/pe-literal-neg-min
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let m = -9223372036854775808
+    print(m)
+}
+--- expect-errors
+E0500 2
