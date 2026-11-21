@@ -4,10 +4,9 @@
 // punctuation, and ends with EOF. It does not yet emit NEWLINE (subtask 8), so line ends are passed
 // over, and it does not yet lex text literals (subtask 6).
 //
-// ponytail: the punctuation step is a longest match over the token table in token.ts, reading at
-// most one byte ahead. Subtask 7 moves it to punct.ts. Ceiling: a text literal starting with `"`
-// makes lex throw, since no text lexer exists yet. Upgrade path: subtask 6 adds text.ts and one
-// branch in lex for it.
+// ponytail: a text literal starting with `"` makes lex throw, since no text lexer is wired in yet.
+// Ceiling: any program with a text literal crashes instead of lexing. Upgrade path: subtask 6 adds
+// text.ts and one branch in lex for it.
 //
 // Error order: the byte check and the scanner both run, and the first error by start offset wins.
 // The scan stops at the byte check's error offset, so a scanner error is always before it. On any
@@ -15,9 +14,10 @@
 import type { Buffer } from 'node:buffer';
 import { lexInt } from './int.ts';
 import { lexWord } from './ident.ts';
+import { lexPunct } from './punct.ts';
 import { checkBytes, type LexError } from './source.ts';
 import { skipTrivia } from './trivia.ts';
-import { Kind, PUNCTUATION_KIND, type Punctuation, type Token } from './token.ts';
+import { Kind, type Token } from './token.ts';
 
 export interface LexResult {
   tokens: Token[];
@@ -35,21 +35,6 @@ function isDigit(b: number): boolean {
 // A byte that starts a word: an ASCII letter, `_`, or a non-ASCII byte (lexWord reports it as E0001).
 function startsWord(b: number): boolean {
   return (b >= 0x41 && b <= 0x5a) || (b >= 0x61 && b <= 0x7a) || b === 0x5f || b >= 0x80;
-}
-
-// The longest punctuation token at pos. Two bytes are tried before one, so `==` is one token and
-// `=>` is `=` then `>`. A byte with no token (for example `!` not followed by `=`, or `;`) is E0001
-// at that byte, as RFC 0014 rule 11 says.
-function lexPunct(buf: Buffer, pos: number): Step {
-  for (const len of [2, 1]) {
-    if (pos + len > buf.length) continue;
-    const spelling = buf.toString('latin1', pos, pos + len);
-    if (Object.hasOwn(PUNCTUATION_KIND, spelling)) {
-      const kind = PUNCTUATION_KIND[spelling as Punctuation];
-      return { token: { kind, start: pos, end: pos + len } };
-    }
-  }
-  return { error: { code: 'E0001', start: pos, end: pos + 1 } };
 }
 
 // Lexes one whole source file. Returns the tokens and EOF, or the first error and no tokens.

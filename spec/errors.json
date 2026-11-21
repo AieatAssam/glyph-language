@@ -1,4 +1,7 @@
 [
+  {"code": "E0001", "message": "invalid byte or character in source", "meaning": "the source text has a byte or character the language does not allow here, such as a tab, a control character, a non-ASCII character outside text and comments, or a printable character outside the token set"},
+  {"code": "E0005", "message": "malformed text literal", "meaning": "a text literal has an unknown escape, or no closing quote before a line end or the end of the file"},
+  {"code": "E0006", "message": "integer literal has a leading zero", "meaning": "an integer literal starts with 0 and has more digits"},
   {"code": "E0010", "message": "source file does not end in .gl", "meaning": "the path given is not a source file"},
   {"code": "E0100", "message": "unexpected token", "meaning": "the grammar does not accept this token at this position"},
   {"code": "E0500", "message": "integer literal is above the Int range", "meaning": "an integer literal is larger than 9223372036854775807"}
