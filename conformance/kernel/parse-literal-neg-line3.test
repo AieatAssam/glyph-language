@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-literal-neg-line3
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    print(9223372036854775807)
+    print(-9223372036854775809)
+}
+--- expect-errors
+E0500 3

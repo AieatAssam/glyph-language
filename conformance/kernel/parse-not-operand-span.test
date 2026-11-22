@@ -1,0 +1,8 @@
+--- meta
+id: kernel/parse-not-operand-span
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(not 1 == false) }
+--- expect-errors
+{"code": "E0200", "span": {"start": 25, "end": 26}}

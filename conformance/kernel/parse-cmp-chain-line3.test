@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-cmp-chain-line3
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let x = 1
+    print(x == 1 >= 0)
+}
+--- expect-errors
+E0100 3
