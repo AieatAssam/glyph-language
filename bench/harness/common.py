@@ -123,8 +123,10 @@ def opaque_key(secret: str, task_id: str) -> str:
 
 
 def heldout_secret() -> str:
-    secret = os.environ.get("HELDOUT_KEY", "").strip()
-    if not secret.startswith("AGE-SECRET-KEY-"):
+    # The secret may hold a whole age-keygen file (comment lines first): take the key line.
+    lines = [l.strip() for l in os.environ.get("HELDOUT_KEY", "").splitlines()]
+    secret = next((l for l in lines if l.startswith("AGE-SECRET-KEY-")), "")
+    if not secret:
         raise SystemExit("HELDOUT_KEY is not set to an AGE-SECRET-KEY line")
     return secret
 
