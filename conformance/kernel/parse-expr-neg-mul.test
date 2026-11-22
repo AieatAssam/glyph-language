@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-expr-neg-mul
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+let a = 4611686018427387904
+let b = 2
+print(-a * b)
+}
+--- expect-stdout
+-9223372036854775808
+--- expect-exit
+0

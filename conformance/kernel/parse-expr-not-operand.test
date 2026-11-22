@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-expr-not-operand
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+let a = 1
+let b = true
+if not a == b { print(1) }
+}
+--- expect-errors
+{"code": "E0200", "span": {"start": 45, "end": 46, "line": 4}}

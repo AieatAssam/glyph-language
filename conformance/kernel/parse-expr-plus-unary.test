@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-expr-plus-unary
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+let a = +1
+print(a)
+}
+--- expect-errors
+{"code": "E0100", "span": {"start": 23, "end": 24, "line": 2}}

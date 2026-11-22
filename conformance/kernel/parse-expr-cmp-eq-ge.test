@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-expr-cmp-eq-ge
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+if 1 == 2 >= 3 { print(1) }
+}
+--- expect-errors
+{"code": "E0100", "span": {"start": 25, "end": 27, "line": 2}}
