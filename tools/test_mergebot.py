@@ -376,6 +376,24 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(self.git("log", "-1", "--format=%an", "--grep", "Merge PR #2"), "impl-1")
         self.assertEqual(S.load_state(self.root)["prs"]["2"]["status"], "merged")
 
+    def test_gate_judges_files_by_the_agent_that_pushed_the_head_not_the_opener(self):
+        self.git("checkout", "-b", "agent/impl-0003")
+        self.write("conformance/fix.test", "x\n")
+        first = self.commit("test")
+        self.write("compiler/stage0/fix.ts", "export const x = 1;\n")
+        head = self.commit("fix")
+        self.git("checkout", "main")
+        self.emit("pr_opened", {"pr": 3}, {"branch": "agent/impl-0003", "class": "bugfix", "rfc": None,
+                                           "author": "tester", "head_sha": first}, "tester")
+        self.emit("pr_updated", {"pr": 3}, {"head_sha": head}, "impl-1")
+        self.emit("review_posted", {"pr": 3}, {"verdict": "approve", "sha": head}, "reviewer")
+        checks = self.root / "checks"
+        checks.mkdir()
+        rules = {str(n): {"ok": True, "detail": ""} for n in range(4, 12)}
+        (checks / "3.json").write_text(json.dumps({"pr": 3, "sha": head, "base_sha": self.git("rev-parse", "main"),
+                                                   "rules": rules}), encoding="utf-8")
+        self.assertEqual(MB.cmd_merge(self.root, checks)["merged"], 3)
+
     def _merge_branch(self, n, branch, files, subtask, rfc="0001", start="main"):
         self.commit("audit so far")
         self.git("checkout", "-q", "-b", branch, start)
