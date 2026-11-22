@@ -1,0 +1,13 @@
+--- meta
+id: kernel/parse-expr-not-binds-tight
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let a = 1
+  let b = 2
+  if not a == b { print(1) }
+}
+--- expect-errors
+E0200 4
+E0200 4

@@ -1,0 +1,13 @@
+--- meta
+id: kernel/parse-expr-min-by-subtraction
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let a = -9223372036854775807 - 1
+  print(a)
+}
+--- expect-stdout
+-9223372036854775808
+--- expect-exit
+0
