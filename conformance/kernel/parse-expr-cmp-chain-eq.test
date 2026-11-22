@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-expr-cmp-chain-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(1 == 1 >= 0)
+}
+--- expect-errors
+E0100 2
