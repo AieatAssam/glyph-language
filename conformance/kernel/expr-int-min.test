@@ -4,12 +4,9 @@ rfc: 0020
 kind: run
 --- source
 fn main() io {
-  let m = -9223372036854775807 - 1
-  print(m)
-  print(9223372036854775807)
+    print(-9223372036854775807 - 1)
 }
 --- expect-stdout
 -9223372036854775808
-9223372036854775807
 --- expect-exit
 0

@@ -1,0 +1,10 @@
+--- meta
+id: kernel/err-literal-neg-past
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    print(-9223372036854775809)
+}
+--- expect-errors
+E0500 2

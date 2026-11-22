@@ -1,0 +1,16 @@
+--- meta
+id: kernel/expr-or-loosest
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    if false and false or true {
+        print(1)
+    } else {
+        print(2)
+    }
+}
+--- expect-stdout
+1
+--- expect-exit
+0
