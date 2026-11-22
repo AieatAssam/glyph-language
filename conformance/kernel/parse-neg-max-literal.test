@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-neg-max-literal
+rfc: 0020
+kind: run
+--- source
+fn main() io { print(-9223372036854775807) }
+--- expect-stdout
+-9223372036854775807
+--- expect-exit
+0

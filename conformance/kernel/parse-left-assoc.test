@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-left-assoc
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(10 - 3 - 2)
+  print(100 / 10 / 5)
+  print(17 % 5 % 3)
+}
+--- expect-stdout
+5
+2
+2
+--- expect-exit
+0

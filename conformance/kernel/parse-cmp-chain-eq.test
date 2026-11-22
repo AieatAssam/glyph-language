@@ -1,0 +1,8 @@
+--- meta
+id: kernel/parse-cmp-chain-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(1 == 1 == true) }
+--- expect-errors
+{"code": "E0100", "span": {"start": 28, "end": 30}}

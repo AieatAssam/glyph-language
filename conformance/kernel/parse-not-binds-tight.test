@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-not-binds-tight
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if not true and false {
+    print(1)
+  } else {
+    print(2)
+  }
+}
+--- expect-stdout
+2
+--- expect-exit
+0
