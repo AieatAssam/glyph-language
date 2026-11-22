@@ -1,9 +1,13 @@
-// Tests for the command-line front end (RFC 0011 subtask 3). Each case calls run with fake writers.
+// Tests for the command-line front end (RFC 0011 subtasks 3 and 4). Each case calls run with fake
+// writers. No file is ever read, so no case can give ENOENT.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { run } from './cli.ts';
 
 const USAGE = 'usage: glyphc --version | check FILE | run FILE | build FILE -o OUT\n';
+const NOT_SOURCE_LINE = (file: string) =>
+  '{"code":"E0010","severity":"error","message":"source file does not end in .gl",' +
+  `"span":{"file":"${file}","start":0,"end":0,"line":1,"column":1}}\n`;
 
 function call(argv: string[]): { code: number; out: string; err: string } {
   const out: string[] = [];
@@ -57,12 +61,41 @@ test('build without -o OUT, or with a bad flag or empty OUT, exits 2 with the us
   assert.deepEqual(call(['build', 'main.gl', '-x', 'out.wasm']), { code: 2, out: '', err: USAGE });
 });
 
-test('a path that is not a source file is a usage error for now (subtask 4 changes this)', () => {
-  assert.deepEqual(call(['check', 'prog.txt']), { code: 2, out: '', err: USAGE });
-});
-
 test('nothing is written to standard output except for --version', () => {
-  for (const argv of [[], ['check', 'main.gl'], ['check'], ['nope']]) {
+  for (const argv of [[], ['check', 'main.gl'], ['check'], ['nope'], ['check', 'prog.txt']]) {
     assert.equal(call(argv).out, '', argv.join(' '));
   }
+});
+
+test('check, run and build with a path that is not a source file give E0010 and exit 1', () => {
+  const paths = ['prog.txt', 'PROG.GL', 'main.glyph', 'missing.txt'];
+  const cases = paths.flatMap((p) => [
+    ['check', p],
+    ['run', p],
+    ['build', p, '-o', 'out.wasm'],
+  ]);
+  for (const argv of cases) {
+    const file = argv[1] as string;
+    assert.deepEqual(call(argv), { code: 1, out: '', err: NOT_SOURCE_LINE(file) }, argv.join(' '));
+  }
+});
+
+test('the E0010 record has no fix key and is one line', () => {
+  const { err } = call(['check', 'prog.txt']);
+  assert.equal(err.split('\n').length, 2);
+  assert.equal(err.includes('"fix"'), false);
+});
+
+test('the source-file rule comes before the argument checks: build without -o still gives E0010', () => {
+  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE('prog.txt') });
+  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: NOT_SOURCE_LINE('prog.txt') });
+});
+
+test('a path with a directory part is reported as given', () => {
+  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE('dir/prog.txt') });
+});
+
+test('a bare check, run or build with no path keeps the usage line', () => {
+  assert.deepEqual(call(['check']), { code: 2, out: '', err: USAGE });
+  assert.deepEqual(call(['build']), { code: 2, out: '', err: USAGE });
 });
