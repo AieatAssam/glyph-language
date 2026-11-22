@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-expr-run-minus-unary
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+print(1 - -2)
+print(- -2)
+}
+--- expect-stdout
+3
+2
+--- expect-exit
+0

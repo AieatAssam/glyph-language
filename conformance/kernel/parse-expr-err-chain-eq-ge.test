@@ -1,0 +1,8 @@
+--- meta
+id: kernel/parse-expr-err-chain-eq-ge
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { if 1 == 1 >= 0 { print(1) } }
+--- expect-errors
+{"code": "E0100", "span": {"start": 25}}
