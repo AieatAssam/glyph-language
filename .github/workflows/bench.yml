@@ -130,6 +130,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - uses: ./.github/actions/setup-claude
+      - name: Restore round 1 programs and manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-1-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
       - name: Restore round 1 results
         uses: actions/download-artifact@v4
         with:
@@ -198,6 +203,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - uses: ./.github/actions/setup-claude
+      - name: Restore round 2 programs and manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-2-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
       - name: Restore round 2 results
         uses: actions/download-artifact@v4
         with:
@@ -266,6 +276,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - uses: ./.github/actions/setup-claude
+      - name: Restore round 3 programs and manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-gen-3-${{ inputs.mode }}-c${{ inputs.cycle }}
+          path: ${{ runner.temp }}/gen
       - name: Restore round 3 results
         uses: actions/download-artifact@v4
         with:
@@ -389,6 +404,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - uses: ./.github/actions/setup-claude
+      - name: Install age
+        run: sudo apt-get install -y -q age
       - name: Held-out totals
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
