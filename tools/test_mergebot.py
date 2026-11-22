@@ -677,6 +677,12 @@ class BenchRecordTests(RepoTestCase):
         data = json.loads((self.root / "bench" / "baselines" / f"{model}.json").read_text(encoding="utf-8"))
         self.assertEqual((out["scope"], data["fitness"]), ("baseline", 0.42))
 
+    def test_second_nightly_same_day_is_a_skip_not_a_failure(self):
+        self.nightly("2026-11-20", dev=6.0, heldout_fitness=5.0)
+        (self.root / "audit" / "bench" / "2026-11-20" / "findings.md").write_text("x", encoding="utf-8")  # findings is mocked
+        out = self.nightly("2026-11-20", dev=6.0, heldout_fitness=5.0)
+        self.assertEqual(out["skipped"], "already recorded")
+
     def test_overfit_warning_after_three_nights_of_large_gap(self):
         days = ["2026-11-17", "2026-11-18", "2026-11-19"]
         for day in days[:2]:

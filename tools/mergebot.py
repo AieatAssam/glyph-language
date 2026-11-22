@@ -554,8 +554,8 @@ def _bench_nightly(root, res: Path, heldout) -> dict:
     if heldout and totals is None:
         raise SystemExit(f"held-out totals not readable: {heldout}")
     out = Path(root) / "audit" / "bench" / day
-    if (out / "findings.md").exists():
-        raise SystemExit(f"{day} already recorded")
+    if (out / "findings.md").exists():  # a later run the same day: nothing to add, not a failure
+        return {"scope": "nightly", "day": day, "skipped": "already recorded"}
     out.mkdir(parents=True, exist_ok=True)
     shutil.copytree(res, out / "dev", dirs_exist_ok=True)
     (out / "dev.json").write_text(json.dumps(dev, sort_keys=True, indent=1) + "\n", encoding="utf-8")
