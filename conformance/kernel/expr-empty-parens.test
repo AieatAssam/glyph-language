@@ -1,0 +1,10 @@
+--- meta
+id: kernel/expr-empty-parens
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(())
+}
+--- expect-errors
+E0100 2

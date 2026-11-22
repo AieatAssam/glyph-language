@@ -4,7 +4,8 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-print(9223372036854775808)
+  let x = 9223372036854775808
+  print(x)
 }
 --- expect-errors
 E0500 2
