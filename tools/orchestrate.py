@@ -467,6 +467,8 @@ def plan_implement(ctx) -> list[Asg]:
             continue
         plan_pr = _open_pr(prs, n, subtask=False)
         if plan_pr:  # the plan PR is under review; when the reviewer asks for changes, someone must revise it
+            if awaiting_review(ctx.events, prs[plan_pr]):
+                continue  # the gate passed this head: hold it still so the review can land on it
             asked = changes_requested(ctx.events, int(plan_pr))
             if asked:
                 items.append(dict(rfc=n, kind="plan", r=r, pr=int(plan_pr), asked=asked))

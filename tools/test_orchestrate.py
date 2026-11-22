@@ -652,6 +652,18 @@ class SharedPrAndBriefs(unittest.TestCase):
         st["prs"]["30"]["reviews"] = [{"agent": "reviewer", "verdict": "request_changes", "sha": "abc"}]
         self.assertEqual(len(self.subtasks(st, [check])), 1)
 
+    def test_a_plan_pr_green_head_is_held_before_its_revision(self):
+        # The reviewer asked for changes on an old head; the implementer moved the head; its gate passed.
+        st, check = self.state(set())
+        st["prs"]["31"] = {"number": 31, "rfc": "0004", "status": "open", "subtask": None,
+                           "branch": "agent/plan-0004", "head_sha": "new",
+                           "reviews": [{"agent": "reviewer", "verdict": "request_changes", "sha": "old"}]}
+        ask = {"type": "review_posted", "subject": {"pr": 31}, "data": {"verdict": "request_changes", "body": "fix"}}
+        green = {"type": "check_run", "subject": {"pr": 31}, "data": {"sha": "new",
+                 "rules": {"1": {"ok": True, "detail": ""}, "14": {"ok": False, "detail": "no approval"}}}}
+        plan = [x for x in run("implement", state=st, repo=self.repo(), events=[check, ask, green]) if x.kind == "plan"]
+        self.assertEqual(plan, [])
+
     def test_a_plan_pr_with_requested_changes_is_sent_back_to_be_revised(self):
         st = {"rfcs": {"0024": rfc("0024", DESIGNERS[0], slug="byte-type", status="accepted")},
               "prs": {"62": {"number": 62, "rfc": "0024", "status": "open", "subtask": None,
