@@ -54,6 +54,7 @@ A change is not done until both pass for the code you touched. If a check fails 
 
 ## Rules that apply to everyone
 
+- Only language models read and write this language. Token cost to generate and parse comes before human readability, in the language, its standard library names, examples and tests.
 - The spec core is capped at 12,000 tokens and the spec card at 2,000. Growth needs a simplification elsewhere.
 - Every construct needs a conformance test. Every diagnostic needs an entry in `spec/errors.json`.
 - Never edit or delete an existing conformance test. Add new ones.

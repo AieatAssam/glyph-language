@@ -45,14 +45,14 @@ The language exists to be written, repaired, and read by language models with as
 
 **Design principles (agents interpret and trade these off)**
 
-1. **One way to do each thing.** No synonyms, no optional syntax, no style choices. A canonical formatter defines the only valid layout.
+1. **One way to do each thing.** No synonyms, no optional syntax, no style choices. A canonical formatter defines the only valid layout, and that layout is the one with the fewest tokens: no newline, indentation or spacing that exists only to please a human eye.
 2. **Local reasoning.** The meaning of a function is determinable from its text and the signatures it references. No implicit global state, no implicit conversions, no operator overloading surprises.
 3. **Explicit effects.** Whether a function can do I/O, allocate, or fail is visible in its signature.
 4. **Errors are data.** Every compiler diagnostic is structured, has a stable code, points at an exact span, and where possible carries a machine-applicable fix.
 5. **Examples are part of the contract.** Functions may carry input and output examples in their declaration. The compiler runs them and fails the build if they do not hold.
 6. **Small spec.** The complete core spec must fit in a model's context with room to work. The spec card must be far smaller.
 7. **No undefined behaviour.** Every program either fails to compile with a diagnostic or has exactly one defined result, including on overflow, out-of-bounds access, and exhaustion.
-8. **Token economy without obscurity.** Prefer constructs that are short in tokens, but never at the cost of ambiguity. Familiar forms are allowed when they measurably help.
+8. **Token economy first.** Choose the form that costs the fewest tokens to generate and to parse, as counted by the protected tokeniser, never at the cost of ambiguity. This covers syntax, layout, keywords and every name in the language and its standard library: a short name beats a full word, and no delimiter, keyword or line break is kept for looks. A longer or more familiar form is allowed only when measurement shows models make fewer errors with it.
 9. **Stable addresses.** Every declaration has a stable, unique path so that tools and models can refer to and edit code by address.
 
 **Hard constraints (enforced mechanically)**
