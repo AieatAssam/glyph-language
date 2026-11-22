@@ -80,7 +80,8 @@ jobs:
           bench_on = "true" if rules.get("gates", {}).get("bench") else "false"
           card_ok = os.path.exists("spec/card.md") and os.path.exists("bin/glyphc")
           # Ungated tracking bench: once a day only, not on every fast run.
-          daily = os.environ.get("SCHEDULE", "") == "17 3 * * *"
+          # A dispatch with cycles=0 is a bench-only run.
+          daily = os.environ.get("SCHEDULE", "") == "17 3 * * *" or os.environ["CYCLES_IN"].strip() == "0"
           nightly_bench = "true" if rules.get("gates", {}).get("bench") or (card_ok and daily) else "false"
           fixed_point = "true" if rules.get("gates", {}).get("fixed_point") else "false"
           # A fast run (any schedule but the 03:17 one) does nothing once the implementation is far enough
