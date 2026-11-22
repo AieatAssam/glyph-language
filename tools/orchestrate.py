@@ -465,7 +465,11 @@ def plan_implement(ctx) -> list[Asg]:
         r = rfcs[n]
         if r["status"] not in ("accepted", "implementing"):
             continue
-        if _open_pr(prs, n, subtask=False):  # the plan PR is still under review
+        plan_pr = _open_pr(prs, n, subtask=False)
+        if plan_pr:  # the plan PR is under review; when the reviewer asks for changes, someone must revise it
+            asked = changes_requested(ctx.events, int(plan_pr))
+            if asked:
+                items.append(dict(rfc=n, kind="plan", r=r, pr=int(plan_pr), asked=asked))
             continue
         founding = _base(r["slug"]) in FOUNDING_SLUGS
         impl_pr = _founding_impl_pr(prs, rfcs) if founding else _open_pr(prs, n, subtask=True)
@@ -533,7 +537,15 @@ def plan_implement(ctx) -> list[Asg]:
     for agent, item in zip(impls, items[:int(rules.get("max_implementing", 3))]):
         n, r = item["rfc"], item["r"]
         head = rfc_block(repo, n, r)
-        if item["kind"] == "plan":
+        if item["kind"] == "plan" and item.get("pr"):
+            body = (f"The reviewer asked for changes on plan PR {item['pr']} for RFC {n}. Answer each point and revise "
+                    f"`rfcs/{n}.plan.md` with `open_pr` (rfc `{n}`, class `{r['class']}`, files `[\"rfcs/{n}.plan.md\"]`): "
+                    f"it accumulates on the existing branch. Keep each line `- [ ] <k>. <text>`, each expected to change "
+                    "under 400 lines. Do not write code in this session.\n\n"
+                    f"Review:\n{item['asked']}\n\n{head}")
+            out.append(Asg(agent, "implement", "plan", body, rfc=n, pr=item["pr"],
+                           branch=prs.get(str(item["pr"]), {}).get("branch")))
+        elif item["kind"] == "plan":
             body = (f"Write the plan for RFC {n} to `rfcs/{n}.plan.md`: an ordered list of subtasks, each line "
                     "`- [ ] <k>. <text>`, each expected to change under 400 lines. Open one PR with `open_pr` "
                     f"(rfc `{n}`, class `{r['class']}`, files `[\"rfcs/{n}.plan.md\"]`). Do not write code in this session.\n\n{head}")

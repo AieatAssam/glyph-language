@@ -652,6 +652,17 @@ class SharedPrAndBriefs(unittest.TestCase):
         st["prs"]["30"]["reviews"] = [{"agent": "reviewer", "verdict": "request_changes", "sha": "abc"}]
         self.assertEqual(len(self.subtasks(st, [check])), 1)
 
+    def test_a_plan_pr_with_requested_changes_is_sent_back_to_be_revised(self):
+        st = {"rfcs": {"0024": rfc("0024", DESIGNERS[0], slug="byte-type", status="accepted")},
+              "prs": {"62": {"number": 62, "rfc": "0024", "status": "open", "subtask": None,
+                             "branch": "agent/impl-0024", "head_sha": "abc"}}}
+        ev = [{"type": "review_posted", "subject": {"pr": 62}, "data": {"verdict": "request_changes", "body": "Fix line 15."}}]
+        out = [x for x in run("implement", state=st, repo=FakeRepo(refs={}), events=ev) if x.kind == "plan"]
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0].header["pr"], 62)
+        self.assertIn("Fix line 15.", out[0].body)
+        self.assertEqual(run("implement", state=st, repo=FakeRepo(refs={}), events=[]), [])
+
     def test_tester_cases_are_in_the_implementer_brief(self):
         st, check = self.state({"5"})
         ev = [check, {"type": "comment_posted", "actor": self.TESTER, "subject": {"rfc": "0004"},
