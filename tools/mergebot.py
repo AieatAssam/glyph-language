@@ -283,6 +283,11 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
     roster = RO.load_roster(root)
     st = S.load_state(root)
     stab = _stability(root)
+    # A PR's files are judged by the role of the agent that pushed its head, not its opener: a tester
+    # can open a PR that an implementer then extends, and the publisher already checked that push.
+    pushers = {(str((e.get("subject") or {}).get("pr")), e["data"]["head_sha"]): e["actor"]
+               for e in audit.load_events(root)
+               if e["type"] == "pr_updated" and (e.get("data") or {}).get("head_sha")}
     for n in sorted(st["prs"], key=int):
         pr = st["prs"][n]
         if pr["status"] != "open":
@@ -295,7 +300,7 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
         rfc = st["rfcs"].get(pr["rfc"]) if pr.get("rfc") else None
         bench = _read_json(Path(benchdir) / f"{n}.json") if benchdir else None
         ctx = {
-            "pr": {"class": pr["class"], "role": RO.role_of(roster, pr["author"]),
+            "pr": {"class": pr["class"], "role": RO.role_of(roster, pushers.get((n, pr["head_sha"]), pr["author"])),
                    "rfc_present": rfc is not None, "rfc_status": rfc["status"] if rfc else None,
                    "rfc_accepted_super": bool(rfc and rfc.get("accepted_super")),
                    "breaking": bool(rfc and rfc.get("breaking")),
