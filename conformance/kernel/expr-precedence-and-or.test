@@ -1,0 +1,12 @@
+--- meta
+id: kernel/expr-precedence-and-or
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if true or false and false { print(1) } else { print(2) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

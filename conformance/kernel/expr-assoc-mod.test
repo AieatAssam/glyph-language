@@ -1,0 +1,12 @@
+--- meta
+id: kernel/expr-assoc-mod
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(7 % 4 % 2)
+}
+--- expect-stdout
+1
+--- expect-exit
+0
