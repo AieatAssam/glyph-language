@@ -1,0 +1,11 @@
+--- meta
+id: kernel/expr-literal-neg-above
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let m = -9223372036854775809
+  print(m)
+}
+--- expect-errors
+E0500 2
