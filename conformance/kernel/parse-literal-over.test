@@ -3,6 +3,8 @@ id: kernel/parse-literal-over
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io { print(9223372036854775808) }
+fn main() io {
+  let m = 9223372036854775808
+}
 --- expect-errors
-E0500 1
+E0500 2

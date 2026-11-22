@@ -1,0 +1,13 @@
+--- meta
+id: kernel/parse-literal-max
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let m = 9223372036854775807
+  print(m)
+}
+--- expect-stdout
+9223372036854775807
+--- expect-exit
+0

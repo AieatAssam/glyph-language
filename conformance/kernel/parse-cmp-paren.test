@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-cmp-paren
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if (1 < 2) == (2 < 3) { print(1) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0
