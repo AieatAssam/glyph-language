@@ -79,7 +79,9 @@ jobs:
           run_date = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
           bench_on = "true" if rules.get("gates", {}).get("bench") else "false"
           card_ok = os.path.exists("spec/card.md") and os.path.exists("bin/glyphc")
-          nightly_bench = "true" if rules.get("gates", {}).get("bench") or card_ok else "false"
+          # Ungated tracking bench: once a day only, not on every fast run.
+          daily = os.environ.get("SCHEDULE", "") == "17 3 * * *"
+          nightly_bench = "true" if rules.get("gates", {}).get("bench") or (card_ok and daily) else "false"
           fixed_point = "true" if rules.get("gates", {}).get("fixed_point") else "false"
           # A fast run (any schedule but the 03:17 one) does nothing once the implementation is far enough
           # along: the conformance suite on this branch has reached the owner's target.
