@@ -3,8 +3,6 @@ id: kernel/parse-unary-plus
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io {
-  let a = +1
-}
+fn main() io { print(+1) }
 --- expect-errors
-E0100 2
+{"code": "E0100", "span": {"start": 21, "end": 22, "line": 1, "column": 22}}

@@ -3,8 +3,6 @@ id: kernel/parse-cmp-chain-lt
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io {
-  print(1 < 2 < 3)
-}
+fn main() io { print(1 < 2 < 3) }
 --- expect-errors
-{"code": "E0100", "span": {"line": 2, "column": 15}}
+{"code": "E0100", "span": {"start": 27, "end": 28, "line": 1, "column": 28}}
