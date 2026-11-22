@@ -1,0 +1,12 @@
+--- meta
+id: kernel/expr-not-and
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+if not false and false { print(1) } else { print(2) }
+}
+--- expect-stdout
+2
+--- expect-exit
+0

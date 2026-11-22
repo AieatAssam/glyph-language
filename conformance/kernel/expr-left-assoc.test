@@ -4,11 +4,11 @@ rfc: 0020
 kind: run
 --- source
 fn main() io {
-  print(10 - 3 - 2)
-  print(2 + 3 * 4)
+print(10 - 4 - 3)
+print(100 / 10 / 5)
 }
 --- expect-stdout
-5
-14
+3
+2
 --- expect-exit
 0
