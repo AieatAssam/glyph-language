@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-unclosed-paren
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print((1 + 2) }
+--- expect-errors
+E0100 1

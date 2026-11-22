@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-keyword-operand
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(1 + else) }
+--- expect-errors
+E0100 1

@@ -1,0 +1,12 @@
+--- meta
+id: kernel/err-literal-line
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let a = 1
+  let b = 9223372036854775808
+  print(a + b)
+}
+--- expect-errors
+E0500 3

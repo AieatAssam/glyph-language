@@ -3,8 +3,6 @@ id: kernel/err-plus-unary
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io {
-  print(+1)
-}
+fn main() io { print(+1) }
 --- expect-errors
-E0100 2
+E0100 1

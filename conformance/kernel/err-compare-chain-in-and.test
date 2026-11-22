@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-compare-chain-in-and
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { if 1 < 2 and 2 < 3 < 4 { } }
+--- expect-errors
+E0100 1

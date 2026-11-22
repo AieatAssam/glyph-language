@@ -1,0 +1,10 @@
+--- meta
+id: kernel/unary-tight-no-overflow
+rfc: 0020
+kind: run
+--- source
+fn main() io { print(-4611686018427387904 * 2) }
+--- expect-stdout
+-9223372036854775808
+--- expect-exit
+0
