@@ -1,0 +1,13 @@
+--- meta
+id: parse-expr/pe-compare-chain
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let a = 1
+    let b = 2
+    let c = 3
+    if a < b < c { print(1) }
+}
+--- expect-errors
+{"code": "E0100", "span": {"start": 70, "end": 71, "line": 5}}

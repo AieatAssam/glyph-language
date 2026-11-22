@@ -1,0 +1,13 @@
+--- meta
+id: parse-expr/pe-literal-neg-over
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let a = 1
+    let b = 2
+    let c = 3
+    let d = -9223372036854775808
+}
+--- expect-errors
+{"code": "E0500", "span": {"start": 70, "end": 89, "line": 5}}

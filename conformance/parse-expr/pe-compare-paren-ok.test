@@ -1,0 +1,14 @@
+--- meta
+id: parse-expr/pe-compare-paren-ok
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    let a = 1
+    let b = 2
+    if (a < b) == true { print(1) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0
