@@ -103,7 +103,8 @@ def evaluate_gate(ctx: dict, rules: dict) -> list:
         return "" if chk(n) else str(ctx.get("check_details", {}).get(str(n), ""))[:400]
 
     # 1. Only allowed paths are touched.
-    bad = [f for f in files if not path_allowed(pr.get("role"), f)]
+    roles = pr.get("file_roles") or {}  # per file, from the push that last changed it
+    bad = [f for f in files if not path_allowed(roles.get(f) or pr.get("role"), f)]
     out.append(_res(1, "allowed_paths", bool(files) and not bad,
                     f"refused paths: {bad}" if bad else ("no files" if not files else "")))
 

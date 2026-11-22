@@ -288,6 +288,13 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
     pushers = {(str((e.get("subject") or {}).get("pr")), e["data"]["head_sha"]): e["actor"]
                for e in audit.load_events(root)
                if e["type"] == "pr_updated" and (e.get("data") or {}).get("head_sha")}
+    # Each file is judged by the role of the push that last changed it: a tester who extends a PR that
+    # an implementer already wrote into would otherwise make every implementer file a refused path.
+    last_push = {}
+    for e in audit.load_events(root):
+        if e["type"] == "pr_updated" and (e.get("data") or {}).get("head_sha"):
+            for f in e["data"].get("files") or []:
+                last_push[(str((e.get("subject") or {}).get("pr")), f)] = e["actor"]
     for n in sorted(st["prs"], key=int):
         pr = st["prs"][n]
         if pr["status"] != "open":
@@ -299,12 +306,14 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
             continue
         rfc = st["rfcs"].get(pr["rfc"]) if pr.get("rfc") else None
         bench = _read_json(Path(benchdir) / f"{n}.json") if benchdir else None
+        changed = gitops.changed_files(root, check["base_sha"], check["sha"])
         ctx = {
             "pr": {"class": pr["class"], "role": RO.role_of(roster, pushers.get((n, pr["head_sha"]), pr["author"])),
                    "rfc_present": rfc is not None, "rfc_status": rfc["status"] if rfc else None,
                    "rfc_accepted_super": bool(rfc and rfc.get("accepted_super")),
                    "breaking": bool(rfc and rfc.get("breaking")),
-                   "changed_files": gitops.changed_files(root, check["base_sha"], check["sha"]),
+                   "changed_files": changed,
+                   "file_roles": {f: RO.role_of(roster, last_push[(n, f)]) for f in changed if (n, f) in last_push},
                    "head_sha": pr["head_sha"], "reviews": pr["reviews"]},
             "check_rules": {k: v.get("ok") for k, v in check.get("rules", {}).items()},
             "check_details": {k: v.get("detail", "") for k, v in check.get("rules", {}).items()},

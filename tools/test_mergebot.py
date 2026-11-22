@@ -158,6 +158,11 @@ class GateTests(unittest.TestCase):
         self.assertFalse(self._run(pr=self._pr(changed_files=["governance/RULES.md"]))[1]["ok"])
         self.assertFalse(self._run(pr=self._pr(role="reviewer", changed_files=["compiler/x.ts"]))[1]["ok"])
         self.assertFalse(self._run(pr=self._pr(role="implementer", changed_files=[]))[1]["ok"])
+        # A file judged by its own last push: an implementer's compiler file in a tester's PR passes.
+        mixed = self._pr(role="tester", changed_files=["compiler/stage0/x.ts", "conformance/a.test"],
+                         file_roles={"compiler/stage0/x.ts": "implementer", "conformance/a.test": "tester"})
+        self.assertTrue(self._run(pr=mixed)[1]["ok"])
+        self.assertFalse(self._run(pr=self._pr(role="tester", changed_files=["compiler/stage0/x.ts"]))[1]["ok"])
 
     def test_rule2_language_needs_accepted_rfc(self):
         pr = self._pr(**{"class": "language", "rfc_present": True, "rfc_status": "voting",
