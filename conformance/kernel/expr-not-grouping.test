@@ -1,0 +1,14 @@
+--- meta
+id: kernel/expr-not-grouping
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let a = false
+  let b = true
+  if not a == b { print(1) } else { print(2) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

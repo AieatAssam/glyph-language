@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-expr-chain-lt
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(1 < 2 < 3) }
+--- expect-errors
+{"code": "E0100", "span": {"start": 27}}

@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-expr-literal-over
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(9223372036854775808) }
+--- expect-errors
+{"code": "E0500", "span": {"start": 21}}

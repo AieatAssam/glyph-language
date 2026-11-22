@@ -1,0 +1,13 @@
+--- meta
+id: kernel/expr-neg-mul-value
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let a = 7
+  print(-a * 3)
+}
+--- expect-stdout
+-21
+--- expect-exit
+0
