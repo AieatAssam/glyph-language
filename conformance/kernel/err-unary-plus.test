@@ -5,4 +5,4 @@ kind: compile-error
 --- source
 fn main() io { print(+1) }
 --- expect-errors
-E0100 1
+{"code": "E0100", "span": {"start": 21, "end": 22}}

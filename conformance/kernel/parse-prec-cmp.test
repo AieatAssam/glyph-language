@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-prec-cmp
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    if 1 + 2 * 3 == 7 and 2 < 3 {
+        print(1)
+    }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

@@ -3,6 +3,6 @@ id: kernel/err-literal-neg
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io { print(-9223372036854775808) }
+fn main() io { let a = -9223372036854775808 }
 --- expect-errors
-{"code": "E0500", "span": {"start": 22, "end": 41, "line": 1, "column": 23}}
+{"code": "E0500", "span": {"start": 24, "end": 43}}

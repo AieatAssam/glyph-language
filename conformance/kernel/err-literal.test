@@ -3,9 +3,6 @@ id: kernel/err-literal
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io {
-    let a = 9223372036854775808
-    print(a)
-}
+fn main() io { let a = 9223372036854775808 }
 --- expect-errors
-E0500 2
+{"code": "E0500", "span": {"start": 23, "end": 42}}
