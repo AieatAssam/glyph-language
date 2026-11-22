@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-literal-min-neg
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let m = -9223372036854775808
+}
+--- expect-errors
+{"code": "E0500", "span": {"line": 2, "column": 12}}

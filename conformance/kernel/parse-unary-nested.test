@@ -1,0 +1,17 @@
+--- meta
+id: kernel/parse-unary-nested
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let a = 5
+  print(5 - -a)
+  print(- -a)
+  print(-a * -a)
+}
+--- expect-stdout
+10
+5
+25
+--- expect-exit
+0

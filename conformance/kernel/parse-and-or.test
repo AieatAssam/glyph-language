@@ -4,11 +4,19 @@ rfc: 0020
 kind: run
 --- source
 fn main() io {
-  if true or true and false { print(1) }
-  if false and false or true { print(2) }
+  if true or false and false {
+    print(1)
+  } else {
+    print(2)
+  }
+  if (true or false) and false {
+    print(3)
+  } else {
+    print(4)
+  }
 }
 --- expect-stdout
 1
-2
+4
 --- expect-exit
 0
