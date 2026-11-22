@@ -1,0 +1,11 @@
+--- meta
+id: kernel/expr-literal-neg
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let a = -9223372036854775808
+  print(a)
+}
+--- expect-errors
+{"code": "E0500", "span": {"start": 26, "end": 45, "line": 2, "column": 12}}
