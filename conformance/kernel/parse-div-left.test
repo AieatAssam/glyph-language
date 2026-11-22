@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-div-left
+rfc: 0020
+kind: run
+--- source
+fn main() io { print(8 / 2 / 2) }
+--- expect-stdout
+2
+--- expect-exit
+0

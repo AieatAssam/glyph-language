@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-neg-paren
+rfc: 0020
+kind: run
+--- source
+fn main() io { print(-(-3)) }
+--- expect-stdout
+3
+--- expect-exit
+0

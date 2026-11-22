@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-mod-mul-left
+rfc: 0020
+kind: run
+--- source
+fn main() io { print(7 % 4 * 2) }
+--- expect-stdout
+6
+--- expect-exit
+0

@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-cmp-looser-than-add
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+if 1 + 2 * 3 == 7 and 2 - 1 < 1 + 1 { print(1) } else { print(2) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0
