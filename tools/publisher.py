@@ -51,7 +51,7 @@ ALLOWED = {
     "reviewer": {"review", "comment"},
     "user": {"open_issue", "comment", "vote", "open_pr"},
     "scribe": {"digest", "comment", "open_pr"},
-    "architect": {"comment", "open_issue", "open_pr"},
+    "architect": {"comment", "open_issue", "close_issue", "open_pr"},
     "architect-weekly": {"open_rfc", "revise_rfc", "comment", "open_issue", "open_pr", "update_pr"},
 }
 
@@ -621,8 +621,13 @@ class Publisher:
     def _h_open_issue(self, ses, i, a):
         key = self._key(ses, i)
         prev = self._find(key, self._issues_ep())
+        norm = lambda t: re.sub(r"\W+", " ", str(t).lower()).strip()
+        same = [x["number"] for x in ((self.state or {}).get("issues") or {}).values()
+                if x.get("status") == "open" and norm(x.get("title")) == norm(a["title"])]
         if prev:
             n = prev["number"]
+        elif same:
+            return {"issue": min(same), "duplicate": True}  # same title already open: file nothing
         else:
             args = ["issue", "create", "--title", a["title"], "--body-file", "-"]
             for lab in a["labels"]:

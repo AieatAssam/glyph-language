@@ -710,7 +710,17 @@ class SharedPrAndBriefs(unittest.TestCase):
     def test_architect_brief_lists_open_user_issues(self):
         st = {"rfcs": {}, "issues": {"5": {"number": 5, "title": "Brackets confuse me", "status": "open"}}}
         body = run("architect", state=st)[0].body
-        self.assertIn("## Open user issues\n- #5 Brackets confuse me", body)
+        self.assertIn("\n- #5 Brackets confuse me", body)
+        self.assertIn("close_issue", body)
+
+    def test_use_phase_stops_over_the_open_issue_cap(self):
+        class Card(FakeRepo):
+            def read(self, path, *a, **k):
+                return "card" if path == "spec/card.md" else super().read(path, *a, **k)
+        few = {"rfcs": {}, "issues": {"5": {"number": 5, "title": "Brackets", "status": "open"}}}
+        many = {"rfcs": {}, "issues": {str(n): {"number": n, "title": "t", "status": "open"} for n in range(40)}}
+        self.assertIn("- #5 Brackets", run("use", state=few, repo=Card())[0].body)
+        self.assertEqual(run("use", state=many, repo=Card()), [])
 
 
 if __name__ == "__main__":

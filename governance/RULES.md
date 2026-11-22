@@ -36,6 +36,7 @@ escalation_failures: 3
 subtask_max_changed_lines: 400
 max_out_bytes: 2000000
 max_actions: 50
+max_open_issues: 40
 session:
   timeout_minutes: 30
   max_budget_usd: 2.0

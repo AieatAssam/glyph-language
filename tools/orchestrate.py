@@ -229,10 +229,11 @@ def roadmap_top(repo) -> str:
     return "\n".join(text.splitlines()[:40]) if text else "(no roadmap yet)"
 
 
-def issues_text(state: dict) -> str:
-    rows = [f"- #{n} {i.get('title')}" for n, i in sorted(state.get("issues", {}).items(), key=lambda kv: int(kv[0]))
+def issues_text(state: dict, limit: int = 20) -> str:
+    """Open issues, newest first (the oldest ones used to fill the list for ever)."""
+    rows = [f"- #{n} {i.get('title')}" for n, i in sorted(state.get("issues", {}).items(), key=lambda kv: -int(kv[0]))
             if i.get("status") == "open"]
-    return "\n".join(rows[:20]) or "(no open issues)"
+    return "\n".join(rows[:limit]) or "(no open issues)"
 
 
 class Asg:
@@ -687,13 +688,19 @@ def plan_use(ctx) -> list[Asg]:
     card = ctx.repo.read("spec/card.md")
     if card is None:
         return []
+    # Users found the same gaps every cycle: stop asking while the backlog is over the cap.
+    cap = int(ctx.rules.get("max_open_issues", 40))
+    if sum(1 for i in ctx.state.get("issues", {}).values() if i.get("status") == "open") >= cap:
+        return []
     out = []
     for u in _roles(ctx.roster, "user"):
         out.append(Asg(u, "use", "use", (
             "Write three small programs that solve everyday tasks, using only the spec card and CLI below. "
             "Run each with `bin/glyphc check` and `bin/glyphc run`. For each confusion or failure, file one issue "
             "with `open_issue` (title, body with the program and the message you got, labels []). "
-            "Do not guess at undocumented syntax; report it instead.\n\n"
+            "Do not guess at undocumented syntax; report it instead. File at most two issues, and none that "
+            "an open issue below already covers.\n\n"
+            f"## Open issues\n{issues_text(ctx.state, cap)}\n\n"
             f"## Spec card\n{card}\n\n## CLI\n{CLI_DOC}")))
     return out
 
@@ -723,7 +730,9 @@ def plan_architect(ctx) -> list[Asg]:
             "You may open a PR that only touches `architecture/` to update ROADMAP.md.\n\n"
             + "".join(rfc_block(repo, n, rfcs[n]) for n in open_)
             + f"\n## Spec core\n{spec[:40000]}\n\n## Findings\n{findings_text(repo)}\n\n## Roadmap\n{roadmap_top(repo)}\n"
-            f"\n## Open user issues\n{issues_text(ctx.state)}\n")
+            "\n## Open user issues\nClose with `close_issue` every issue below that duplicates another (keep the "
+            "lowest number and name it in the reason) or that main already resolves. Close as many as your "
+            f"action limit allows.\n{issues_text(ctx.state, 400)}\n")
     return [Asg(arch[0], "architect", "architect", body, rfcs=open_)]
 
 
