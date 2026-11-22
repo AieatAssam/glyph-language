@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-prec-bool
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    if false and false or true { print(1) } else { print(2) }
+    if true or false and false { print(3) } else { print(4) }
+}
+--- expect-stdout
+1
+3
+--- expect-exit
+0

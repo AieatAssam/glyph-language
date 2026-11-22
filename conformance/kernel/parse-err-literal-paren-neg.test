@@ -1,0 +1,8 @@
+--- meta
+id: kernel/parse-err-literal-paren-neg
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(-(9223372036854775808)) }
+--- expect-errors
+{"code": "E0500", "span": {"start": 23, "end": 42}}
