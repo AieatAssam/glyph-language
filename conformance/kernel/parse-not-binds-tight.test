@@ -1,16 +1,12 @@
 --- meta
 id: kernel/parse-not-binds-tight
 rfc: 0020
-kind: run
+kind: compile-error
 --- source
 fn main() io {
-  if not true and false {
-    print(1)
-  } else {
-    print(2)
-  }
+  let a = 1
+  let b = 1
+  if not a == b { print(1) }
 }
---- expect-stdout
-2
---- expect-exit
-0
+--- expect-errors
+{"code":"E0200","span":{"start":48,"end":49,"line":4}}

@@ -7,7 +7,7 @@ fn main() io {
   let a = 1
   let b = 2
   let c = 3
-  let d = a < b < c
+  if a < b < c { print(1) }
 }
 --- expect-errors
-E0100 5
+{"code":"E0100","span":{"start":62,"end":63,"line":5}}

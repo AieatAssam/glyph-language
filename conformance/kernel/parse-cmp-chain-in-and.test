@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-cmp-chain-in-and
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  if 1 < 2 and 3 < 4 < 5 { print(1) }
+}
+--- expect-errors
+{"code":"E0100","span":{"start":36,"end":37,"line":2}}

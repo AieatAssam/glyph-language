@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-mul-binds-tighter
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(2 + 3 * 4)
+  print(2 * 3 + 4)
+}
+--- expect-stdout
+14
+10
+--- expect-exit
+0

@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-lit-neg-min
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(-9223372036854775808)
+}
+--- expect-errors
+{"code":"E0500","span":{"start":24,"end":43,"line":2}}

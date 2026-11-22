@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-cmp-chain-after-lt
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  if 1 < 2 == true { print(1) }
+}
+--- expect-errors
+{"code":"E0100","span":{"start":26,"end":28,"line":2}}

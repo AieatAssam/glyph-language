@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-lit-above
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(9223372036854775808)
+}
+--- expect-errors
+{"code":"E0500","span":{"start":23,"end":42,"line":2}}

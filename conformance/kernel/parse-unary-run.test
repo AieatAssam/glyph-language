@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-unary-run
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if not not true { print(1) }
+  print(-9223372036854775807 - 1)
+  print(-(-9223372036854775807))
+}
+--- expect-stdout
+1
+-9223372036854775808
+9223372036854775807
+--- expect-exit
+0

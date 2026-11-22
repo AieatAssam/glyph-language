@@ -3,6 +3,11 @@ id: kernel/parse-cmp-chain-eq-ge
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io { print(1 == 1 >= 0) }
+fn main() io {
+  let a = 1
+  let b = 2
+  let c = 3
+  if a == b >= c { print(1) }
+}
 --- expect-errors
-E0100 1
+{"code":"E0100","span":{"start":63,"end":65,"line":5}}
