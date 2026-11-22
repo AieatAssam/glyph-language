@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-prec-unary-binary
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(1 - -2)
+  print(-2 * -3)
+  print(-7 % 3)
+}
+--- expect-stdout
+3
+6
+-1
+--- expect-exit
+0

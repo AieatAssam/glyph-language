@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-lit-neg-max
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let x = -9223372036854775808
+  print(x)
+}
+--- expect-errors
+E0500 2

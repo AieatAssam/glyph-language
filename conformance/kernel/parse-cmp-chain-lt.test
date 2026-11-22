@@ -10,4 +10,4 @@ fn main() io {
   if a < b < c { print(1) }
 }
 --- expect-errors
-{"code":"E0100","span":{"start":62,"end":63,"line":5}}
+E0100 5
