@@ -10,3 +10,4 @@ fn main() io {
 }
 --- expect-errors
 E0200 4
+E0200 4

@@ -4,7 +4,8 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  print(+1)
+  let a = +1
+  print(a)
 }
 --- expect-errors
 E0100 2

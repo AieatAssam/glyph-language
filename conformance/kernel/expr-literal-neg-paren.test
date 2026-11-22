@@ -1,0 +1,11 @@
+--- meta
+id: kernel/expr-literal-neg-paren
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let a = -(9223372036854775808)
+  print(1)
+}
+--- expect-errors
+E0500 2

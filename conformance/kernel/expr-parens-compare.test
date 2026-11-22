@@ -4,7 +4,10 @@ rfc: 0020
 kind: run
 --- source
 fn main() io {
-  if (1 < 2) == true { print(1) }
+  let a = 1
+  let b = 2
+  let c = 3
+  if (a < b) == (b < c) { print(1) }
 }
 --- expect-stdout
 1

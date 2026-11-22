@@ -1,0 +1,12 @@
+--- meta
+id: kernel/expr-not-before-or
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if not true or true { print(1) } else { print(2) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

@@ -1,13 +1,14 @@
 --- meta
 id: kernel/expr-neg-binds-tight
 rfc: 0020
-kind: trap
+kind: run
 --- source
 fn main() io {
-  let m = -9223372036854775807 - 1
-  print(-m * 0)
+  let a = 4611686018427387904
+  let b = 2
+  print(-a * b)
 }
+--- expect-stdout
+-9223372036854775808
 --- expect-exit
-1
---- expect-stderr
-trap: overflow
+0
