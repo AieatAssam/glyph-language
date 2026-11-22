@@ -1,9 +1,9 @@
 // Command-line front end for stage0 (RFC 0011 subtasks 3 and 4). It reads no files and starts no
 // processes; it writes only to the two writers it is given, so tests can pass fakes.
 //
-// ponytail: check, run and build need a lexer, and none exists yet, so a source file gets only
-// "glyphc: no front end yet" and exit 2. Ceiling: no program is compiled. Upgrade path: the lexer
-// RFC replaces this branch with real work.
+// run and build of a source file are compiled by main.ts, which calls isCompileCommand from here.
+// ponytail: check still gets "glyphc: no front end yet" and exit 2 for a source file. Ceiling: check
+// does not type-check. Upgrade path: the checker RFC replaces this branch with real work.
 import { toJsonLine, type Diagnostic } from './diagnostic.ts';
 import { isSourceFile } from './source-file.ts';
 
@@ -58,7 +58,7 @@ function notSourceRecord(path: string): Diagnostic {
 }
 
 // True for `check FILE`, `run FILE` and `build FILE -o OUT`, where FILE is a source file.
-function isCompileCommand(argv: readonly string[]): boolean {
+export function isCompileCommand(argv: readonly string[]): boolean {
   const [sub, path] = argv;
   if (path === undefined || !isSourceFile(path)) return false;
   if (sub === 'check' || sub === 'run') return argv.length === 2;
