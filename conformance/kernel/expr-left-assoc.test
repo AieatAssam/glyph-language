@@ -1,0 +1,14 @@
+--- meta
+id: kernel/expr-left-assoc
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(10 - 3 - 2)
+  print(2 + 3 * 4)
+}
+--- expect-stdout
+5
+14
+--- expect-exit
+0

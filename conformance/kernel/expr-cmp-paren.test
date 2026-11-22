@@ -1,0 +1,14 @@
+--- meta
+id: kernel/expr-cmp-paren
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if (1 < 2) == true {
+    print(1)
+  }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

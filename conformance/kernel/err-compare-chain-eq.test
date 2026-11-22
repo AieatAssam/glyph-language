@@ -1,0 +1,12 @@
+--- meta
+id: kernel/err-compare-chain-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  if 1 == 1 == 1 {
+    print(1)
+  }
+}
+--- expect-errors
+E0100 2

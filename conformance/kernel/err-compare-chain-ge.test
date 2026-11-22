@@ -4,7 +4,7 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-if 1 == 1 >= 0 { }
+  if 1 == 1 >= 0 { }
 }
 --- expect-errors
 E0100 2
