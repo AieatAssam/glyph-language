@@ -4,7 +4,10 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  if 1 == 1 >= 0 { }
+    let a = 1
+    let b = 2
+    let c = 3
+    let d = a == b >= c
 }
 --- expect-errors
-E0100 2
+E0100 5
