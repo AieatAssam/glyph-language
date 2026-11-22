@@ -1,0 +1,10 @@
+--- meta
+id: kernel/expr-compare-eq-ge
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+if 1 == 2 >= 3 { print(1) }
+}
+--- expect-errors
+E0100 2
