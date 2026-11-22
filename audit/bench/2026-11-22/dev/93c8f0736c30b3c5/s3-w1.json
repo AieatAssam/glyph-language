@@ -1,0 +1,17 @@
+{
+ "attempt": 1,
+ "compiled": false,
+ "diagnostics": [
+  {
+   "code": "UNKNOWN",
+   "line": null,
+   "message": "compile failed"
+  }
+ ],
+ "key": "93c8f0736c30b3c5",
+ "kind": "write",
+ "pass": false,
+ "sample": 3,
+ "tests": [],
+ "tokens": 328
+}
