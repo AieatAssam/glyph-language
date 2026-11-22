@@ -5,10 +5,10 @@ kind: run
 --- source
 fn main() io {
   print(10 - 4 - 3)
-  print(64 / 4 / 2)
+  print(100 / 10 / 5)
 }
 --- expect-stdout
 3
-8
+2
 --- expect-exit
 0
