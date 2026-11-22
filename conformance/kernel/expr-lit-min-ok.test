@@ -1,0 +1,12 @@
+--- meta
+id: kernel/expr-lit-min-ok
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(-9223372036854775807 - 1)
+}
+--- expect-stdout
+-9223372036854775808
+--- expect-exit
+0
