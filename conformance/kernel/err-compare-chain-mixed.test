@@ -1,0 +1,8 @@
+--- meta
+id: kernel/err-compare-chain-mixed
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io { print(1 != 2 <= 3) }
+--- expect-errors
+E0100 1
