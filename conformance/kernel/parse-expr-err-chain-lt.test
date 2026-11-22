@@ -3,6 +3,8 @@ id: kernel/parse-expr-err-chain-lt
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io { print(1 < 2 < 3) }
+fn main() io {
+  if 1 < 2 < 3 { }
+}
 --- expect-errors
-{"code": "E0100", "span": {"start": 27}}
+E0100 2

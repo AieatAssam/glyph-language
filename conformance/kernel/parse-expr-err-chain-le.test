@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-expr-err-chain-le
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  if 1 < 2 <= 3 { }
+}
+--- expect-errors
+E0100 2

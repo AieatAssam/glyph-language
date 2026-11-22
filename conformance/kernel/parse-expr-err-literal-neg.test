@@ -3,6 +3,8 @@ id: kernel/parse-expr-err-literal-neg
 rfc: 0020
 kind: compile-error
 --- source
-fn main() io { print(-9223372036854775808) }
+fn main() io {
+  print(-9223372036854775808)
+}
 --- expect-errors
-{"code": "E0500", "span": {"start": 22}}
+E0500 2

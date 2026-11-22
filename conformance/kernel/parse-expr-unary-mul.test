@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-expr-unary-mul
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(-2 * 4611686018427387904)
+}
+--- expect-stdout
+-9223372036854775808
+--- expect-exit
+0
