@@ -1,0 +1,15 @@
+--- meta
+id: kernel/parse-cmp-and-ok
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let a = 1
+  let b = 2
+  let c = 3
+  if a < b and b < c { print(1) }
+}
+--- expect-stdout
+1
+--- expect-exit
+0

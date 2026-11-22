@@ -4,7 +4,7 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  print(-9223372036854775808)
+  let a = -9223372036854775808
 }
 --- expect-errors
-{"code":"E0500","span":{"start":24,"end":43,"line":2}}
+{"code":"E0500","span":{"start":26,"end":45,"line":2,"column":12}}

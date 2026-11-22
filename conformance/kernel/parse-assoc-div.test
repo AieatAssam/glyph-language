@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-assoc-div
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(100 / 10 / 2)
+}
+--- expect-stdout
+5
+--- expect-exit
+0

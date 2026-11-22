@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-assoc-sub
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  print(10 - 4 - 3)
+}
+--- expect-stdout
+3
+--- expect-exit
+0
