@@ -4,11 +4,13 @@ rfc: 0020
 kind: run
 --- source
 fn main() io {
-  let a = true
-  let b = false
-  if not a == b { print(1) } else { print(2) }
+let p = true
+let q = false
+if not p == q { print(1) } else { print(2) }
+if not p == p { print(3) } else { print(4) }
 }
 --- expect-stdout
 1
+4
 --- expect-exit
 0

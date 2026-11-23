@@ -1,0 +1,16 @@
+--- meta
+id: kernel/expr-neg-value
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+let a = 6
+let b = 7
+print(-a * b)
+print(-9223372036854775807)
+}
+--- expect-stdout
+-42
+-9223372036854775807
+--- expect-exit
+0
