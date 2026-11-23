@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-parens
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+print(((1 + 2) * (3 + 4)))
+}
+--- expect-stdout
+21
+--- expect-exit
+0

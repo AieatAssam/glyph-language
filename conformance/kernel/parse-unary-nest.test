@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-unary-nest
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+print(-(-5))
+if not not true {
+print(3)
+}
+}
+--- expect-stdout
+5
+3
+--- expect-exit
+0
