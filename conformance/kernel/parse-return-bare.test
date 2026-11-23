@@ -1,0 +1,19 @@
+--- meta
+id: kernel/parse-return-bare
+rfc: 0020
+kind: run
+--- source
+fn show(n: Int) io {
+  if n == 0 {
+    return
+  }
+  print(n)
+}
+fn main() io {
+  show(0)
+  show(5)
+}
+--- expect-stdout
+5
+--- expect-exit
+0

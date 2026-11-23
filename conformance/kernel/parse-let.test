@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-let
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  let x = 1
+  var y: Int = 2
+  print(x + y)
+}
+--- expect-stdout
+3
+--- expect-exit
+0

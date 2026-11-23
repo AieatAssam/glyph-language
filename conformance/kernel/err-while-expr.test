@@ -4,7 +4,7 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-    let x = while false { }
+  print(while true { })
 }
 --- expect-errors
 E0100 2

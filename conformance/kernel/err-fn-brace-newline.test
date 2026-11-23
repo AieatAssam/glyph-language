@@ -1,0 +1,9 @@
+--- meta
+id: kernel/err-fn-brace-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main()
+{ }
+--- expect-errors
+E0100 1

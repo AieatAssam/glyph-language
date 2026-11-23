@@ -4,12 +4,12 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-    if false {
-        print(1)
-    }
-    else {
-        print(2)
-    }
+  if true {
+    print(1)
+  }
+  else {
+    print(2)
+  }
 }
 --- expect-errors
 E0100 4

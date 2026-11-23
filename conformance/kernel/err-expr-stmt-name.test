@@ -4,8 +4,8 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-    var x = 1
-    x
+  let x = 1
+  x
 }
 --- expect-errors
 E0100 3

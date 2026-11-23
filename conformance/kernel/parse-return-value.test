@@ -1,0 +1,15 @@
+--- meta
+id: kernel/parse-return-value
+rfc: 0020
+kind: run
+--- source
+fn twice(n: Int): Int {
+  return n * 2
+}
+fn main() io {
+  print(twice(4))
+}
+--- expect-stdout
+8
+--- expect-exit
+0
