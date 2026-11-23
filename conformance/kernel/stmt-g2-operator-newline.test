@@ -1,0 +1,12 @@
+--- meta
+id: kernel/stmt-g2-operator-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let x = 1 +
+  2
+  print(x)
+}
+--- expect-errors
+E0100 2

@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-g4-not-stmt
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  var b = true
+  not b
+}
+--- expect-errors
+E0100 3

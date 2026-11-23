@@ -4,8 +4,9 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-  while true
-  { }
+  var i = 0
+  while i < 3
+  { i = i + 1 }
 }
 --- expect-errors
-E0100 2
+E0100 3

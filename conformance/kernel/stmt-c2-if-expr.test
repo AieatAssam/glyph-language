@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-c2-if-expr
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let x = if true { 1 } else { 2 }
+  print(x)
+}
+--- expect-errors
+E0100 2

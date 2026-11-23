@@ -1,0 +1,27 @@
+--- meta
+id: kernel/stmt-forms-ok
+rfc: 0020
+kind: run
+--- source
+fn g(): Int { return 5 }
+fn f(a: Int, b: Int) io {
+  print(a + b)
+  return
+}
+fn main() io {
+  let z = 1
+  var x = 1
+  var y: Int = 2
+  x = x + 1
+  f(1, 2)
+  print(g())
+  print(x)
+  print(y)
+}
+--- expect-stdout
+3
+5
+2
+2
+--- expect-exit
+0

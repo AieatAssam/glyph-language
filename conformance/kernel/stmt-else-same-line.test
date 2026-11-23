@@ -1,0 +1,18 @@
+--- meta
+id: kernel/stmt-else-same-line
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if false { print(1) } else { print(2) }
+  if true {
+    print(3)
+  } else {
+    print(4)
+  }
+}
+--- expect-stdout
+2
+3
+--- expect-exit
+0

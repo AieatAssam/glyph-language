@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-c2-while-arg
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  print(while false { })
+}
+--- expect-errors
+E0100 2

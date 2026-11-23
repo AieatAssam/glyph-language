@@ -3,8 +3,7 @@ id: kernel/stmt-g2-fn-newline
 rfc: 0020
 kind: compile-error
 --- source
-fn main()
-{
-}
+fn main() io
+{ print(1) }
 --- expect-errors
 E0100 1
