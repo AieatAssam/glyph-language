@@ -3,28 +3,30 @@ id: kernel/stmt-forms
 rfc: 0020
 kind: run
 --- source
-fn f(a: Int, b: Int) io {
-  print(a + b)
-}
-fn g(): Int {
-  return 7
-}
-fn h() {
+fn show(a: Int, b: Int) io {
+  print(a)
+  print(b)
   return
+}
+fn two(): Int {
+  return 2
 }
 fn main() io {
   let x = 1
   var y: Int = 2
-  y = y + x
-  f(1, 2)
-  print(y)
-  if y == 3 { print(g()) } else { print(0) }
-  h()
+  var w = 1
+  w = w + x
+  show(w, y)
+  show(1, 2)
+  show(two(), 3)
+  return
 }
---- stdin
 --- expect-stdout
+2
+2
+1
+2
+2
 3
-3
-7
 --- expect-exit
 0

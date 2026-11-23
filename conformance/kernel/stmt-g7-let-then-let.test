@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-g7-let-then-let
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+  let a = 1 let b = 2
+  print(a)
+}
+--- expect-errors
+E0100 2
