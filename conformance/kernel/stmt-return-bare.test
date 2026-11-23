@@ -1,0 +1,19 @@
+--- meta
+id: kernel/stmt-return-bare
+rfc: 0020
+kind: run
+--- source
+fn g(n: Int) io {
+    if n == 0 {
+        return
+    }
+    print(n)
+}
+fn main() io {
+    g(0)
+    g(5)
+}
+--- expect-stdout
+5
+--- expect-exit
+0

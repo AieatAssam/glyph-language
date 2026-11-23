@@ -1,0 +1,15 @@
+--- meta
+id: kernel/stmt-return-value
+rfc: 0020
+kind: run
+--- source
+fn h(n: Int): Int {
+    return n * 3
+}
+fn main() io {
+    print(h(4))
+}
+--- expect-stdout
+12
+--- expect-exit
+0

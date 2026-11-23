@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-g2-if-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    if true
+    { print(1) }
+}
+--- expect-errors
+E0100 2

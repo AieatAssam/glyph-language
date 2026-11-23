@@ -1,0 +1,14 @@
+--- meta
+id: kernel/stmt-assign
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    var x = 1
+    x = x + 1
+    print(x)
+}
+--- expect-stdout
+2
+--- expect-exit
+0

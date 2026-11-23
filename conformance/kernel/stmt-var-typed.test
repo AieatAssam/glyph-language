@@ -1,0 +1,13 @@
+--- meta
+id: kernel/stmt-var-typed
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    var y: Int = 2
+    print(y)
+}
+--- expect-stdout
+2
+--- expect-exit
+0

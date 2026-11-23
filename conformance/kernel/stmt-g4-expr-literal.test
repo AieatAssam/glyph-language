@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-g4-expr-literal
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    1 + 2
+}
+--- expect-errors
+E0100 2

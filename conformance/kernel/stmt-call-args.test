@@ -1,0 +1,15 @@
+--- meta
+id: kernel/stmt-call-args
+rfc: 0020
+kind: run
+--- source
+fn f(a: Int, b: Int) io {
+    print(a * 10 + b)
+}
+fn main() io {
+    f(1, 2)
+}
+--- expect-stdout
+12
+--- expect-exit
+0
