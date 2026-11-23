@@ -1,0 +1,13 @@
+--- meta
+id: kernel/parse-expr-chain-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let a = true
+    let b = false
+    let c = true
+    if a == b == c { print(1) }
+}
+--- expect-errors
+E0100 5

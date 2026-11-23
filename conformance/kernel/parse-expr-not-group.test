@@ -1,0 +1,10 @@
+--- meta
+id: kernel/parse-expr-not-group
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+    let x = not 1 == true
+}
+--- expect-errors
+{"code": "E0200", "span": {"start": 31, "end": 32, "line": 2}}

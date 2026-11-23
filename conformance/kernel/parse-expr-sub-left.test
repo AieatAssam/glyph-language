@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-expr-sub-left
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+    print(10 - 3 - 2)
+    print(12 / 4 / 3)
+}
+--- expect-stdout
+5
+1
+--- expect-exit
+0
