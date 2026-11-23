@@ -1,0 +1,19 @@
+--- meta
+id: kernel/parse-stmt-bindings
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+let x = 1
+var y: Int = 2
+y = y + x
+var z = 5
+z = z + 1
+print(y)
+print(z)
+}
+--- expect-stdout
+3
+6
+--- expect-exit
+0

@@ -1,0 +1,15 @@
+--- meta
+id: kernel/parse-stmt-call-args
+rfc: 0020
+kind: run
+--- source
+fn f(a: Int, b: Int) io {
+print(a + b)
+}
+fn main() io {
+f(1, 2)
+}
+--- expect-stdout
+3
+--- expect-exit
+0

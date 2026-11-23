@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-stmt-g3-else-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+if true { print(1) }
+else { print(2) }
+}
+--- expect-errors
+E0100 2

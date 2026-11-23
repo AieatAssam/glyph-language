@@ -1,0 +1,9 @@
+--- meta
+id: kernel/parse-stmt-g2-fn-io-brace
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io
+{ print(1) }
+--- expect-errors
+E0100 1

@@ -1,0 +1,11 @@
+--- meta
+id: kernel/parse-stmt-g4-ident
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+var x = 1
+x + 1
+}
+--- expect-errors
+E0100 3
