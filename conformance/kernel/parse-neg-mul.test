@@ -1,14 +1,14 @@
 --- meta
 id: kernel/parse-neg-mul
 rfc: 0020
-kind: run
+kind: trap
 --- source
 fn main() io {
-let a = 4611686018427387904
-let b = 2
+let a = -9223372036854775807 - 1
+let b = 0
 print(-a * b)
 }
---- expect-stdout
--9223372036854775808
 --- expect-exit
-0
+1
+--- expect-stderr
+trap: overflow

@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-not-eq
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+let a = 1
+let b = true
+let c = not a == b
+}
+--- expect-errors
+{"code":"E0200","span":{"start":50,"end":51,"line":4}}
