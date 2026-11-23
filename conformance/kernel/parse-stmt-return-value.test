@@ -1,0 +1,15 @@
+--- meta
+id: kernel/parse-stmt-return-value
+rfc: 0020
+kind: run
+--- source
+fn one(): Int {
+return 1
+}
+fn main() io {
+print(one())
+}
+--- expect-stdout
+1
+--- expect-exit
+0

@@ -1,0 +1,12 @@
+--- meta
+id: kernel/parse-stmt-err-expr-stmt
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+let x = 1
+1 + 2
+print(x)
+}
+--- expect-errors
+E0100 3

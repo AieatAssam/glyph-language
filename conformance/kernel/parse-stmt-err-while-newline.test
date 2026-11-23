@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-stmt-err-while-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+var i = 0
+while i < 1
+{
+i = i + 1
+}
+}
+--- expect-errors
+E0100 3

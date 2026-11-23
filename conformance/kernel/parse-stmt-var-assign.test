@@ -1,0 +1,14 @@
+--- meta
+id: kernel/parse-stmt-var-assign
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+var y: Int = 2
+y = y + 1
+print(y)
+}
+--- expect-stdout
+3
+--- expect-exit
+0

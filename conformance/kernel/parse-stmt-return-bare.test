@@ -1,0 +1,17 @@
+--- meta
+id: kernel/parse-stmt-return-bare
+rfc: 0020
+kind: run
+--- source
+fn stop(n: Int) io {
+if n == 0 { return }
+print(n)
+}
+fn main() io {
+stop(0)
+stop(5)
+}
+--- expect-stdout
+5
+--- expect-exit
+0

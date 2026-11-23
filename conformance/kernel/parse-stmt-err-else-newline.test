@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-stmt-err-else-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+let c = true
+if c {
+print(1)
+}
+else {
+print(2)
+}
+}
+--- expect-errors
+E0100 5

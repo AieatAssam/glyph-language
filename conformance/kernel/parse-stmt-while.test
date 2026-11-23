@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-stmt-while
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+var i = 0
+while i < 3 {
+i = i + 1
+}
+print(i)
+}
+--- expect-stdout
+3
+--- expect-exit
+0

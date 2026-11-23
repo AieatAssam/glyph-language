@@ -1,0 +1,16 @@
+--- meta
+id: kernel/parse-stmt-err-call-brace-newline
+rfc: 0020
+kind: compile-error
+--- source
+fn f(n: Int): Bool {
+return n == 1
+}
+fn main() io {
+if f(1)
+{
+print(1)
+}
+}
+--- expect-errors
+E0100 5
