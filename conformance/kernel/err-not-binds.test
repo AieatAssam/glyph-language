@@ -1,0 +1,11 @@
+--- meta
+id: kernel/err-not-binds
+rfc: 0020
+kind: compile-error
+--- source
+fn main() io {
+if not 1 == 1 { print(1) }
+}
+--- expect-errors
+E0200 2
+E0200 2
