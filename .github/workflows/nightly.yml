@@ -108,6 +108,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+      issues: write
     env:
       GH_TOKEN: ${{ github.token }}
       BASE_BRANCH: ${{ needs.setup.outputs.base_branch }}

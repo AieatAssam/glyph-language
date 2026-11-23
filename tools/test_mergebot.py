@@ -701,3 +701,16 @@ class BenchRecordTests(RepoTestCase):
             self.nightly(day, dev=6.0, heldout_fitness=5.0)
         self.assertNotIn("overfit_warning", [e["type"] for e in audit.load_events(self.root)])
 
+
+
+class IssueSweep(unittest.TestCase):
+    def test_keeps_newest_distinct_titles_and_closes_the_rest(self):
+        from unittest import mock
+        issues = {str(n): {"number": n, "title": "Same" if n < 30 else f"t{n}", "status": "open"} for n in range(1, 61)}
+        emitted = []
+        with mock.patch.object(MB.S, "load_state", return_value={"issues": issues}), \
+                mock.patch.object(MB.R, "load_rules", return_value={"max_open_issues": 40}), \
+                mock.patch.object(MB.gh, "run", return_value=""), \
+                mock.patch.object(MB, "_emit", side_effect=lambda root, t, subj, *a, **k: emitted.append(subj["issue"])):
+            self.assertEqual(MB.issue_sweep("."), 40)
+        self.assertEqual(sorted(emitted), list(range(1, 41)))

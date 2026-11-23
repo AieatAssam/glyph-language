@@ -73,6 +73,31 @@ def owner_scan(root) -> int:
     return count
 
 
+def issue_sweep(root) -> int:
+    """Close stale and duplicate issues: keep the newest max_open_issues // 2 distinct titles.
+
+    User agents report against one compiler version and nothing closed the reports, so the backlog
+    only grew. An issue that still holds is filed again by the next use phase.
+    """
+    keep = int(R.load_rules(root).get("max_open_issues", 40)) // 2
+    issues = S.load_state(root).get("issues", {})
+    seen, closed = set(), 0
+    for n in sorted((k for k, i in issues.items() if i.get("status") == "open"), key=int, reverse=True):
+        title = re.sub(r"\W+", " ", str(issues[n].get("title")).lower()).strip()
+        if title not in seen and len(seen) < keep:
+            seen.add(title)
+            continue
+        try:
+            gh.run(["issue", "close", n, "--reason", "not planned"], cwd=root)
+        except RuntimeError as e:
+            print(f"issue sweep: {e}", file=sys.stderr)
+            continue
+        _emit(root, "issue_closed", {"issue": int(n)}, {"reason": "stale or duplicate; file again if it still holds"},
+              f"sweep:{n}")
+        closed += 1
+    return closed
+
+
 def cmd_open(root, night=False) -> dict:
     """Verify the chain and record owner changes. A cycle also records its start.
 
@@ -82,6 +107,8 @@ def cmd_open(root, night=False) -> dict:
     if not ok:
         raise SystemExit(f"audit chain broken at seq {bad}")
     out = {"owner_events": owner_scan(root)}
+    if night:
+        out["issues_swept"] = issue_sweep(root)
     if not night:
         cycle = cycle_id()
         _emit(root, "cycle_started", {}, {"cycle": cycle}, f"cycle:{cycle}")
@@ -310,7 +337,9 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
         ctx = {
             "pr": {"class": pr["class"], "role": RO.role_of(roster, pushers.get((n, pr["head_sha"]), pr["author"])),
                    "rfc_present": rfc is not None, "rfc_status": rfc["status"] if rfc else None,
-                   "rfc_accepted_super": bool(rfc and rfc.get("accepted_super")),
+                   # A founding RFC redefines the base syntax, so it may rewrite existing tests (rule 6).
+                   "rfc_accepted_super": bool(rfc and (rfc.get("accepted_super") or re.fullmatch(
+                       r"(name|lexical-syntax|kernel|diagnostic-style)(-v\d+)?", rfc.get("slug") or ""))),
                    "breaking": bool(rfc and rfc.get("breaking")),
                    "changed_files": changed,
                    "file_roles": {f: RO.role_of(roster, last_push[(n, f)]) for f in changed if (n, f) in last_push},

@@ -328,6 +328,15 @@ def plan_design(ctx) -> list[Asg]:
                 objections = "\n".join(f"- {a} ({v['vote']}): {v.get('rationale', '')}"
                                        for a, v in sorted(last.get("votes", {}).items()) if v["vote"] != "approve")
                 spec = {**spec, "slug": f"{spec['slug']}-v{len(tries) + 1}"}
+                if last["status"] == "superseded":  # owner ruling, not a vote: say why, there are no objections
+                    why += ("\n\nThe owner superseded the accepted RFC because it broke the constitution's purpose "
+                            "clause and principles 1 and 8: only language models read and write this language. "
+                            "Redesign for the fewest tokens to generate and parse, measured with the tokeniser: no "
+                            "line break, indentation or space that the grammar does not need (statements and blocks "
+                            "must not depend on newlines), the shortest unambiguous keywords and built-in names "
+                            "instead of full words, no optional forms, no sugar. Keep it unambiguous. This RFC "
+                            "replaces the syntax now on main; its implementation rewrites the existing grammar, "
+                            "example and conformance test.")
                 why += (f"\n\nAttempt {len(tries) + 1}. RFC {tries[-1]} (`rfcs/{tries[-1]}-{last['slug']}.md`) was "
                         f"{last['status']}. Keep what voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
             base = spec["slug"].split("-v")[0] if re.search(r"-v\d+$", spec["slug"]) else spec["slug"]

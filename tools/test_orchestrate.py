@@ -725,3 +725,15 @@ class SharedPrAndBriefs(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Superseded(unittest.TestCase):
+    def test_superseded_founding_rfc_reopens_with_the_token_premise(self):
+        st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="accepted", slug="name"),
+                       "0002": rfc("0002", DESIGNERS[1], status="superseded", slug="lexical-syntax"),
+                       "0003": rfc("0003", DESIGNERS[2], status="accepted", slug="kernel"),
+                       "0004": rfc("0004", DESIGNERS[0], status="accepted", slug="diagnostic-style")}}
+        asgs = run("design", state=st)
+        body = "\n".join(a.body for a in asgs)
+        self.assertIn("lexical-syntax-v2", body)
+        self.assertIn("fewest tokens", body)
