@@ -248,7 +248,7 @@ def run_one(repo, path, work, caps, host):
             if rc != 1:
                 rec["detail"] = "expected compile failure, rc %d" % rc
                 return rec
-            actual = [d for d in _diagnostics(err) if d.get("severity") == "error"]
+            actual = [d for d in _diagnostics(err) if d.get("severity", "error") == "error"]
             expected = _expected(sec["expect-errors"])
             if len(actual) != len(expected) or not _perfect(expected, actual):
                 rec["detail"] = "errors %s, expected %s" % (actual, sec["expect-errors"])
@@ -272,7 +272,7 @@ def run_one(repo, path, work, caps, host):
         elif kind == "fix":
             _, _, err = _glyphc(repo, ["check", str(src)], work)
             fixable = [d for d in _diagnostics(err)
-                       if d.get("severity") == "error" and d.get("fix")]
+                       if d.get("severity", "error") == "error" and d.get("fix")]
             if not fixable:
                 rec["detail"] = "no error with a fix"
                 return rec

@@ -337,6 +337,12 @@ def plan_design(ctx) -> list[Asg]:
                             "instead of full words, no optional forms, no sugar. Keep it unambiguous. This RFC "
                             "replaces the syntax now on main; its implementation rewrites the existing grammar, "
                             "example and conformance test.")
+                    if spec["slug"].startswith("diagnostic-style"):
+                        why += ("\n\nFor diagnostics that means: no prose `message`, no field derivable from "
+                                "another (line and column follow from byte offsets), nothing a model does not "
+                                "need to repair the code. The gate reads JSON Lines on stderr and only the keys "
+                                "`code`, `span.start`, `span.end`, `fix.span` and `fix.replacement`; keep those "
+                                "names and shapes, everything else may go. A missing `severity` means error.")
                 why += (f"\n\nAttempt {len(tries) + 1}. RFC {tries[-1]} (`rfcs/{tries[-1]}-{last['slug']}.md`) was "
                         f"{last['status']}. Keep what voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
             base = spec["slug"].split("-v")[0] if re.search(r"-v\d+$", spec["slug"]) else spec["slug"]
