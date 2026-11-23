@@ -1,0 +1,22 @@
+{
+ "compile1": 0.0,
+ "edits": 0,
+ "fitness": 0.0,
+ "metrics": {
+  "edit1": 0.0,
+  "pass1": 0.0,
+  "pass3": 0.0,
+  "read": 0.0,
+  "repair": 0.0,
+  "token_efficiency": 0.0
+ },
+ "reads": 0,
+ "samples": 180,
+ "tokens_per_task": {},
+ "top_diagnostics": [
+  [
+   "UNKNOWN",
+   540
+  ]
+ ]
+}
