@@ -1,0 +1,13 @@
+--- meta
+id: diag/trap-line
+rfc: 0004
+kind: trap
+--- source
+fn main() io {
+let z = 0
+print(1 / z)
+}
+--- expect-exit
+1
+--- expect-stderr
+trap: divide-by-zero

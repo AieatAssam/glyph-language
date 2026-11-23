@@ -1,0 +1,10 @@
+--- meta
+id: diag/no-output-clean
+rfc: 0004
+kind: run
+--- source
+fn main() io { print(1) }
+--- expect-stdout
+1
+--- expect-exit
+0

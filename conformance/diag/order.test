@@ -1,0 +1,10 @@
+--- meta
+id: diag/order
+rfc: 0004
+kind: compile-error
+--- source
+let a = 1
+	let b = 2
+	let c = 3
+--- expect-errors
+{"code": "E0001", "span": {"start": 10, "end": 11, "line": 2, "column": 1}}
