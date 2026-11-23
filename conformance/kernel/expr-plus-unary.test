@@ -4,7 +4,7 @@ rfc: 0020
 kind: compile-error
 --- source
 fn main() io {
-let d = +1
+  print(+1)
 }
 --- expect-errors
-E0100 2
+{"code": "E0100", "span": {"start": 23, "end": 24, "line": 2}}

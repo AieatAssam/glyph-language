@@ -1,0 +1,16 @@
+--- meta
+id: kernel/expr-and-or-cmp-run
+rfc: 0020
+kind: run
+--- source
+fn main() io {
+  if 1 < 2 and 2 >= 2 or false {
+    print(1)
+  } else {
+    print(2)
+  }
+}
+--- expect-stdout
+1
+--- expect-exit
+0
