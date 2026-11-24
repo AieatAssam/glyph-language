@@ -38,7 +38,10 @@ def rule_4(ctx):
     rc, out, err = conformance._glyphc(ctx["repo"], ["--version"], ctx["repo"])
     out = out.strip()
     if rc != 0 or not out:
-        return False, "bin/glyphc --version rc %d: %s" % (rc, (err or out)[-300:])
+        # Node prints the cause ("Cannot find module ...") first and the stack last: keep both ends.
+        text = err or out
+        shown = text if len(text) <= 300 else text[:150] + " ... " + text[-150:]
+        return False, "bin/glyphc --version rc %d: %s" % (rc, shown)
     return True, "compiler responds: %s" % out.splitlines()[0]
 
 

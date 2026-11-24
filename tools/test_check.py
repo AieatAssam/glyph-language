@@ -145,6 +145,19 @@ class RunnerRobustnessTests(unittest.TestCase):
             self.assertEqual(raw, run.canon(obj))
 
 
+class Rule4DetailTests(unittest.TestCase):
+    def test_detail_keeps_first_line_of_long_node_error(self):
+        err = "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'compile.ts'\n" + "    at stack frame\n" * 40
+        real = conformance._glyphc
+        conformance._glyphc = lambda *a, **k: (1, "", err)
+        try:
+            ok, detail = run.rule_4({"repo": ROOT})
+        finally:
+            conformance._glyphc = real
+        self.assertFalse(ok)
+        self.assertIn("Cannot find module 'compile.ts'", detail)
+
+
 class GlyphcDispatchTests(unittest.TestCase):
     def _copy_dispatcher(self, d):
         (Path(d) / "bin").mkdir()
