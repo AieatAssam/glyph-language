@@ -1,0 +1,10 @@
+--- meta
+id: diag/trap-line
+rfc: 0004
+kind: trap
+--- source
+fn main() io { print(1 / 0) }
+--- expect-stderr
+trap: divide-by-zero
+--- expect-exit
+1
