@@ -1,14 +1,11 @@
-// Diagnostic record and JSON Lines writer (RFC 0004 sections 2 and 3).
-// The field order of the output is fixed here, whatever order the caller builds the object in.
+// Diagnostic record and JSON Lines writer (RFC 0050 sections 2 and 3).
+// The key order of the output is fixed here, whatever order the caller builds the object in.
 
 export type Severity = 'error' | 'warning';
 
 export interface Span {
-  file: string;
   start: number;
   end: number;
-  line: number;
-  column: number;
 }
 
 export interface Fix {
@@ -16,49 +13,16 @@ export interface Fix {
   replacement: string;
 }
 
-export interface Diagnostic {
+// The RFC 0050 record. Absent severity means error. A record has no file, line, column or message.
+export interface DiagnosticRecord {
   code: string;
-  severity: Severity;
-  message: string;
+  // The compiler never writes 'warning' yet.
+  severity?: Severity;
   span: Span;
   fix?: Fix;
 }
 
-function spanJson(span: Span): Span {
-  return {
-    file: span.file,
-    start: span.start,
-    end: span.end,
-    line: span.line,
-    column: span.column,
-  };
-}
-
-// Returns one JSON object as text, with no line feed and no trailing comma.
-// The caller adds the line feed when it writes the record to standard error.
-// The `fix` key is written only when the record has a fix.
-export function toJsonLine(record: Diagnostic): string {
-  const out: Record<string, unknown> = {
-    code: record.code,
-    severity: record.severity,
-    message: record.message,
-    span: spanJson(record.span),
-  };
-  if (record.fix !== undefined) {
-    out.fix = { span: spanJson(record.fix.span), replacement: record.fix.replacement };
-  }
-  return JSON.stringify(out);
-}
-
-// The RFC 0050 record (sections 2 and 3). Part 1a of subtask 1 adds it beside toJsonLine; the
-// callers still use toJsonLine until part 1b moves them and removes the old fields.
-export interface DiagnosticRecord {
-  code: string;
-  // Absent means error. The compiler never writes 'warning' yet.
-  severity?: Severity;
-  span: { start: number; end: number };
-  fix?: { span: { start: number; end: number }; replacement: string };
-}
+export type Diagnostic = DiagnosticRecord;
 
 // Returns one RFC 0050 record as text, with no line feed. Writes the keys code, then severity only
 // when it is not error, then span, then fix when present. No other key is written.
@@ -77,7 +41,7 @@ export function toRecordLine(record: DiagnosticRecord): string {
   return JSON.stringify(out);
 }
 
-// True when the code is a lexical code, E0001 to E0099 (RFC 0004 section 4).
+// True when the code is a lexical code, E0001 to E0099 (RFC 0050 section 4).
 export function isLexical(code: string): boolean {
   const m = /^E(\d{4})$/.exec(code);
   if (m === null) return false;
