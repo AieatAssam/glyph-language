@@ -1,0 +1,10 @@
+--- meta
+id: lex/v4-lf-only
+rfc: 0048
+kind: run
+--- source
+fn main() io {
+}
+--- expect-stdout
+--- expect-exit
+0
