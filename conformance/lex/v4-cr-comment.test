@@ -3,6 +3,6 @@ id: lex/v4-cr-comment
 rfc: 0048
 kind: compile-error
 --- source
-fn main() io { } // note
+fn main() io { } // a
 --- expect-errors
-{"code": "E0001", "span": {"start": 24, "end": 25, "line": 1, "column": 25}}
+{"code": "E0001", "span": {"start": 21, "end": 22, "line": 1, "column": 22}}
