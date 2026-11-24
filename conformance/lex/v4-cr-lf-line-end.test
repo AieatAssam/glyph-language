@@ -1,0 +1,8 @@
+--- meta
+id: lex/v4-cr-lf-line-end
+rfc: 0048
+kind: compile-error
+--- source
+fn main() io { }
+--- expect-errors
+{"code": "E0001", "span": {"start": 16, "end": 17, "line": 1, "column": 17}}

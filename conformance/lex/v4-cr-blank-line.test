@@ -1,0 +1,10 @@
+--- meta
+id: lex/v4-cr-blank-line
+rfc: 0048
+kind: compile-error
+--- source
+  
+
+ 
+--- expect-errors
+{"code": "E0001", "span": {"start": 3, "end": 4, "line": 2, "column": 1}}

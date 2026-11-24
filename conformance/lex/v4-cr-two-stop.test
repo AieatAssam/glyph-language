@@ -1,0 +1,9 @@
+--- meta
+id: lex/v4-cr-two-stop
+rfc: 0048
+kind: compile-error
+--- source
+fn main() io {
+}
+--- expect-errors
+{"code": "E0001", "span": {"start": 14, "end": 15, "line": 1, "column": 15}}
