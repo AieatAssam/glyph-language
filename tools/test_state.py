@@ -98,6 +98,8 @@ class NoopAndCloseTests(unittest.TestCase):
         self.assertEqual(S.replay([opened, big, big])["noops"], {"0007:2": 2})
         updated = ev("pr_updated", {"pr": 30}, {"head_sha": "b"}, "impl-1")
         self.assertEqual(S.replay([opened, noop, updated])["noops"], {})
+        other = ev("pr_updated", {"pr": 30}, {"head_sha": "c", "subtask": 3}, "impl-1")
+        self.assertEqual(S.replay([opened, noop, other])["noops"], {"0007:2": 1})
 
     def test_pr_closed_marks_the_pr_closed(self):
         pr = ev("pr_opened", {"pr": 9}, {"branch": "b", "class": "language", "rfc": "0007",

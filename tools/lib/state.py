@@ -72,8 +72,12 @@ def apply_event(st: dict, ev: dict) -> dict:
     elif t == "pr_updated" and pr is not None:
         if data.get("head_sha"):
             pr["head_sha"] = data["head_sha"]
-        # No-ops escalate only when they come in a row: a published update to the PR clears its counts.
-        for key in [k for k, n in st.get("noop_pr", {}).items() if n == pr["number"]]:
+        # No-ops escalate only when they come in a row: a published update to the same subtask clears its counts.
+        # An update to another subtask of the PR must not reset them (run 45342653347: a subtask 6 publish on PR 71
+        # kept resetting the size refusals of subtasks 1, so the planner never split them).
+        sub = data.get("subtask")
+        for key in [k for k, n in st.get("noop_pr", {}).items() if n == pr["number"]
+                    and (sub is None or k.endswith(f":{int(sub)}"))]:
             st["noops"].pop(key, None)
             st["noop_pr"].pop(key, None)
     elif t == "review_posted" and pr is not None:
