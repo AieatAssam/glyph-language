@@ -50,6 +50,33 @@ export function toJsonLine(record: Diagnostic): string {
   return JSON.stringify(out);
 }
 
+// The RFC 0050 record (sections 2 and 3). Part 1a of subtask 1 adds it beside toJsonLine; the
+// callers still use toJsonLine until part 1b moves them and removes the old fields.
+export interface DiagnosticRecord {
+  code: string;
+  // Absent means error. The compiler never writes 'warning' yet.
+  severity?: Severity;
+  span: { start: number; end: number };
+  fix?: { span: { start: number; end: number }; replacement: string };
+}
+
+// Returns one RFC 0050 record as text, with no line feed. Writes the keys code, then severity only
+// when it is not error, then span, then fix when present. No other key is written.
+export function toRecordLine(record: DiagnosticRecord): string {
+  const out: Record<string, unknown> = { code: record.code };
+  if (record.severity !== undefined && record.severity !== 'error') {
+    out.severity = record.severity;
+  }
+  out.span = { start: record.span.start, end: record.span.end };
+  if (record.fix !== undefined) {
+    out.fix = {
+      span: { start: record.fix.span.start, end: record.fix.span.end },
+      replacement: record.fix.replacement,
+    };
+  }
+  return JSON.stringify(out);
+}
+
 // True when the code is a lexical code, E0001 to E0099 (RFC 0004 section 4).
 export function isLexical(code: string): boolean {
   const m = /^E(\d{4})$/.exec(code);
