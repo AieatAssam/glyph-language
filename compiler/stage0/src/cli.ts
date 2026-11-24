@@ -8,7 +8,7 @@
 // Ceiling: check does not parse or type-check. Upgrade path: the checker RFC replaces this branch.
 import { readFileSync } from 'node:fs';
 import type { Buffer } from 'node:buffer';
-import { toJsonLine, type Diagnostic } from './diagnostic.ts';
+import { toRecordLine } from './diagnostic.ts';
 import { lex } from './lexer/index.ts';
 import { lexErrorLine } from './lexer/records.ts';
 import { isSourceFile } from './source-file.ts';
@@ -26,7 +26,6 @@ export interface Io {
 
 const VERSION = 'glyphc 0.0.0';
 const USAGE = 'usage: glyphc --version | check FILE | run FILE | build FILE -o OUT';
-const NOT_SOURCE = 'source file does not end in .gl';
 
 // Returns the exit status: 0 for --version, 1 for a path that is not a source file or a source file
 // with a lexical error, and 2 for everything else in this subtask.
@@ -38,7 +37,7 @@ export function run(argv: readonly string[], io: Io): number {
   // The source-file rule comes first: a path that is not a source file is never read.
   const [sub, path] = argv;
   if (isCompileSubcommand(sub) && path !== undefined && !isSourceFile(path)) {
-    io.stderr.write(`${toJsonLine(notSourceRecord(path))}\n`);
+    io.stderr.write(`${notSourceLine()}\n`);
     return 1;
   }
   if (isCompileCommand(argv) && path !== undefined) {
@@ -67,15 +66,10 @@ function isCompileSubcommand(sub: string | undefined): boolean {
   return sub === 'check' || sub === 'run' || sub === 'build';
 }
 
-// The one diagnostic for a path that is not a source file (RFC 0011 section 5). The file is not
-// read, so the span is the start of the file.
-function notSourceRecord(path: string): Diagnostic {
-  return {
-    code: 'E0010',
-    severity: 'error',
-    message: NOT_SOURCE,
-    span: { file: path, start: 0, end: 0, line: 1, column: 1 },
-  };
+// The one record for a path that is not a source file (RFC 0011 section 5, RFC 0050 section 2). The
+// file is not read, so the span is the start of the file, and the record names no file.
+function notSourceLine(): string {
+  return toRecordLine({ code: 'E0010', span: { start: 0, end: 0 } });
 }
 
 // True for `check FILE`, `run FILE` and `build FILE -o OUT`, where FILE is a source file.

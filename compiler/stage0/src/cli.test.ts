@@ -7,9 +7,8 @@ import { run } from './cli.ts';
 
 const USAGE = 'usage: glyphc --version | check FILE | run FILE | build FILE -o OUT\n';
 const NO_FRONT_END = 'glyphc: no front end yet\n';
-const NOT_SOURCE_LINE = (file: string) =>
-  '{"code":"E0010","severity":"error","message":"source file does not end in .gl",' +
-  `"span":{"file":"${file}","start":0,"end":0,"line":1,"column":1}}\n`;
+// RFC 0050 section 2: the record has code and span only. The file is not read, so the span is 0 to 0.
+const NOT_SOURCE_LINE = '{"code":"E0010","span":{"start":0,"end":0}}\n';
 
 // Joins text and byte arrays into one file's bytes.
 const bytes = (...parts: (string | number[])[]): Buffer =>
@@ -95,29 +94,28 @@ test('check, run and build with a path that is not a source file give E0010 and 
     ['build', p, '-o', 'out.wasm'],
   ]);
   for (const argv of cases) {
-    const file = argv[1] as string;
-    assert.deepEqual(call(argv), { code: 1, out: '', err: NOT_SOURCE_LINE(file) }, argv.join(' '));
+    assert.deepEqual(call(argv), { code: 1, out: '', err: NOT_SOURCE_LINE }, argv.join(' '));
   }
 });
 
-test('the E0010 record has no fix key and is one line', () => {
+test('the E0010 record has only code and span, and is one line', () => {
   const { err } = call(['check', 'prog.txt']);
   assert.equal(err.split('\n').length, 2);
-  assert.equal(err.includes('"fix"'), false);
+  assert.deepEqual(Object.keys(JSON.parse(err) as object), ['code', 'span']);
 });
 
 test('the source-file rule comes before the argument checks: build without -o still gives E0010', () => {
-  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE('prog.txt') });
-  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: NOT_SOURCE_LINE('prog.txt') });
+  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE });
+  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: NOT_SOURCE_LINE });
 });
 
 test('the source-file rule comes before the read: a non-source path is never read', () => {
   // A reader that throws shows the file was never opened: the answer is still E0010.
-  assert.deepEqual(call(['check', 'prog.txt'], null), { code: 1, out: '', err: NOT_SOURCE_LINE('prog.txt') });
+  assert.deepEqual(call(['check', 'prog.txt'], null), { code: 1, out: '', err: NOT_SOURCE_LINE });
 });
 
 test('a path with a directory part is reported as given', () => {
-  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE('dir/prog.txt') });
+  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: NOT_SOURCE_LINE });
 });
 
 test('a bare check, run or build with no path keeps the usage line', () => {
