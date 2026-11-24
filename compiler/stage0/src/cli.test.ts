@@ -132,28 +132,28 @@ test('a source file that cannot be read exits 2 and names the path', () => {
 });
 
 // Each lexical error: the one record on standard error, exit 1, empty standard output. The record is
-// compared by code, span and key set, since its message is checked by records.test.ts.
-type Case = { name: string; argv: string[]; source: Buffer; code: string; start: number; end: number; line: number; column: number };
+// compared by its exact keys, code and span (RFC 0050 section 2).
+type Case = { name: string; argv: string[]; source: Buffer; code: string; start: number; end: number };
 
 const LEX_ERRORS: Case[] = [
   // A tab after a complete line: the first error is the tab at byte 10.
-  { name: 'tab in code', argv: ['check', 'a.gl'], source: bytes('let a = 1\n', '\t', 'let b = 2\n'), code: 'E0001', start: 10, end: 11, line: 2, column: 1 },
+  { name: 'tab in code', argv: ['check', 'a.gl'], source: bytes('let a = 1\n', '\t', 'let b = 2\n'), code: 'E0001', start: 10, end: 11 },
   // A byte FF, which is never valid UTF-8.
-  { name: 'invalid UTF-8', argv: ['run', 'a.gl'], source: bytes('let a = 1\n', [0xff], '\n'), code: 'E0001', start: 10, end: 11, line: 2, column: 1 },
+  { name: 'invalid UTF-8', argv: ['run', 'a.gl'], source: bytes('let a = 1\n', [0xff], '\n'), code: 'E0001', start: 10, end: 11 },
   // A byte order mark at the start of the file.
-  { name: 'byte order mark', argv: ['build', 'a.gl', '-o', 'out.wasm'], source: bytes([0xef, 0xbb, 0xbf], 'let a = 1\n'), code: 'E0001', start: 0, end: 3, line: 1, column: 1 },
+  { name: 'byte order mark', argv: ['build', 'a.gl', '-o', 'out.wasm'], source: bytes([0xef, 0xbb, 0xbf], 'let a = 1\n'), code: 'E0001', start: 0, end: 3 },
   // A CR that is not followed by LF.
-  { name: 'lone CR', argv: ['check', 'a.gl'], source: bytes('let a = 1\r', 'x\n'), code: 'E0001', start: 9, end: 10, line: 1, column: 10 },
+  { name: 'lone CR', argv: ['check', 'a.gl'], source: bytes('let a = 1\r', 'x\n'), code: 'E0001', start: 9, end: 10 },
   // A printable character outside the token set: `!` not followed by `=`.
-  { name: 'bang alone', argv: ['check', 'a.gl'], source: bytes('let a = !true\n'), code: 'E0001', start: 8, end: 9, line: 1, column: 9 },
+  { name: 'bang alone', argv: ['check', 'a.gl'], source: bytes('let a = !true\n'), code: 'E0001', start: 8, end: 9 },
   // An unknown escape in a text literal: the backslash and the `t` after it.
-  { name: 'bad text escape', argv: ['check', 'a.gl'], source: bytes('let a = "', '\\t"\n'), code: 'E0005', start: 9, end: 11, line: 1, column: 10 },
+  { name: 'bad text escape', argv: ['check', 'a.gl'], source: bytes('let a = "', '\\t"\n'), code: 'E0005', start: 9, end: 11 },
   // A text literal that reaches the line end before its closing quote.
-  { name: 'unterminated text', argv: ['check', 'a.gl'], source: bytes('let a = "ab\n'), code: 'E0005', start: 8, end: 11, line: 1, column: 9 },
+  { name: 'unterminated text', argv: ['check', 'a.gl'], source: bytes('let a = "ab\n'), code: 'E0005', start: 8, end: 11 },
   // An integer with a leading zero.
-  { name: 'leading zero', argv: ['run', 'a.gl'], source: bytes('let a = 007\n'), code: 'E0006', start: 8, end: 11, line: 1, column: 9 },
+  { name: 'leading zero', argv: ['run', 'a.gl'], source: bytes('let a = 007\n'), code: 'E0006', start: 8, end: 11 },
   // A tab on line 1 and a bad escape later: the tab comes first, and the escape error is not reported.
-  { name: 'tab before bad escape', argv: ['check', 'a.gl'], source: bytes('let', '\t', 'a = "', '\\t"\n'), code: 'E0001', start: 3, end: 4, line: 1, column: 4 },
+  { name: 'tab before bad escape', argv: ['check', 'a.gl'], source: bytes('let', '\t', 'a = "', '\\t"\n'), code: 'E0001', start: 3, end: 4 },
 ];
 
 for (const c of LEX_ERRORS) {
@@ -164,19 +164,8 @@ for (const c of LEX_ERRORS) {
     assert.equal(r.err.endsWith('\n'), true);
     assert.equal(r.err.split('\n').length, 2, 'exactly one line');
     const record = JSON.parse(r.err) as Record<string, unknown>;
-    assert.deepEqual(Object.keys(record), ['code', 'severity', 'message', 'span']);
+    assert.deepEqual(Object.keys(record), ['code', 'span']);
     assert.equal(record.code, c.code);
-    assert.deepEqual(record.span, {
-      file: (c.argv[1] as string),
-      start: c.start,
-      end: c.end,
-      line: c.line,
-      column: c.column,
-    });
+    assert.deepEqual(record.span, { start: c.start, end: c.end });
   });
 }
-
-test('the lexical error record names the file as the command gave it', () => {
-  const r = call(['check', 'dir/a.gl'], bytes('let a = 007\n'));
-  assert.equal((JSON.parse(r.err) as { span: { file: string } }).span.file, 'dir/a.gl');
-});

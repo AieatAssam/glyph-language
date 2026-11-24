@@ -51,7 +51,7 @@ export function run(argv: readonly string[], io: Io): number {
     }
     const lexed = lex(bytes);
     if (lexed.error !== null) {
-      io.stderr.write(`${lexErrorLine(lexed.error, bytes, path)}\n`);
+      io.stderr.write(`${lexErrorLine(lexed.error)}\n`);
       return 1;
     }
     // ponytail: see the note at the top of this file.
