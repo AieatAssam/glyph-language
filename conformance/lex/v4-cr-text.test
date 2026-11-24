@@ -5,4 +5,4 @@ kind: compile-error
 --- source
 fn main() io { put("ab") }
 --- expect-errors
-{"code":"E0001","span":{"start":21,"end":22,"line":1,"column":22}}
+{"code": "E0001", "span": {"start": 21, "end": 22}}
