@@ -83,8 +83,10 @@ def apply_event(st: dict, ev: dict) -> dict:
         pr["subtask_failures"][key] = pr["subtask_failures"].get(key, 0) + 1
     elif t == "pr_closed" and pr is not None:
         pr["status"] = "closed"
-    elif t == "subtask_noop" and rk is not None and data.get("subtask") is not None and not data.get("refused"):
-        # A session whose update the publisher refused did the work: that is not a stuck subtask.
+    elif t == "subtask_noop" and rk is not None and data.get("subtask") is not None and (
+            not data.get("refused") or any("changed lines" in str(r) for r in data["refused"])):
+        # A refusal for some other reason (bad path, malformed output) did not count: it may be a fluke. A refusal
+        # for size does count: the subtask is too big as written, and only escalation makes the planner split it.
         key = f"{rk}:{int(data['subtask'])}"
         st.setdefault("noops", {})[key] = st.get("noops", {}).get(key, 0) + 1
         if data.get("pr"):

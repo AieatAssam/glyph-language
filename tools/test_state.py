@@ -87,12 +87,15 @@ class NoopAndCloseTests(unittest.TestCase):
         noop = ev("subtask_noop", {"rfc": "7"}, {"rfc": "0007", "subtask": 2, "pr": 30}, "impl-1")
         self.assertEqual(S.replay([noop, noop])["noops"], {"0007:2": 2})
 
-    def test_refused_noops_do_not_count_and_an_update_clears_the_pr(self):
+    def test_refused_noops_do_not_count_unless_for_size_and_an_update_clears_the_pr(self):
         opened = ev("pr_opened", {"pr": 30}, {"branch": "b", "class": "language", "rfc": "0007",
                                               "author": "impl-1", "head_sha": "a"}, "impl-1")
         noop = ev("subtask_noop", {"rfc": "7"}, {"rfc": "0007", "subtask": 2, "pr": 30}, "impl-1")
         refused = ev("subtask_noop", {"rfc": "7"}, {"rfc": "0007", "subtask": 2, "pr": 30, "refused": ["x"]}, "impl-1")
         self.assertEqual(S.replay([opened, noop, refused])["noops"], {"0007:2": 1})
+        big = ev("subtask_noop", {"rfc": "7"}, {"rfc": "0007", "subtask": 2, "pr": 30,
+                 "refused": ["900 changed lines against main, over the 400 limit"]}, "impl-1")
+        self.assertEqual(S.replay([opened, big, big])["noops"], {"0007:2": 2})
         updated = ev("pr_updated", {"pr": 30}, {"head_sha": "b"}, "impl-1")
         self.assertEqual(S.replay([opened, noop, updated])["noops"], {})
 
