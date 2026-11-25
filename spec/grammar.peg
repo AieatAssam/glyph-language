@@ -1,18 +1,25 @@
-# Grammar for the walking-skeleton program of RFC 0020 (kernel-v8), and nothing wider:
+# Grammar for the walking-skeleton programs of RFC 0020 (kernel-v8), and nothing wider:
 #
 #   fn main() io { print(1) }
+#   fn main() io {
+#   }
 #
-# Each production is the RFC 0020 production of the same name, restricted to the spelling this
-# program uses (single spaces, one line). Later kernel subtasks widen this file one production at a
-# time, each with a conformance test that reaches it.
+# Each production is the RFC 0020 production of the same name, restricted to the spelling these
+# programs use (single spaces, or one LF in an empty block). Later kernel subtasks widen this file one
+# production at a time, each with a conformance test that reaches it.
 #
-# ponytail: spacing is fixed to the program's spelling, and the source is one line. Ceiling: any
-# other layout is rejected here, although RFC 0020's lexer accepts it. Upgrade path: the kernel
-# parser subtasks (plan 6 to 8) add the optional spacing and NEWLINE productions.
+# ponytail: spacing is fixed to the programs' spelling. Ceiling: any other layout is rejected here,
+# although RFC 0020's lexer accepts it. Upgrade path: the kernel parser subtasks (plan 6 to 8) add the
+# optional spacing and NEWLINE productions.
+#
+# ponytail: the empty block `{` LF `}` is accepted here for conformance/lex/v4-lf-only (RFC 0048,
+# whitespace is not a token). Ceiling: parse.ts and codegen.ts do not accept it yet, so this grammar
+# is wider than the compiler for that one shape. Upgrade path: the RFC 0048 parser subtasks (plan 8 to
+# 11) accept an empty block and codegen emits an empty main.
 
 program  <- fn_decl "\n"? !.
 fn_decl  <- "fn " ident "() io " block
-block    <- "{ " call " }"
+block    <- "{\n}" / "{ " call " }"
 call     <- ident "(" int ")"
 ident    <- [A-Za-z_] [A-Za-z0-9_]*
 int      <- [0-9]+
