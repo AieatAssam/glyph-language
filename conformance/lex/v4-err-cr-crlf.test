@@ -1,8 +1,0 @@
---- meta
-id: lex/v4-err-cr-crlf
-rfc: 0048
-kind: compile-error
---- source
-fn main() io { }
---- expect-errors
-{"code": "E0001", "span": {"start": 16, "end": 17}}

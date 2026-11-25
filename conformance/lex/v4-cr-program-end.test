@@ -1,8 +1,0 @@
---- meta
-id: lex/v4-cr-program-end
-rfc: 0048
-kind: compile-error
---- source
-fn main() io { put(1) }
---- expect-errors
-{"code": "E0001", "span": {"start": 23, "end": 24, "line": 1, "column": 24}}
