@@ -36,33 +36,21 @@ Models write Glyph and need one way to write each construct. RFC 0014 and RFC 00
 
 - Statement endings depended on line breaks, through `NEWLINE` and parenthesis depth. A model that loses a line break gets a different program, and the lexer had two rules (rules 14 and 15 of RFC 0014) plus the parser's rules G2 and G3 to explain it. `;` between statements replaces both.
 - `let x: T = e` and `let x = e` were two spellings of the same binding. The checker infers the type, so the annotation is removed.
-- The E0100 position for `->` was disputed (designer-min and designer-safe rejected RFC 0014 on it). Rule 10 now states the position, and rule 13 agrees with it.
+- The E0100 position for `->` was disputed (designer-min and designer-safe rejected RFC 0014 on it). Rule 10 now states the position.
 
 On the counter: `tools/check/tokens.py` charges ceil(n/4) for an alphabetic run of n letters. So `while`, `return`, `example` and `print` cost 2 each, and `wh`, `ret`, `ex` and `put` cost 1. Words of four letters or fewer already cost 1, so `else`, `true`, `and` and the others stay. Each `;` costs 1. Whitespace and line ends are not counted.
 
 ## Design
 
-Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value. A *span* is a half-open range of byte offsets `[start, end)` into the source file, counted from 0 at the file's first byte. A character's span covers all of its bytes.
+Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value.
 
 ### Lexical rules
 
-1. **Source text.** A source file is a byte sequence that must be well-formed UTF-8, by the byte ranges of Unicode Standard Table 3-7:
-   - `00` to `7F`: one byte, a character of its own (subject to rules 2 and 6).
-   - `C2` to `DF`, then one byte `80` to `BF`.
-   - `E0`, then `A0` to `BF`, then `80` to `BF`.
-   - `E1` to `EC` or `EE` to `EF`, then two bytes `80` to `BF`.
-   - `ED`, then `80` to `9F`, then `80` to `BF`.
-   - `F0`, then `90` to `BF`, then two bytes `80` to `BF`.
-   - `F1` to `F3`, then three bytes `80` to `BF`.
-   - `F4`, then `80` to `8F`, then two bytes `80` to `BF`.
+1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-   Any other byte (`80` to `C1`, `F5` to `FF`) cannot start a character. An ill-formed sequence is E0001 with span one byte at its *lead byte*: the byte where the sequence started. This holds for a stray continuation byte (the lead is the byte itself), for a sequence cut short by an ASCII byte (`E2 82 61` is an error at offset of `E2`), and for a sequence cut short by the end of the file.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-   A byte order mark (U+FEFF, bytes `EF BB BF`) is E0001 with span three bytes wherever it appears, including inside comments and text literals.
-
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 with span one byte at that character. A CR is an error even as the first byte of a CR LF pair. The error is at the CR, and the LF after it is never reached as a line end.
-
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. A CR is never a line end, not even as the first byte of a CR LF pair: it is E0001 under rule 2. There is no CR LF rule.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
@@ -76,9 +64,9 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
    Each keyword lexes as its own token kind, never as an identifier. The three shortened keywords replace `while`, `return` and `example`. A keyword where a name is required is E0003 at the keyword (G3). No other word is reserved. The builtin `put` (kernel-v9) is an identifier, so `put` is not a keyword.
 
-8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker, not by the lexer. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
+8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
 
-9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rules 1 and 2 forbid, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. The value of the token is the decoded UTF-8 bytes.
+9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rule 2 forbids, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. A character that rule 1 or 2 forbids, met inside a literal and not after a `\`, is not E0005. It is E0001 at that character (rule 13). So a CR inside a literal, including the CR of `"ab` CR LF, is E0001 at the CR. The value of the token is the decoded UTF-8 bytes.
 
 10. **Punctuation and operators.** The tokens are exactly these nineteen: `( ) { } , : ; = == != < <= > >= + - * / %`. The lexer takes the longest listed token that starts at the current character, reading at most one character ahead. So `==`, `!=`, `<=` and `>=` are each one token. `=>` is two tokens, `=` then `>`. `->` is two tokens, `-` then `>`. The parser reports E0100 at the first token the grammar rejects. For `fn f() -> Int { }` that is the `-`, because after the `)` of a function header the grammar accepts only `:`, `io` or `{`.
 
@@ -86,13 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Which lexical error is reported.** Rules 1 and 2 are a byte check over the whole file. Let `B` be the start offset of the first byte error that check finds, or no `B` if it finds none. The lexer then scans from offset 0 under rules 5 to 11 and 9.
-
-    - If the scan finds a lexical error whose span starts before `B`, that error is reported. This includes an E0005 whose span starts at an opening quote before `B`, even though the scan detects it later.
-    - Otherwise, if `B` exists, the byte error at `B` is reported. So a CR inside a text literal, before any LF, is E0001 at the CR and not E0005.
-    - Otherwise the scan's result is used, which may be no error.
-
-    The lexer reports exactly one error and emits no tokens after it. The lexer reports E0001, E0005 and E0006 only. E0500 is not a lexical error (rule 8). Records follow RFC 0004 section 3.
+13. **One reported error.** A file gives at most one error. It is the error with the lowest start offset among the errors that rules 1, 2, 6, 9 and 11 find, and the leading-zero error of rule 8 (E0006). An E0005 starts at its opening quote. The lexer emits no tokens when it reports an error. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -154,10 +136,10 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: ill-formed UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | One byte at the character's first byte (the lead byte for ill-formed UTF-8). Three bytes for a byte order mark | 1, 2, 3, 6, 9, 11, 13 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 6, 9, 11, 13 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | 9, 13 |
-| E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
+| E0006 | lexical | Integer literal with a leading zero | The literal | 8, 13 |
 | E0100 | syntax | Unexpected token: the grammar does not accept this token at this position | The token. At end of file, the `EOF` token | 10, G1 to G12 |
 | E0500 | limits | Integer literal above 9223372036854775807. Reported by the checker | The literal | 8 |
 
@@ -194,9 +176,11 @@ Spec card: one line for the fourteen keywords, one for the nineteen punctuation 
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). Spans are the byte ranges of the Design's span definition. In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
+Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
+
+Transition. Rules 2 and 3 change what `lex()` accepts, and `compile` calls `lex()`. So node tests that feed a CR LF through `lex()` or `compile` assert the superseded rule, and they change in the same change as the byte check. They are `compiler/stage0/src/codegen.test.ts` (the test that CR LF gives the same module as LF), `compiler/stage0/src/parser/parse.test.ts` (the test that a CR LF after the program changes no tree), and the CR cases of `compiler/stage0/src/lexer/lex.test.ts`. Each is rewritten to expect E0001 at the CR under rule 2. These are node tests, not conformance tests, so the rule against editing conformance tests does not apply to them.
 
 Run tests (each a complete program; `put` as defined by kernel-v9):
 
@@ -221,7 +205,8 @@ Compile-error tests (code and span; the fix is `none`):
 
 | Test | Program | Error at | Code |
 | --- | --- | --- | --- |
-| `v4-err-cr` | `fn main() io {` CR LF ` put(1) }` | the CR, one byte | E0001 |
+| `v4-err-cr` | `fn main() io {` CR LF ` put(1) }` | the CR | E0001 |
+| `v4-err-cr-text` | `fn main() io { put("a` CR LF `b") }` | the CR | E0001 |
 | `v4-err-semi-lead` | `fn main() io { ; put(1) }` | the first `;` | E0100 |
 | `v4-err-semi-trail` | `fn main() io { put(1); }` | the `}` | E0100 |
 | `v4-err-semi-top` | `fn main() io { } ;` | the top-level `;` | E0100 |
@@ -244,7 +229,7 @@ Compile-error tests (code and span; the fix is `none`):
 | `v4-err-keyword-param` | `fn f(ret: Int) io { }` | the `ret` | E0003 |
 | `v4-err-eof` | `fn main() io { put(1)` | the `EOF` | E0100 |
 
-Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`. `lex/int-too-big` is not a lexer test under this RFC: E0500 is reported by the checker (rule 8).
+Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/int-too-big`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`.
 
 Every grammar production is reached by a `v4-` run or compile-error test above, or by an RFC 0014 test: `program`, `fn_decl`, `param`, `ptype`, `rtype`, `block`, all seven `stmt` forms, `args`, and each level of `expr` through `primary`.
 
