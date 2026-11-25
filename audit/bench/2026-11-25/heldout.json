@@ -1,0 +1,11 @@
+{
+ "fitness": 94.0309,
+ "metrics": {
+  "edit1": 0.9655,
+  "pass1": 0.9167,
+  "pass3": 0.9611,
+  "read": 0.8584,
+  "repair": 1.0,
+  "token_efficiency": 1.0
+ }
+}
