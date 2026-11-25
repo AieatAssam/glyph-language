@@ -3,6 +3,6 @@ id: lex/v4-err-cr-alone
 rfc: 0048
 kind: compile-error
 --- source
-fn main() io { }
+fn main()io { }
 --- expect-errors
-E0001 1
+{"code": "E0001", "span": {"start": 9, "end": 10}}

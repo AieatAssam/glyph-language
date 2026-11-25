@@ -3,7 +3,6 @@ id: lex/v4-err-cr-comment
 rfc: 0048
 kind: compile-error
 --- source
-// note
-fn main() io { }
+// notefn main() io { }
 --- expect-errors
-E0001 1
+{"code": "E0001", "span": {"start": 7, "end": 8}}
