@@ -277,7 +277,8 @@ def _founding_impl_pr(prs, rfcs) -> str | None:
     for pn in by_num(prs):
         p = prs[pn]
         r = rfcs.get(str(p.get("rfc")))
-        if p.get("status") == "open" and p.get("subtask") is not None and r and _base(r["slug"]) in FOUNDING_SLUGS:
+        if (p.get("status") == "open" and p.get("subtask") is not None and r and r.get("status") not in DEAD
+                and _base(r["slug"]) in FOUNDING_SLUGS):
             return pn
     return None
 

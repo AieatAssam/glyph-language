@@ -195,6 +195,16 @@ class Caps(unittest.TestCase):
         out = [a for a in run("implement", state=st, repo=repo) if a.kind == "subtask"]
         self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in out], [("0014", 30)])
 
+    def test_superseded_founding_pr_is_not_the_shared_pr(self):
+        # Run r45588600550: a superseded RFC's stale open PR (71) kept capturing successor work.
+        st = {"rfcs": {"0020": rfc("0020", DESIGNERS[0], slug="kernel-v8", status="superseded"),
+                       "0048": rfc("0048", DESIGNERS[1], slug="lexical-syntax-v4", status="implementing")},
+              "prs": {"71": {"number": 71, "rfc": "0020", "status": "open", "subtask": 6, "branch": "agent/impl-0020"},
+                      "384": {"number": 384, "rfc": "0048", "status": "open", "subtask": 1, "branch": "agent/impl-0048"}}}
+        repo = FakeRepo(files={"rfcs/0020.plan.md": "- [ ] 6. a\n", "rfcs/0048.plan.md": "- [ ] 1. b\n"})
+        out = [a for a in run("implement", state=st, repo=repo) if a.kind == "subtask"]
+        self.assertEqual([(a.header.get("rfc"), a.header.get("pr")) for a in out], [("0048", 384)])
+
     def test_blocked_plan_line_yields_the_shared_pr(self):
         st = {"rfcs": {"0004": rfc("0004", DESIGNERS[0], slug="diagnostic-style", status="implementing"),
                        "0014": rfc("0014", DESIGNERS[1], slug="lexical-syntax-v3", status="implementing")},
