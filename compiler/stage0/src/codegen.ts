@@ -1,7 +1,7 @@
 // Code generation for the walking-skeleton program (RFC 0014 subtask 6, stage 3): one function
-// `main` with the io effect whose body is one call `print(INT)`. The module is a WASI command: it
-// imports fd_write and proc_exit (through the trap runtime), exports memory, and exports `_start`
-// as the function `main`.
+// `main` with the io effect whose body is one call `print(INT)`, or an empty body (RFC 0048 `{ }`).
+// The module is a WASI command: it imports fd_write and proc_exit (through the trap runtime), exports
+// memory, and exports `_start` as the function `main`.
 //
 // ponytail: only this shape is generated. Ceiling: any other callee, or any other function name,
 // makes generate throw. Upgrade path: the kernel's checker and code generator replace this file one
@@ -19,20 +19,26 @@ export function generate(tree: Program): Uint8Array {
   if (fn.name.text !== 'main') {
     throw new Error(`codegen: the function must be main, not ${fn.name.text}`);
   }
-  if (fn.body.callee.text !== 'print') {
-    throw new Error(`codegen: only print can be called, not ${fn.body.callee.text}`);
-  }
-  // The lexer keeps the digits as written. A value above INT_MAX is the checker's E0500, which does
-  // not exist yet, so codegen refuses it rather than wrap it.
-  const value = BigInt(fn.body.arg.text);
-  if (value > INT_MAX) {
-    throw new Error('codegen: integer literal is above the Int range');
+  const body = new Op();
+  if (fn.body !== null) {
+    if (fn.body.callee.text !== 'print') {
+      throw new Error(`codegen: only print can be called, not ${fn.body.callee.text}`);
+    }
+    // The lexer keeps the digits as written. A value above INT_MAX is the checker's E0500, which does
+    // not exist yet, so codegen refuses it rather than wrap it.
+    const value = BigInt(fn.body.arg.text);
+    if (value > INT_MAX) {
+      throw new Error('codegen: integer literal is above the Int range');
+    }
+    body.i64Const(value);
+    // The print call is added below, once the runtime exists.
   }
 
   const m = new ModuleBuilder();
   const rt = addTrapRuntime(m);
   const p = addPrintRuntime(m, rt);
-  const main = m.addFunc([], [], new Op().i64Const(value).call(p.printInt));
+  if (fn.body !== null) body.call(p.printInt);
+  const main = m.addFunc([], [], body);
   m.exportFunc('_start', main);
   return m.toBytes();
 }

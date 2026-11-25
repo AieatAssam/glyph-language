@@ -34,10 +34,10 @@ export interface Call {
   end: number;
 }
 
-// fn NAME ( ) io BODY. Its span runs from `fn` to the closing brace.
+// fn NAME ( ) io BODY. Its span runs from `fn` to the closing brace. A BODY of `{ }` has no call (null).
 export interface FnDecl {
   name: Ident;
-  body: Call;
+  body: Call | null;
   start: number;
   end: number;
 }
@@ -120,7 +120,10 @@ function fnDecl(c: Cursor): FnDecl {
   c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
   c.expect(Kind.LBRACE);
-  const body = call(c);
+  // ponytail: an empty block `{ }` (RFC 0048 `block = "{" [ stmt ] "}"`, with spacing not kept) is
+  // accepted, and so is the one-call body. Ceiling: no statement but the call. Upgrade path: the
+  // kernel parser subtasks add the statement forms.
+  const body = c.peek().kind === Kind.RBRACE ? null : call(c);
   const close = c.expect(Kind.RBRACE);
   return { name, body, start: fnTok.start, end: close.end };
 }

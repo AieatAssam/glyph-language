@@ -37,6 +37,12 @@ test('a trailing LF or CR LF changes no tree', () => {
   assert.deepEqual(parseText(PROGRAM + '\r\n'), plain);
 });
 
+test('an empty block with a line end parses to a function with no call (RFC 0048)', () => {
+  assert.deepEqual(parseText('fn main() io {\n}'), {
+    tree: { fn: { name: { text: 'main', start: 3, end: 7 }, body: null, start: 0, end: 16 } },
+  });
+});
+
 test('a missing io effect is E0100 at the opening brace', () => {
   assert.deepEqual(parseText('fn main() { print(1) }'), {
     error: { code: 'E0100', start: 10, end: 11 },
