@@ -497,6 +497,20 @@ class RealGitTests(unittest.TestCase):
         self.assertEqual(self.git(self.bare, "log", "-1", "--format=%an", "refs/heads/agent/stdlib-add-strings"),
                          "impl-1")
 
+    def test_update_merges_base_into_stale_branch(self):
+        pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
+        pub._commit("agent/x", "main", [("stdlib/a.glyph", b"a\n")], "open", "impl-1")
+        (self.root / "new.txt").write_text("from main\n", encoding="utf-8")
+        self.git(self.root, "add", "new.txt")
+        self.git(self.root, "commit", "-q", "-m", "main moves on")
+        self.git(self.root, "push", "-q", "origin", "HEAD:main")
+        pub._commit("agent/x", "agent/x", [("stdlib/b.glyph", b"b\n")], "update", "impl-1")
+        tip = "refs/heads/agent/x"
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:new.txt"), "from main")
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:stdlib/a.glyph"), "a")
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:stdlib/b.glyph"), "b")
+        self.git(self.bare, "merge-base", "--is-ancestor", "refs/heads/main", tip)
+
     def test_real_mode_never_pushes_outside_agent(self):
         pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
         with self.assertRaises(P.PublishError):

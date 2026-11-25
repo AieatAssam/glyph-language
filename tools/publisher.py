@@ -362,6 +362,21 @@ class Publisher:
         try:
             self._git(["fetch", "--quiet", "origin", f"refs/heads/{base_branch}"])
             parent = self._git(["rev-parse", "FETCH_HEAD"])
+            who = dict(gitops.git_env(), GIT_AUTHOR_NAME=agent,
+                       GIT_AUTHOR_EMAIL=f"{agent}@agents.glyph-language.invalid",
+                       GIT_COMMITTER_NAME="glyph-publisher",
+                       GIT_COMMITTER_EMAIL="glyph-publisher@users.noreply.github.com")
+            if base_branch == branch:
+                # An update first merges what the base gained since, because the agent worked on the base:
+                # else a stale branch misses files its new code uses. On a conflict keep the old parent.
+                self._git(["fetch", "--quiet", "origin", f"refs/heads/{self.base}"])
+                base_tip = self._git(["rev-parse", "FETCH_HEAD"])
+                res = subprocess.run(["git", "merge-tree", "--write-tree", parent, base_tip], cwd=self.root,
+                                     env=gitops.git_env(), capture_output=True)
+                merged = res.stdout.decode().split("\n")[0].strip()
+                if res.returncode == 0 and merged != self._git(["rev-parse", f"{parent}^{{tree}}"]):
+                    parent = self._git(["commit-tree", merged, "-p", parent, "-p", base_tip,
+                                        "-m", f"Merge {self.base} into {branch}"], env=who)
             self._git(["read-tree", parent], env=env)
             for path, data in changes:
                 if data is None:
@@ -370,10 +385,6 @@ class Publisher:
                     blob = self._git(["hash-object", "-w", "--stdin"], env=env, stdin=data)
                     self._git(["update-index", "--add", "--cacheinfo", f"100644,{blob},{path}"], env=env)
             tree = self._git(["write-tree"], env=env)
-            who = dict(gitops.git_env(), GIT_AUTHOR_NAME=agent,
-                       GIT_AUTHOR_EMAIL=f"{agent}@agents.glyph-language.invalid",
-                       GIT_COMMITTER_NAME="glyph-publisher",
-                       GIT_COMMITTER_EMAIL="glyph-publisher@users.noreply.github.com")
             sha = self._git(["commit-tree", tree, "-p", parent, "-m", message], env=who)
             # A new PR starts from base. A same-named branch left by a merged or closed PR is dead
             # (callers only create when no open PR uses it), so replace it; updates fast-forward.
