@@ -1,0 +1,8 @@
+--- meta
+id: lex/v4-err-cr-alone
+rfc: 0048
+kind: compile-error
+--- source
+fn main() io { }
+--- expect-errors
+E0001 1

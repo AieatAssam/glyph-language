@@ -1,0 +1,10 @@
+--- meta
+id: lex/v4-err-cr-lf
+rfc: 0048
+kind: compile-error
+--- source
+fn main() io {
+  put(1)
+}
+--- expect-errors
+E0001 2
