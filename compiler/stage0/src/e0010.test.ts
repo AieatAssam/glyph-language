@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-type Entry = { code: string; message: string; meaning: string; retired?: boolean };
+type Entry = { code: string; meaning: string; retired?: boolean };
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const catalogue = JSON.parse(readFileSync(`${here}../../../spec/errors.json`, 'utf8')) as Entry[];
