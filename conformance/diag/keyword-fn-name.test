@@ -1,0 +1,9 @@
+--- meta
+id: diag/keyword-fn-name
+rfc: 0050
+kind: compile-error
+--- source
+fn let() io { }
+fn main() io { }
+--- expect-errors
+{"code":"E0003","span":{"start":3,"end":6}}
