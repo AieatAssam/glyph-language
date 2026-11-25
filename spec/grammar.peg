@@ -12,10 +12,10 @@
 # although RFC 0020's lexer accepts it. Upgrade path: the kernel parser subtasks (plan 6 to 8) add the
 # optional spacing and NEWLINE productions.
 #
-# ponytail: the empty block `{` LF `}` is accepted here for conformance/lex/v4-lf-only (RFC 0048,
-# whitespace is not a token). Ceiling: parse.ts and codegen.ts do not accept it yet, so this grammar
-# is wider than the compiler for that one shape. Upgrade path: the RFC 0048 parser subtasks (plan 8 to
-# 11) accept an empty block and codegen emits an empty main.
+# ponytail: the empty block is `{` LF `}` (RFC 0048, conformance/lex/v4-lf-only). Both parse.ts and
+# codegen.ts accept it. This grammar lists only the LF form, so `{}` and `{ }` are rejected by both
+# (E0100). Upgrade path: the RFC 0048 parser subtasks (plan 8 to 11) add the other spacings of an
+# empty block, each with its own production and test.
 
 program  <- fn_decl "\n"? !.
 fn_decl  <- "fn " ident "() io " block

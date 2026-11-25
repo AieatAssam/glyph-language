@@ -67,11 +67,20 @@ class Stop {
 
 // Reads the token stream as the grammar sees it. NEWLINE tokens are skipped (see the ponytail note).
 class Cursor {
+  private readonly all: readonly Token[];
   private readonly tokens: Token[];
   private pos = 0;
 
   constructor(tokens: readonly Token[]) {
+    this.all = tokens;
     this.tokens = tokens.filter((t) => t.kind !== Kind.NEWLINE);
+  }
+
+  // True when the next token is `}` and exactly one LF sits between it and the `{` before it: the
+  // empty block of the form `"{" LF "}"` in spec/grammar.peg.
+  lfEmptyBlockNext(): boolean {
+    const i = this.all.indexOf(this.peek());
+    return i >= 2 && this.all[i - 1]?.kind === Kind.NEWLINE && this.all[i - 2]?.kind === Kind.LBRACE;
   }
 
   peek(): Token {
@@ -120,10 +129,10 @@ function fnDecl(c: Cursor): FnDecl {
   c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
   c.expect(Kind.LBRACE);
-  // ponytail: an empty block `{ }` (RFC 0048 `block = "{" [ stmt ] "}"`, with spacing not kept) is
-  // accepted, and so is the one-call body. Ceiling: no statement but the call. Upgrade path: the
-  // kernel parser subtasks add the statement forms.
-  const body = c.peek().kind === Kind.RBRACE ? null : call(c);
+  // ponytail: the empty block is accepted only in the form `{` LF `}`, the one spelling that
+  // spec/grammar.peg lists; `{}` and `{ }` stay E0100. Ceiling: no statement but the call. Upgrade
+  // path: the kernel parser subtasks add the statement forms and the other spacings.
+  const body = c.peek().kind === Kind.RBRACE && c.lfEmptyBlockNext() ? null : call(c);
   const close = c.expect(Kind.RBRACE);
   return { name, body, start: fnTok.start, end: close.end };
 }
