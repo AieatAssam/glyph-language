@@ -1,0 +1,8 @@
+--- meta
+id: diag/keyword-let-in-block
+rfc: 0050
+kind: compile-error
+--- source
+fn main() io { let let = 1 }
+--- expect-errors
+{"code":"E0003","span":{"start":19,"end":22}}
