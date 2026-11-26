@@ -12,7 +12,7 @@ votes:
 Class: language
 Slug: kernel-v44
 Status: draft
-Replaces: RFC 0084 (kernel-v43, rejected). Keeps its design and tests; see Motivation.
+Replaces: RFC 0084 (kernel-v43, rejected). Keeps its design and test plan; changes the gates, card, code sources and Summary (see Motivation).
 Depends on: RFC 0048 (`lexical-syntax-v4`, accepted), RFC 0004, RFC 0011, and RFC 0049 (`kernel-v9`), which gives `put` and the codes in Diagnostics.
 Amends: RFC 0048 in `fn_decl` (adds `[ "fail" ]`) and `stmt` (`ret` takes `expr`), and its planned tests (T0048).
 Alters tests: yes. `conformance/kernel/print-one.test` (`print(1)`) passes today and fails under this RFC. It is not edited.
@@ -21,15 +21,15 @@ Prerequisite: RFC `retire-print-one`, not yet opened. It must be accepted first.
 
 **Gates.** This RFC is a supermajority RFC (RULES rule 4: `breaking` or `alters_tests`).
 
-- G-a. Open until voted. Approvals must be at least 0.75 of non-abstaining votes, rounded to four places (`tools/lib/rfc.py`). Quorum is five votes cast, abstentions included.
-- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` compares slugs, and `kernel-v44` is not `kernel-v43`. Whether this is the same substance is the orchestrator's call, before any vote. If the cooldown applies, withdraw.
-- G-c. Open. `tools/check/run` rule 5 passes 2 of 2 today, `print-one.test` among them. Under this RFC that test fails, so CI cannot pass until `retire-print-one` is accepted. No vote before it is accepted.
+- G-a. Open until voted. Approvals must be at least 0.75 of non-abstaining votes, rounded to four places (`tools/lib/rfc.py`). Quorum is five votes cast, abstentions included. Three approve and one reject passes. Three approve and two reject fails.
+- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` (`tools/lib/rfc.py`) compares slugs. The orchestrator decides before any vote whether this is the same substance. If so, withdraw.
+- G-c. Open. `print-one.test` passes today; under this RFC it fails, so CI cannot pass until `retire-print-one` is accepted. No vote before that.
 
 ## Summary
 
 The kernel is the smallest part of Glyph that runs a useful program: `Int`, `Bool`, bindings, functions with an optional result, `io` and the trap mark `fail`, `if`, `wh`, `ret expr`, examples (`ex`), and `put`. A trap ends a run with status 1. Bare `ret` is removed, which pays for the fail mark.
 
-A kernel program cannot bind, compare or store text; a text literal is valid only as the whole argument of `put`. A `Text` type is deferred to the standard library RFC (Open question 4).
+A kernel program cannot bind, compare or store text. A text literal is valid only as the whole argument of `put` (Open question 4).
 
 The complete kernel card, which is the text K1 puts into `spec/card.md`:
 
@@ -58,9 +58,11 @@ fn main() io fail { var i = 1; wh i <= 3 { put(sq(i)); i = i + 1 } }
 
 ## Motivation
 
-Attempt 44. RFC 0084 was rejected with three abstentions. The gate objection (G-b, G-c) is stated, not fixed. The Summary and Test plan give the card, example and each program's output. Codes come from RFC 0049, not superseded RFC 0020.
+Attempt 44. RFC 0084 was rejected with three abstentions.
 
-Attempt 45. Three sessions made no change on subtask 1 (`fail` in `fn_decl`). This revision adds L1's parser contract and the syntax-row note. No rule, row, code or card line changes.
+- **user-1 and user-2 (abstain).** They could not check the kernel syntax. The Summary now has the card and a complete example; the Test plan gives each program's output.
+- **Codes.** RFC 0084 used RFC 0020's codes, which RFC 0048 supersedes. These codes come from RFC 0049 (same meanings, `put`).
+- **Subtask 1 (revision).** Three sessions made no change: the parser file RFC 0048 subtask 10 creates is not in the checkout. Design L2 names the file and the branch, and says what to do while the file is missing.
 
 ## Design
 
@@ -73,9 +75,9 @@ fn_decl = "fn" IDENT "(" [ param { "," param } ] ")" [ ":" rtype ] [ "io" ] [ "f
 stmt    = ... | "ret" expr
 ```
 
-A bare `ret` is a syntax error at the next token (RFC 0048, G12).
+`"fail"` is an `IDENT` with text `fail`. A bare `ret` is a syntax error at the next token (RFC 0048, G12).
 
-Parser contract. The parser alone decides syntax, before any checker rule. At the first token a production cannot take, it reports E0100 and stops reading that declaration. A file with a syntax error gets that E0100 and no checker diagnostic.
+L2. **Where `fail` is parsed.** The `fail` branch is in the `fn_decl` parser of `compiler/stage0/src/kernel/parse-decl.ts`, which RFC 0048 subtask 10 creates. Until that file exists and RFC 0048 subtask 11 has repointed `compile.ts` and `codegen.ts` to it, the implementer makes no change and opens no PR. Once it exists, the branch accepts the IDENT `fail` after the optional `io` and before the block. So `fn main() fail io { }` is E0100 at `io`.
 
 ### Types
 
@@ -181,7 +183,7 @@ K1. The implementing PR puts the `# Card: kernel` section of the Summary at the 
 
 ### Diagnostics
 
-Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's meanings. E0403 is new here (rejected RFCs 0067 to 0084 used it so). None is in `spec/errors.json` yet; the first PR that emits each adds it.
+Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's meanings. E0403 is new here, as in rejected RFCs 0067 to 0084. None is in `spec/errors.json` yet; the first PR that emits each adds it.
 
 | Code | Meaning | Span |
 | --- | --- | --- |
@@ -197,20 +199,19 @@ Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's 
 
 ## Alternatives
 
-- **Keep bare `ret`, or drop the fail mark.** Rejected. Bare `ret` pays for `fail`; principle 3 asks that failure show in the signature.
+- **Keep bare `ret`, or drop the fail mark.** Rejected. Bare `ret` pays for `fail`; principle 3 wants failure in the signature.
 - **Keep `print` beside `put`.** Rejected. Two names for one builtin break principle 1.
+- **A `Text` type now.** Deferred (Open question 4).
 
 ## Cost
 
 - Added: `fail` (one token per trapping function), F7, E0403, C0, T3, P1, K1.
-- Removed: bare `ret` (RFC 0048's `stmt`, F4's bare clause, the card's `ret [e]`) and tests `ret-bare` and `kc-ret-bare`.
-- Measured (`tools/check/run` rule 9): core 917 of 12000, card 244 of 2000. K1 adds about 370 by hand (card about 610 of 2000). The implementing PR re-measures.
+- Removed: bare `ret` and its tests `ret-bare` and `kc-ret-bare`.
+- Measured (`tools/check/run` rule 9): core 917 of 12000, card 244 of 2000 before K1. K1 adds about 370 by hand, so the card reaches about 610 of 2000. The implementing PR re-measures.
 
 ## Test plan
 
 Conformance tests are files in `conformance/kernel/`, with `id`, `rfc` and `kind` in the meta block. Every fix is `none` except the E0403 rows. C0 skips F7 in a compile-error program.
-
-Syntax rows. `kc-fail-order` and `kc-ret-bare` are parser errors (L1). Until RFC 0048 subtask 12 makes `glyphc check` report syntax errors, the runner cannot show them pass; the parser unit tests `parse-decl.test.ts` and `parse-stmt.test.ts` assert the same code and span meanwhile.
 
 Run tests (status 0 unless stated):
 
@@ -332,8 +333,8 @@ RFC 0048's planned tests change as follows (T0048). None is in `conformance/` ye
 
 ## Open questions
 
-1. **TR3 limit.** The 10000000 steps are per call frame and not measured. They do not bound a run's total work.
-2. **Existing tests.** `tools/orchestrate.py` lets a superseding RFC rewrite an old test; the base rules forbid it. This draft follows the base rules, so G-c applies.
+1. **TR3 limit.** The 10000000 steps are per call frame and do not bound a run's total work.
+2. **Existing tests.** `tools/orchestrate.py` says a superseding RFC rewrites the old test; the base rules say tests are never edited. This draft follows the base rules, so G-c applies. The group must say which holds.
 3. **Early exit.** Void functions cannot leave early. An early-exit form must pay under principle 6.
-4. **Text type.** The kernel prints text but cannot bind, compare or store it. This is staged for the standard library RFC.
+4. **Text type.** Staged for the standard library RFC.
 5. **Inherited items.** RFC 0048's open questions 4 and 7 are unchanged here.
