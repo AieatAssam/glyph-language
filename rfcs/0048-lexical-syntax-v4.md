@@ -48,13 +48,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. A CR is therefore never a line end and never whitespace, in any context. A CR LF pair is two characters, and the CR is E0001.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A line end leaves no record and no state. The lexer does not report where line ends are.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule.
 
-4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). Whitespace is skipped by position alone. Rule 2 has already rejected every other control character in the file, so skipping never meets a CR or a tab (rule 13).
+4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token and no record. Inside a comment a `"` starts nothing. A `/` not followed by `/` is the division token (rule 10).
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. A CR inside a comment is E0001 at the CR (rule 2), so it does not end the comment. There are no block comments. A comment produces no token.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** The lexer checks every byte of the file against rules 1 and 2 before it reads any token. If that check finds an error, let B be the offset of its first byte. The scan then covers only the bytes before B. If the scan finds an error from rules 6, 8, 9 or 11 whose span ends at or before B, that scanner error is reported. Otherwise the byte error at B is reported. If the byte check finds no error, the first scanner error is reported. The lexer reports one error and emits no tokens. The codes are E0001, E0005 and E0006. E0500 is not a lexer code (rule 8). Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** A file may contain more than one lexical error (E0001, E0005, E0006, or E0500 where the lexer sees it). The one reported is the error whose span starts at the lowest byte offset. Lexing stops there, and no token is emitted after it. A file with a lexical error gives no tokens at all: the lex result is the error alone, and the parser does not run. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -225,8 +225,6 @@ Compile-error tests (code and span; the fix is `none`):
 | `v4-err-keyword-fn` | `fn io() io { }` | the `io` | E0003 |
 | `v4-err-keyword-param` | `fn f(ret: Int) io { }` | the `ret` | E0003 |
 | `v4-err-eof` | `fn main() io { put(1)` | the `EOF` | E0100 |
-
-- `v4-err-order`: the program is `fn main() io { put("a`, then LF, then `}`, then CR, then LF. The first error is E0005 at the span from the opening quote up to the LF, because that scanner error ends before the CR (rule 13). The CR is not reported. Code E0005.
 
 Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/int-too-big`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`.
 
