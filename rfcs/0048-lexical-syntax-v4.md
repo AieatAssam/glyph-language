@@ -48,13 +48,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. A CR is rejected when the scanner reaches it. It is never read as a line end, as the first half of a pair, or as part of a comment or token.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is the only line end. It is whitespace and produces no token. It also ends a comment (rule 5). There is no CR LF rule. A CR followed by an LF is E0001 at the CR (rule 2), and the LF is never reached.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. CR is never whitespace and never a line end. Rule 2 makes every CR E0001, so a file that contains a CR is rejected before any token is read. There is no CR LF rule.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment. The comment is every character after the `//` up to, but not including, the next LF or the end of the file. The scanner skips the comment and produces no token and no span. Inside a comment, only rules 1 and 2 apply. A control character in a comment (other than LF) is E0001 at that character, and the comment does not end there. Every other character has no meaning inside a comment, including `"`, `//` and `\`. There are no block comments.
+5. **Comments.** Outside a text literal, `//` starts a comment. The comment is every byte after the `//` up to, but not including, the first LF or the end of the file. A CR in a comment is E0001 by rule 2. There are no block comments. A comment produces no token.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -70,11 +70,11 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 10. **Punctuation and operators.** The tokens are exactly these nineteen: `( ) { } , : ; = == != < <= > >= + - * / %`. The lexer takes the longest listed token that starts at the current character, reading at most one character ahead. So `==`, `!=`, `<=` and `>=` are each one token. `=>` is two tokens, `=` then `>`. `->` is two tokens, `-` then `>`. The parser reports E0100 at the first token the grammar rejects. For `fn f() -> Int { }` that is the `-`, because after the `)` of a function header the grammar accepts only `:`, `io` or `{`.
 
-11. **Other characters.** Every printable ASCII character outside a comment or text literal that is not covered by rules 5 to 10 is E0001 at that character. This includes `[`, `]`, `.`, `!` not followed by `=`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`, `` ` ``, and `\` outside a text literal.
+11. **Other characters.** Every printable ASCII character not covered by rules 5 to 10 is E0001 at that character. This includes `[`, `]`, `.`, `!` not followed by `=`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`, `` ` ``, and `\` outside a text literal.
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** The lexer runs in two stages, in this order. First it checks the whole file for valid UTF-8 (rule 1). If that check fails, it reports that error and stops. Second it scans left to right, skipping whitespace and comments and producing tokens. The first character or literal that breaks rule 2, 6, 8, 9 or 11 is reported (E0001, E0005 or E0006), and lexing stops. The lexer emits no tokens after a lexical error. The checker reports E0500 (rule 8). Records follow RFC 0004 section 3. Open question 8 covers the order in which errors are reported.
+13. **Lexical errors stop lexing.** Rules 1 and 2 are checked over the whole file before any token is read. If the file breaks either rule, the first such byte is the error, and no tokens are emitted. Otherwise the lexer reports the first lexical error in source order (E0001 from rule 6 or 11, E0005, E0006, or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -204,9 +204,6 @@ Compile-error tests (code and span; the fix is `none`):
 | Test | Program | Error at | Code |
 | --- | --- | --- | --- |
 | `v4-err-cr` | `fn main() io {` CR LF ` put(1) }` | the CR | E0001 |
-| `v4-err-cr-comment` | `fn main() io { } // x` CR LF | the CR | E0001 |
-| `v4-err-comment-lf` | `fn main() io { } // x` LF `]` | the `]` | E0001 |
-| `v4-err-comment-quote` | `fn main() io { } // "` LF `]` | the `]` | E0001 |
 | `v4-err-semi-lead` | `fn main() io { ; put(1) }` | the first `;` | E0100 |
 | `v4-err-semi-trail` | `fn main() io { put(1); }` | the `}` | E0100 |
 | `v4-err-semi-top` | `fn main() io { } ;` | the top-level `;` | E0100 |
@@ -229,8 +226,6 @@ Compile-error tests (code and span; the fix is `none`):
 | `v4-err-keyword-param` | `fn f(ret: Int) io { }` | the `ret` | E0003 |
 | `v4-err-eof` | `fn main() io { put(1)` | the `EOF` | E0100 |
 
-The three comment tests check rules 3 and 5 without a run test. In `v4-err-comment-lf` the `]` is after the LF, so it is outside the comment and gives E0001. In `v4-err-comment-quote` the `"` in the comment opens no text literal, so the `]` gives E0001 and not E0005. `v4-err-cr-comment` shows that a CR inside a comment is E0001 and does not end the comment.
-
 Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/int-too-big`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`.
 
 Every grammar production is reached by a `v4-` run or compile-error test above, or by an RFC 0014 test: `program`, `fn_decl`, `param`, `ptype`, `rtype`, `block`, all seven `stmt` forms, `args`, and each level of `expr` through `primary`.
@@ -244,4 +239,3 @@ Every grammar production is reached by a `v4-` run or compile-error test above, 
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **New codes.** E0003 and the codes of `kernel-v9` (E0200 to E0202, E0300 to E0303, E0400) are not in `spec/errors.json`. The first PR that emits each must add it there.
 7. **Leading zero.** RFC 0004's `diag/fix-present` expects E0001 for `007` with fix `7`. Rule 8 says E0006. The conflict is with RFC 0004, and the group must settle it.
-8. **Error order.** Rule 13 reports the first failing stage: UTF-8 over the whole file, then the left-to-right scan. It does not report the lowest byte offset. So an invalid UTF-8 byte late in a file is reported before a tab early in the file. This is the order the lexer already uses. If the group wants the lowest offset instead, the UTF-8 check must move into the scan, and rule 13 must change with it.
