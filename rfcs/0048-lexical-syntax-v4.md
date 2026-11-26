@@ -48,13 +48,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. The checks of rules 1 and 2 run over the whole file before any token is lexed. So in a file that passes them, no later stage sees a tab, a CR, or a byte of an invalid or forbidden sequence.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. CR is never whitespace and never a line end. Rule 2 makes every CR E0001, so a file that contains a CR is rejected before any token is read. There is no CR LF rule.
+3. **Line end.** LF (U+000A) is the only line end. It is whitespace and produces no token. No stage after the lexer sees a line end, and no rule depends on one. There is no CR LF rule.
 
-4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
+4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). The whitespace and comment skipper reads a space, an LF, or the start of a comment (rule 5). It stops at the first byte that is none of these, and it never skips a CR or a tab. In a file that passes rules 1 and 2 it meets neither.
 
-5. **Comments.** Outside a text literal, `//` starts a comment. The comment is every byte after the `//` up to, but not including, the first LF or the end of the file. A CR in a comment is E0001 by rule 2. There are no block comments. A comment produces no token.
+5. **Comments.** Outside a text literal, `//` starts a comment. The comment runs up to, but not including, the first LF byte or the end of the file, whichever comes first. The scan for the end looks for LF only. A CR byte is not a terminator. Rule 2 rejects a CR inside a comment before the comment is scanned. There are no block comments. A comment produces no token. A `"` inside a comment has no meaning. A single `/` not followed by `/` is not a comment; it is the division token (rule 10).
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** Rules 1 and 2 are checked over the whole file before any token is read. If the file breaks either rule, the first such byte is the error, and no tokens are emitted. Otherwise the lexer reports the first lexical error in source order (E0001 from rule 6 or 11, E0005, E0006, or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** The lexer reports the first lexical error (E0001, E0005, E0006 or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -179,6 +179,15 @@ Spec card: one line for the fourteen keywords, one for the nineteen punctuation 
 Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
+
+Unit tests for the whitespace and comment skipper (rules 4 and 5) are node tests in `compiler/stage0/src/lexer/trivia.test.ts`. They are not conformance tests. They state these expectations, each on a byte string with the skipper started at byte 0 unless said otherwise:
+
+- Spaces and LF bytes are skipped, and each LF produces no token.
+- `//` starts a comment that ends at the first LF or at the end of the file. The LF after a comment is skipped as whitespace.
+- A CR byte, alone or before an LF, is not skipped. The skipper stops at the CR, and the CR is reported as the first byte that is not trivia.
+- A tab is not skipped. The skipper stops at the tab.
+- A `"` inside a comment is ignored.
+- A single `/` is not a comment, and the skipper stops at it.
 
 Run tests (each a complete program; `put` as defined by kernel-v9):
 
