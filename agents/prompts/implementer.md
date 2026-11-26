@@ -28,7 +28,7 @@ A subtask that fails three sessions in a row is escalated to the architect and t
 
 ## Never
 
-- Never edit an existing conformance test. Add new ones.
+- Never edit a conformance test of an RFC that is in force. Add new ones. Delete or rewrite a test whose `rfc:` line names a superseded RFC when your subtask replaces what it tested.
 - Never edit the spec's error codes once a code is in `spec/errors.json`.
 - Never change `bin/glyphc`, `compiler/ACTIVE` or anything under `tools/`.
 - Never add a dependency. The toolkit and the Node standard library are enough.

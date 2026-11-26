@@ -99,6 +99,64 @@ class Founding(unittest.TestCase):
         kinds = {a.kind for a in run("design", state=st)}
         self.assertNotIn("propose", kinds)
 
+    FOUNDED = {"0001": ("name", "implemented"), "0002": ("lexical-syntax", "implemented"),
+               "0003": ("kernel", "implemented"), "0004": ("diagnostic-style", "implemented")}
+
+    def founded(self, **more):
+        st = {"rfcs": {n: rfc(n, DESIGNERS[0], slug=s, status=status) for n, (s, status) in self.FOUNDED.items()}}
+        st["rfcs"].update(more)
+        return st
+
+    def test_no_proposals_while_accepted_rfcs_wait_to_be_built(self):
+        repo = FakeRepo(files={"spec/grammar.peg": "p <- 'x'\n"})
+        self.assertIn("propose", {a.kind for a in run("design", state=self.founded(), repo=repo)})
+        waiting = {f"001{i}": rfc(f"001{i}", DESIGNERS[1], slug=f"w{i}", status="accepted") for i in range(4)}
+        self.assertNotIn("propose", {a.kind for a in run("design", state=self.founded(**waiting), repo=repo)})
+        rules = dict(M2, max_unbuilt_rfcs=5)
+        self.assertIn("propose", {a.kind for a in run("design", state=self.founded(**waiting), repo=repo, rules=rules)})
+
+    BRIEFS = ("briefs:\n"
+              "  - {slug: canonical-layout, title: One layout, class: language, amends: ['0048'], brief: EVIDENCE ONE}\n"
+              "  - {slug: fail-mark, title: The fail mark, brief: EVIDENCE TWO}\n"
+              "  - {slug: word-spelling, title: Spellings, brief: EVIDENCE THREE}\n")
+
+    def briefs(self, state, rules=M2):
+        repo = FakeRepo(files={"spec/grammar.peg": "p <- 'x'\n", "governance/BRIEFS.yml": self.BRIEFS})
+        return [a for a in run("design", state=state, repo=repo, rules=rules) if a.kind == "open"]
+
+    def test_owner_briefs_open_two_at_a_time_even_with_a_backlog(self):
+        waiting = {f"001{i}": rfc(f"001{i}", DESIGNERS[1], slug=f"w{i}", status="accepted") for i in range(4)}
+        opens = self.briefs(self.founded(**waiting))
+        self.assertEqual(sorted(s for a in opens for s in a.header["slugs"]), ["canonical-layout", "fail-mark"])
+        body = "\n".join(a.body for a in opens)
+        self.assertIn("Owner brief", body)
+        self.assertIn("EVIDENCE ONE", body)
+        self.assertIn("Amends: RFC 0048", body)
+        self.assertNotIn("EVIDENCE THREE", body)
+
+    def test_owner_brief_is_not_reopened_while_live_or_once_accepted(self):
+        st = self.founded(**{"0020": rfc("0020", DESIGNERS[0], slug="canonical-layout", status="voting"),
+                             "0021": rfc("0021", DESIGNERS[1], slug="fail-mark", status="accepted")})
+        opens = self.briefs(st)
+        self.assertEqual([a.header["slugs"] for a in opens], [["word-spelling"]])
+
+    def test_rejected_owner_brief_returns_with_objections_then_is_dropped(self):
+        votes = {"tester": {"vote": "reject", "rationale": "Rule 3 is ambiguous."}}
+        st = self.founded(**{"0020": rfc("0020", DESIGNERS[0], slug="canonical-layout", status="rejected", votes=votes)})
+        opens = self.briefs(st, rules=dict(M2, brief_max_open=1))
+        self.assertEqual([a.header["slugs"] for a in opens], [["canonical-layout-v2"]])
+        self.assertIn("Rule 3 is ambiguous.", opens[0].body)
+        self.assertIn("Attempt 2 of 3", opens[0].body)
+        for i, slug in enumerate(("canonical-layout-v2", "canonical-layout-v3")):
+            st["rfcs"][f"003{i}"] = rfc(f"003{i}", DESIGNERS[0], slug=slug, status="rejected", votes=votes)
+        opens = self.briefs(st, rules=dict(M2, brief_max_open=1))
+        self.assertEqual([a.header["slugs"] for a in opens], [["fail-mark"]])
+
+    def test_no_owner_brief_before_the_founding_rfcs_are_decided(self):
+        st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], slug="name", status="discussion")}}
+        slugs = [s for a in self.briefs(st) for s in a.header["slugs"]]
+        self.assertFalse({"canonical-layout", "fail-mark"} & set(slugs))
+
     def test_m1_dry_run_opens_toy_print_only(self):
         asgs = run("design", rules=M1)
         self.assertEqual([x for a in asgs if a.kind == "open" for x in a.header["slugs"]], ["toy-print"])
@@ -278,19 +336,29 @@ class Blindness(unittest.TestCase):
             self.assertNotIn("SECRET RFC BODY", a.body)
             self.assertNotIn("rfcs/", a.body)
 
-    def test_users_vote_on_summary_and_examples_only(self):
+    def test_users_do_not_vote(self):
         text = ("## Summary\nSUMMARY TEXT\n## Design\nSECRET RFC BODY\n"
                 "## Examples\nEXAMPLE TEXT\n")
         repo = FakeRepo(files={"rfcs/0001-s0001.md": text})
         st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="voting")}}
         asgs = {a.agent: a for a in run("vote", state=st, repo=repo)}
+        for u in USERS:  # blind by design, so they are not asked to vote on what they cannot read
+            self.assertNotIn(u, asgs)
+        self.assertIn("SECRET RFC BODY", asgs["designer-prag"].body)
+        self.assertIn("impl-2", asgs)
+
+    def test_a_user_voter_would_see_summary_and_examples_only(self):
+        text = ("## Summary\nSUMMARY TEXT\n## Design\nSECRET RFC BODY\n"
+                "## Examples\nEXAMPLE TEXT\n")
+        repo = FakeRepo(files={"rfcs/0001-s0001.md": text})
+        st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="voting")}}
+        roster = [dict(a, votes=True) if a["role"] == "user" else a for a in ROSTER]
+        asgs = {a.agent: a for a in o.plan("vote", state=st, rules=M2, roster=roster, repo=repo,
+                                           run_date="2026-11-19")}
         for u in USERS:
-            self.assertIn(u, asgs)
-            self.assertIn("t0001", asgs[u].body)
             self.assertIn("SUMMARY TEXT", asgs[u].body)
             self.assertIn("EXAMPLE TEXT", asgs[u].body)
             self.assertNotIn("SECRET RFC BODY", asgs[u].body)
-        self.assertIn("SECRET RFC BODY", asgs["designer-prag"].body)
 
 
 class Escalation(unittest.TestCase):
@@ -504,7 +572,7 @@ class NightSim:
         voters = {a: v for a, v in rec["votes"].items() if a != rec["author"]}
         approve = sum(v["vote"] == "approve" for v in voters.values())
         decisive = sum(v["vote"] in ("approve", "reject") for v in voters.values())
-        ok = (len(voters) >= int(self.rules["quorum"]) and decisive
+        ok = (decisive >= int(self.rules["quorum"])
               and approve / decisive >= float(self.rules["accept_ratio"]))
         self.emit(type="rfc_decided", actor="merge-bot", session=f"{self.RUN_DATE}/merge-bot",
                   subject={"rfc": n}, data={"outcome": "accepted" if ok else "rejected"})
@@ -575,7 +643,7 @@ class NightSimTest(unittest.TestCase):
             approves = {e["actor"] for e in of("vote_cast") if e["data"]["vote"] == "approve"
                         and e["actor"] != "designer-min"}
             self.assertGreaterEqual(len(approves), 5)
-            self.assertTrue({"user-1", "user-2"} <= approves)
+            self.assertFalse({"user-1", "user-2"} & approves, "users read only the card and do not vote")
 
             subtask_prs = {e["subject"]["pr"] for e in of("pr_opened") if e["data"]["subtask"] is not None}
             self.assertEqual(len(subtask_prs), 1, "both subtasks must share one implementation PR")

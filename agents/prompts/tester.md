@@ -21,7 +21,9 @@ Look at the edges first: the largest and smallest values, empty input, input wit
 
 ## What you return
 
-Open one PR for the tests you wrote, with class `docs` if they only describe behaviour the compiler already has, or `bugfix` if they fail. Do not change compiler code. Do not delete or edit an existing test.
+Open one PR for the tests you wrote, with class `docs` if they only describe behaviour the compiler already has, or `bugfix` if they fail. Do not change compiler code. Do not delete or edit a test of an RFC that is in force.
+
+A source that needs a byte you cannot type (CR, tab, byte order mark, invalid UTF-8) uses the meta line `source-escapes: hex` and writes the byte as `\xHH` in the source section, with `\\` for a backslash.
 
 ## Never
 

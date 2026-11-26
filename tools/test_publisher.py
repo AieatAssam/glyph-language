@@ -29,7 +29,7 @@ COMMENT = {"type": "comment", "target": {"pr": 3}, "body": "Looks fine."}
 
 
 def voting_state():
-    return {"rfcs": {"0007": {"number": "0007", "slug": "pipes", "author": "user-1",
+    return {"rfcs": {"0007": {"number": "0007", "slug": "pipes", "author": "designer-min",
                               "status": "voting", "votes": {}}}}
 
 
@@ -136,14 +136,14 @@ class PublisherTests(unittest.TestCase):
 
     def test_non_voter_vote_refused(self):
         act = {"type": "vote", "rfc": "0007", "vote": "approve", "rationale": "Sound."}
-        s = self.session("v", "impl-2", [act])
+        s = self.session("v", "user-2", [act])  # users read only the card, so they do not vote
         _, rep, _ = self.run_pub([s], state=voting_state())
         self.assertEqual(rep["published"], [])
         self.assertIn("not a voter", rep["refused"][0]["reason"])
 
     def test_author_vote_refused(self):
         act = {"type": "vote", "rfc": "0007", "vote": "approve", "rationale": "Sound."}
-        s = self.session("v", "user-1", [act])
+        s = self.session("v", "designer-min", [act])
         _, rep, _ = self.run_pub([s], state=voting_state())
         self.assertEqual(rep["published"], [])
         self.assertIn("author", rep["refused"][0]["reason"])

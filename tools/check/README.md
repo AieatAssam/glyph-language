@@ -12,7 +12,7 @@ raises for a failing rule. The sandbox (`tools/sandbox`) runs it with the candid
 | 5 | every conformance test passes (`conformance/**/*.test`) |
 | 7 | every produced Wasm module validates |
 | 8 | every module builds byte-identically twice |
-| 9 | token caps in `governance/RULES.md` (`caps`) |
+| 9 | token caps in `governance/RULES.md` (`caps`), counted by `tokens.py` with the vendored byte-pair vocabulary `bpe_ranks.hex.xz` (`o200k_base`, MIT, from tiktoken) |
 | 10 | every grammar production is covered by an accepting test |
 | 11 | every `.gl` under `examples/`, `stdlib/`, `compiler/self/` compiles; a sibling `<name>.expect` is run too |
 | 12 | gate flags under `gates` in `governance/RULES.md` (below) |

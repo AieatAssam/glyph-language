@@ -9,6 +9,7 @@
   "properties": {
     "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)+$"},
     "rfc": {"type": "string", "pattern": "^[0-9]{4}$"},
-    "kind": {"enum": ["run", "compile-error", "trap", "fmt", "fix"]}
+    "kind": {"enum": ["run", "compile-error", "trap", "fmt", "fix"]},
+    "source-escapes": {"const": "hex", "description": "In the source section, \\xHH is the byte HH and \\\\ is one backslash."}
   }
 }

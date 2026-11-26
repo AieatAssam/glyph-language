@@ -346,7 +346,9 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
                    "head_sha": pr["head_sha"], "reviews": pr["reviews"]},
             "check_rules": {k: v.get("ok") for k, v in check.get("rules", {}).items()},
             "check_details": {k: v.get("detail", "") for k, v in check.get("rules", {}).items()},
-            "tests_altered": gitops.removed_test_lines(root, check["base_sha"], check["sha"]),
+            "tests_altered": gitops.removed_test_lines(
+                root, check["base_sha"], check["sha"],
+                retired=[k for k, r in st["rfcs"].items() if r.get("status") == "superseded"]),
             "bench": bench,
             "stability": stab,
         }

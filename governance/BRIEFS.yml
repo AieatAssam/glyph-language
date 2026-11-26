@@ -1,0 +1,85 @@
+# Owner briefs. Owner-protected, like the rest of governance/.
+#
+# A brief asks the designers for one RFC by name. It gives evidence and a question. It does not give
+# the answer: the design and the vote are the agents'. The orchestrator opens each brief once, keeps
+# at most `brief_max_open` in discussion or voting, re-opens a rejected one with its objections, and
+# drops it after `brief_max_attempts` rejections (governance/RULES.md).
+#
+# Every figure below is from `python3 -m tools.check.tokens`, the protected counter, run on the
+# programs of RFC 0085's own test plan (149 function declarations, 2257 tokens as written).
+briefs:
+  - slug: canonical-layout
+    title: "One canonical layout, the one with the fewest tokens"
+    class: language
+    amends: ["0048"]
+    brief: |
+      Constitution principle 1: a canonical formatter defines the only valid layout, and it is the
+      layout with the fewest tokens. RFC 0048 accepts any spacing and any line breaks and leaves the
+      layout to "a later RFC" (its Layout section and open question 2). No such RFC exists, and
+      every program in every RFC is written with spaces that the grammar does not need.
+
+      Measured: the programs of RFC 0085's test plan cost 2257 tokens as written and 1993 with every
+      space the grammar does not need removed (11.7 percent). `fn main() io fail { var i = 1; wh i <= 3 { put(sq(i)); i = i + 1 } }`
+      is 31 tokens; `fn main()io fail{var i=1;wh i<=3{put(sq(i));i=i+1}}` is 26.
+
+      Decide: the exact canonical layout (where one space is required because two tokens would
+      otherwise join, and nothing else); whether the compiler rejects any other layout, with a code
+      and a `fix` that rewrites it; what `glyphc fmt` prints. Measure candidates with the counter:
+      a tokeniser joins characters in ways that are not obvious, so count, do not guess. From this
+      RFC on, every program in an RFC, a conformance test, an example and the card is written in
+      the canonical layout.
+
+  - slug: fail-mark
+    title: "The fail mark: pay a token only where it tells the reader something"
+    class: language
+    amends: ["0085"]
+    brief: |
+      RFC 0085 rule F7: a function carries `fail` if and only if its body has an arithmetic
+      operator, a `wh`, or a call to a function in the file. The compiler computes the mark from the
+      body and rejects a wrong one (E0403). So the mark carries no information the body does not,
+      and a model can only get it right by repeating the compiler's rule.
+
+      Measured: 53 of the 149 function declarations in RFC 0085's own test programs carry `fail`,
+      one token each, and those programs are the smallest that can be written. Any function that
+      adds, loops or calls another function carries it, which is nearly every function in a real
+      program. E0403 is an error a model can make and that changes no behaviour.
+
+      Principle 3 asks that failure be visible in the signature. Principle 8 forbids a token that
+      tells the reader nothing. Decide how both hold. Options the team may weigh, among others:
+      mark the rare case instead of the common one; make trapping the stated default for every
+      function and drop the mark; keep the mark only for failure a caller can handle, when the
+      language has such failure. State the token cost of the choice on RFC 0085's test programs.
+
+  - slug: word-spelling
+    title: "Keyword and built-in spellings, re-measured with a real tokeniser"
+    class: language
+    amends: ["0048", "0085"]
+    brief: |
+      RFC 0048 shortened `while`, `return`, `example` and `print` to `wh`, `ret`, `ex` and `put`
+      because the counter of the time charged one token per four letters. That counter was not a
+      tokeniser. The protected counter now uses a real vocabulary.
+
+      Measured: each of the eight words is one token. Replacing `wh`, `ret`, `ex` and `put` with the
+      long words across RFC 0085's test programs changes the total by 0 tokens. `false` is one
+      token, so RFC 0048's open question 1 is closed.
+
+      Principle 8 as amended: count tokens, not characters; where two spellings cost the same, take
+      the one a model already writes without error. A model has written `while` and `return`
+      millions of times and `wh` and `ret` never. Decide, for every keyword and built-in name, the
+      spelling with the fewest tokens, and among equals the one with the fewest expected errors.
+      Give the count for each word. Do not change a word whose count and familiarity are already
+      best.
+
+  - slug: input
+    title: "Reading standard input"
+    class: language
+    amends: ["0085"]
+    brief: |
+      Every benchmark task is "read standard input, write standard output". After 98 decided RFCs
+      no accepted RFC lets a program read anything, and the readiness checklist had no item for it.
+      Dev fitness is 0.0 and stays there until a program can read.
+
+      Decide the smallest input primitive that the kernel's types can carry today (the kernel has
+      `Int` and `Bool`; text is a literal argument of `put` only). State its effect, what it returns
+      at end of input, and its traps. One built-in, measured with the counter, with a run test that
+      echoes or sums its input.

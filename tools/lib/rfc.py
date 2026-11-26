@@ -28,10 +28,13 @@ def tally(rec: dict, roster_voters: set, rules: dict) -> dict:
     non_abstain = approve + reject
     need_super = bool(rec.get("breaking") or rec.get("alters_tests"))
     need = rules["supermajority_ratio"] if need_super else rules["accept_ratio"]
-    if cast < rules["quorum"]:
-        outcome, reason = "rejected", f"no quorum: {cast} cast, {rules['quorum']} required"
-    elif non_abstain == 0:
+    # Quorum counts votes that take a side. An abstention says "I could not judge", so it cannot
+    # carry an RFC: RFC 0085 passed on one approval and four abstentions under the old count.
+    if non_abstain == 0 and cast:
         outcome, reason = "rejected", "only abstentions"
+    elif non_abstain < rules["quorum"]:
+        outcome, reason = "rejected", (f"no quorum: {non_abstain} approve or reject, "
+                                       f"{rules['quorum']} required")
     else:
         ratio = approve / non_abstain
         # Rounded to 4 places so 2/3 (0.6667 in RULES.md) passes; see report notes.

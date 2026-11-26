@@ -45,6 +45,7 @@ TOY = {"slug": "toy-print", "title": "Toy print", "class": "language"}
 # title or slug matches its pattern. Keyword matching is a deliberate shortcut.
 CHECKLIST = (
     ("integers-booleans-bytes", r"\b(kernel|integer|bool|byte)"),
+    ("input", r"\b(input|stdin)"),  # every benchmark task reads standard input; nothing else is usable without it
     ("text", r"\b(text|string)"),
     ("arrays-buffers", r"\b(array|buffer)"),
     ("records-variants", r"\b(record|variant|union|match)"),
@@ -202,6 +203,20 @@ def user_sections(text: str) -> str:
 def rfc_block(repo, num: str, rfc: dict) -> str:
     return (f"### RFC {num}: {rfc.get('title')} (slug {rfc.get('slug')}, class {rfc.get('class')}, "
             f"status {rfc.get('status')})\n\n{rfc_text(repo, num, rfc)}\n")
+
+
+def owner_briefs(repo) -> list[dict]:
+    """governance/BRIEFS.yml: RFCs the owner asks for by name. Evidence and a question, never a design."""
+    text = repo.read("governance/BRIEFS.yml")
+    if not text:
+        return []
+    doc = yaml.safe_load(text) or {}
+    return [b for b in (doc.get("briefs") or []) if isinstance(b, dict) and b.get("slug") and b.get("title")]
+
+
+def unbuilt(rfcs: dict) -> list[str]:
+    """Accepted RFCs with no implementation merged yet."""
+    return [n for n in by_num(rfcs) if rfcs[n]["status"] in ("accepted", "implementing")]
 
 
 def findings_text(repo) -> str:
@@ -368,6 +383,43 @@ def plan_design(ctx) -> list[Asg]:
     elif TOY["slug"] not in slugs and designers and can(designers[0]) and free(designers[0]):
         open_rfc(designers[0], TOY, "Milestone M1 dry run: write the smallest RFC that a scripted toy language can implement.")
 
+    # Owner briefs: an RFC the owner asks for by name, with the evidence. Exempt from the backlog
+    # pause below, because a brief usually amends an accepted RFC before it is built, which is the
+    # cheap moment. A brief is dropped after brief_max_attempts rejections: the vote stands.
+    if live and not founding_pending:
+        max_live = int(rules.get("brief_max_open", 2))
+        max_tries = int(rules.get("brief_max_attempts", 3))
+        briefs = owner_briefs(repo)
+        fams = {b["slug"] for b in briefs}
+        live_briefs = sum(1 for r in rfcs.values() if _base(r["slug"]) in fams and r["status"] in ("discussion", "voting"))
+        for k, b in enumerate(briefs):
+            if live_briefs >= max_live:
+                break
+            tries = [n for n in by_num(rfcs) if _base(rfcs[n]["slug"]) == b["slug"]]
+            if any(rfcs[n]["status"] not in DEAD for n in tries):
+                continue  # open, accepted or built
+            rejected = [n for n in tries if rfcs[n]["status"] == "rejected"]
+            if len(rejected) >= max_tries or any(rfcs[n]["status"] in ("withdrawn", "superseded") for n in tries):
+                continue
+            spec = {"slug": b["slug"] if not tries else f"{b['slug']}-v{len(tries) + 1}",
+                    "title": b["title"], "class": b.get("class", "language")}
+            why = ("Owner brief. The owner supplies evidence and a question; the design and the vote are the "
+                   "team's. Make this one decision and nothing else.\n\n" + str(b.get("brief", "")).strip())
+            if b.get("amends"):
+                why += "\n\nAmends: " + ", ".join(f"RFC {a}" for a in b["amends"]) + ". Name them in the RFC."
+            if rejected:
+                last = rfcs[rejected[-1]]
+                objections = "\n".join(f"- {a} ({v['vote']}): {v.get('rationale', '')}"
+                                       for a, v in sorted(last.get("votes", {}).items()) if v["vote"] != "approve")
+                why += (f"\n\nAttempt {len(tries) + 1} of {max_tries}. RFC {rejected[-1]} was rejected. Keep what "
+                        f"voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
+            for j in range(len(designers)):
+                d = designers[(k + j) % len(designers)]
+                if can(d) and d not in out:
+                    open_rfc(d, spec, why)
+                    live_briefs += 1
+                    break
+
     for d, items in opened.items():
         body = "\n\n---\n\n".join(
             f"Open a new RFC: title `{s['title']}`, slug `{s['slug']}`, class `{s['class']}`.\n"
@@ -378,7 +430,11 @@ def plan_design(ctx) -> list[Asg]:
     any_open = any(rfcs[n]["status"] in ("discussion", "voting") for n in rfcs) or bool(opened)
     # Nothing new until the founding RFCs are accepted and a compiler is on main to try ideas against
     # (spec/grammar.peg arrives with the first implementation merge).
-    if live and not any_open and not founding_pending and repo.read("spec/grammar.peg") is not None:
+    # Nor while accepted RFCs wait to be built: 98 RFCs were decided in the first week against a
+    # compiler that ran one program, and most were rejected for leaning on text that did not exist.
+    backlog_full = len(unbuilt(rfcs)) >= int(rules.get("max_unbuilt_rfcs", 4))
+    if (live and not any_open and not founding_pending and not backlog_full
+            and repo.read("spec/grammar.peg") is not None):
         for i, d in enumerate(designers):
             if free(d) and can(d):
                 out[d] = Asg(d, "design", "propose", (
