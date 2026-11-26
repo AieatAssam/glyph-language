@@ -50,9 +50,9 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A CR is never a line end, because rule 2 makes every CR an error before any token is read.
 
-4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
+4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). The lexer skips whitespace and comments (rule 5) before each token. It keeps no position of any line end, because no rule depends on one.
 
 5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token.
 
@@ -64,7 +64,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
    Each keyword lexes as its own token kind, never as an identifier. The three shortened keywords replace `while`, `return` and `example`. A keyword where a name is required is E0003 at the keyword (G3). No other word is reserved. The builtin `put` (kernel-v9) is an identifier, so `put` is not a keyword.
 
-8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker, not the lexer. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
+8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
 
 9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rule 2 forbids, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. The value of the token is the decoded UTF-8 bytes.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Two passes and lexical errors.** Lexing runs in two passes. The first pass checks rules 1 and 2 over every byte of the file, from the start, and stops at the first failure. The second pass scans from the start: it skips whitespace and comments (rules 3 to 5), then reads one token (rules 6 to 11). The first pass finds every E0001 that comes from rules 1 and 2, so the second pass never sees a forbidden control character, a byte order mark, or an invalid UTF-8 byte. If either pass finds a lexical error (E0001, E0005 or E0006), the lexer returns that one error and no tokens at all, even tokens before the error. E0500 is not a lexical error (rule 8). Records follow RFC 0004 section 3.
+13. **Lexical errors and their order.** Lexing has two parts. First, every byte of the file is checked for rules 1 and 2: invalid UTF-8, the byte order mark, and forbidden control characters, including tab and CR. The first such byte, at offset X, is the byte error. Second, the file is scanned left to right for whitespace, comments and tokens, and the scan stops before offset X. The lexer reports one error. If a scan error ends at or before X, that error is reported. Otherwise the byte error at X is reported. A scan error that runs past X is caused by the byte error and is not reported. On any error the lexer emits no tokens. The scan errors are E0001 (rules 6 and 11), E0005 (rule 9) and E0006 (rule 8). E0500 is not a lexical error: rule 8 gives it to the checker. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -168,7 +168,7 @@ Measured by hand with the counter in `tools/check/tokens.py`. The counter was no
 - Shortened words: `wh` for `while`, `ret` for `return`, `ex` for `example` and `put` for `print`. Each use saves one token. The spec text uses each as a word, so this is a saving in the spec's text too.
 - `;` costs one token per statement separator in programs. The counter cannot see line breaks, so the saving from removing `NEWLINE` is only in the rules text.
 - Removed: rules 14 and 15 of RFC 0014, the CR LF clause, the `NEWLINE` token kind, parenthesis-depth rules, the `type` production, the annotation syntax on `let` and `var`, and rules G2 and G3 of RFC 0020.
-- Added: the `;` token, the two-pass rule in rule 13, and the grammar block above.
+- Added: the `;` token, and the grammar block above.
 
 Core spec: the merge bot checks the 12,000-token cap with the protected counter. This RFC is expected to be roughly neutral against RFC 0014 and RFC 0020 together, but the figure is not measured here.
 
