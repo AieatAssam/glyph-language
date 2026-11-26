@@ -335,7 +335,9 @@ class Publisher:
     def _base_bytes(self, path: str, branch: str | None = None) -> bytes:
         """The file as it is on `branch` (default: the base branch); b"" when it has no such file."""
         branch = branch or self.base
-        if self.git_real:
+        # A live run checks out only the base: an agent/* branch exists only on origin, so fetch it.
+        # Reading the bare name there failed, every file counted as new, and updates hit the line cap.
+        if self.git_real or not self.dry:
             self._git(["fetch", "--quiet", "origin", f"refs/heads/{branch}"])
             ref = "FETCH_HEAD"
         else:

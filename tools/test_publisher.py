@@ -511,6 +511,12 @@ class RealGitTests(unittest.TestCase):
         self.assertEqual(self.git(self.bare, "show", f"{tip}:stdlib/b.glyph"), "b")
         self.git(self.bare, "merge-base", "--is-ancestor", "refs/heads/main", tip)
 
+    def test_live_mode_reads_branch_only_on_origin(self):
+        pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
+        pub._commit("agent/x", "main", [("stdlib/a.glyph", b"a\n")], "open", "impl-1")
+        live = P.Publisher(root=self.root, base="main", dry=False, repo="local/dryrun")
+        self.assertEqual(live._base_bytes("stdlib/a.glyph", "agent/x"), b"a\n")
+
     def test_real_mode_never_pushes_outside_agent(self):
         pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
         with self.assertRaises(P.PublishError):
