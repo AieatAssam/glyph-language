@@ -12,8 +12,8 @@ votes:
 
 Class: language
 Slug: lexical-syntax-v4
-Status: accepted
-Replaces: RFC 0014 (lexical-syntax-v3, superseded by the owner) and the statement and layout rules of RFC 0020 (kernel-v8, superseded). Meaning of every form here is given by `kernel-v9` (see Open question 8). Diagnostic records follow RFC 0004 sections 2 to 7. Codes are listed in `spec/errors.json` (RFC 0004 section 4).
+Status: draft
+Replaces: RFC 0014 (lexical-syntax-v3, superseded by the owner) and the statement and layout rules of RFC 0020 (kernel-v8, superseded). Meaning of every form here is given by `kernel-v9`. Diagnostic records follow RFC 0004 sections 2 to 7. Codes are listed in `spec/errors.json` (RFC 0004 section 4).
 
 ## Summary
 
@@ -25,10 +25,10 @@ Changes from RFC 0014 and RFC 0020:
 - `;` is the one statement separator, and it is a token. It sits only between statements.
 - `let` and `var` take no type annotation. The type of a binding is the type of its expression.
 - `->` is two tokens, `-` then `>`. The parser reports E0100 at the `-`, the first token the grammar rejects.
-- Only LF ends a line. CR is error E0001 wherever it appears, including before an LF.
+- Only LF ends a line. CR is error E0001 wherever it appears.
 - Three keywords and one builtin name are shortened (see the Design, rule 7). Each saves one token per use under the protected counter.
 
-Parsing and lexing in this RFC do not need a kernel. Only the run tests in the Test plan need `put`, the builtin of `kernel-v9`, and they wait for an accepted kernel (Open question 8).
+The kernel's test programs in this RFC use `put`, the builtin defined by `kernel-v9`.
 
 ## Motivation
 
@@ -42,21 +42,21 @@ On the counter: `tools/check/tokens.py` charges ceil(n/4) for an alphabetic run 
 
 ## Design
 
-Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value. A *span* is a pair of byte offsets, counted from 0 at the first byte of the file. It includes its start and excludes its end. A token's span runs from its first byte to its last. Each rule that reports an error gives that error's span.
+Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value.
 
 ### Lexical rules
 
-1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is E0001 at the lead byte of the first ill-formed sequence: a byte that cannot start a sequence, or a lead byte whose following bytes are missing or are not valid continuation bytes. The span is that one byte. A byte order mark (U+FEFF, bytes `EF BB BF`) is E0001 wherever it appears. Its span is its three bytes.
+1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the lead byte of the first ill-formed sequence: the first byte of a sequence that is not valid UTF-8, whether the sequence has a wrong continuation byte, a forbidden lead byte, or is cut short by a following ASCII byte or by the end of the file. The span is that one byte. A byte order mark (U+FEFF) is E0001 wherever it appears, over its three bytes.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 with the span of its one byte.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A CR is E0001 under rule 2 whether or not an LF follows it, and the LF is then not examined as part of a pair.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A CR is never a line end, even when an LF follows it: a CR, alone or before an LF, is E0001 under rule 2.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token. Its bytes are checked by rules 1 and 2 only.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token.
 
-6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 with the span of that character's UTF-8 bytes. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
+6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
 7. **Keywords.** Exactly fourteen words are keywords, all lowercase:
 
@@ -64,17 +64,21 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
    Each keyword lexes as its own token kind, never as an identifier. The three shortened keywords replace `while`, `return` and `example`. A keyword where a name is required is E0003 at the keyword (G3). No other word is reserved. The builtin `put` (kernel-v9) is an identifier, so `put` is not a keyword.
 
-8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker and not by the lexer. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
+8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
 
 9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rule 2 forbids, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. The value of the token is the decoded UTF-8 bytes.
 
 10. **Punctuation and operators.** The tokens are exactly these nineteen: `( ) { } , : ; = == != < <= > >= + - * / %`. The lexer takes the longest listed token that starts at the current character, reading at most one character ahead. So `==`, `!=`, `<=` and `>=` are each one token. `=>` is two tokens, `=` then `>`. `->` is two tokens, `-` then `>`. The parser reports E0100 at the first token the grammar rejects. For `fn f() -> Int { }` that is the `-`, because after the `)` of a function header the grammar accepts only `:`, `io` or `{`.
 
-11. **Other characters.** Every printable ASCII character not covered by rules 5 to 10 is E0001 with the span of its one byte. This includes `[`, `]`, `.`, `!` not followed by `=`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`, `` ` ``, and `\` outside a text literal.
+11. **Other characters.** Every printable ASCII character not covered by rules 5 to 10 is E0001 at that character. This includes `[`, `]`, `.`, `!` not followed by `=`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`, `` ` ``, and `\` outside a text literal.
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Error order.** The checks of rules 1 and 2 run over the whole file before any token is made. If one fails, the lexer reports the first failure by byte offset, and it emits no tokens. Otherwise the lexer scans tokens from the start of the file. It reports the first token-level error (E0001 from rules 6 and 11, E0005 or E0006), and it emits no tokens after that error. Parsing starts only when lexing has no error. The parser reports E0003 or E0100, and it stops at the first one. The checker reports E0500 only for a program that lexes and parses. Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** The lexer finds two kinds of error, and reports at most one.
+    - A *byte error* B is the first error under rules 1 and 2 in the file, found by a check over every byte before any token is scanned.
+    - A *token error* T is the first error found by the token scan (E0001 from rule 6 or 11, E0005, E0006, or E0500 where the lexer sees it). The token scan starts no token at or after the start of B.
+
+    If there is no B, the reported error is T. If there is no T, the reported error is B. If both exist, the reported error is T when T ends at or before the start of B, and B otherwise. So a token error that runs into a byte error is caused by that byte error, and the byte error wins. For example, in the file `"ab`, then LF, then a tab, the text literal is unterminated at the LF, so T is E0005 and ends before the tab. E0005 is reported. In the file `"a`, then a tab, then `b"`, the text scan runs into the tab, so T is E0001 at the tab, which is also B. E0001 is reported. On any error the lexer emits no tokens after it. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -136,7 +140,7 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | Rule 1 (one byte, or three for the BOM), rule 2 (one byte), rule 6 (the character's bytes), rule 11 (one byte) | 1, 2, 6, 11 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character. For invalid UTF-8, the lead byte alone. For a byte order mark, its three bytes | 1, 2, 3, 6, 9, 11 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
@@ -170,17 +174,19 @@ Measured by hand with the counter in `tools/check/tokens.py`. The counter was no
 - Removed: rules 14 and 15 of RFC 0014, the CR LF clause, the `NEWLINE` token kind, parenthesis-depth rules, the `type` production, the annotation syntax on `let` and `var`, and rules G2 and G3 of RFC 0020.
 - Added: the `;` token, and the grammar block above.
 
-Core spec: the merge bot checks the 12,000-token cap with the protected counter. This RFC is expected to be roughly neutral against RFC 0014 and RFC 0020 together, but the figure is not measured here. The gate reports the current core at 917 of 12,000 tokens and the card at 244 of 2,000 tokens, before this RFC's text is added.
+Core spec: the merge bot checks the 12,000-token cap with the protected counter. This RFC is expected to be roughly neutral against RFC 0014 and RFC 0020 together, but the figure is not measured here.
 
-Spec card: one line for the fourteen keywords, one for the nineteen punctuation tokens, one for the token kinds, one for `;` between statements, and two for the grammar's shape. The card is `spec/card.md`. The card limit is 2,000 tokens.
+Spec card: one line for the fourteen keywords, one for the nineteen punctuation tokens, one for the token kinds, one for `;` between statements, and two for the grammar's shape. The card is `spec/card.md`, and its current size is not known to this draft. The card limit is 2,000 tokens.
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code` and `span` where the record gives them (RFC 0004 section 7). It does not compare `fix` in this RFC: every fix here is `none`, and the expected records leave `fix` out. Spans are byte spans as defined in the Design. In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
+Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
 
-Run tests (each a complete program; `put` as defined by kernel-v9). These are written only once an accepted kernel defines `put` (Open question 8). Their programs are fixed here.
+Node tests for rule 13 (in `compiler/stage0/src/lexer/`) must cover both outcomes: a token error that ends before a byte error is reported, and a token error that runs into a byte error loses to it. Node tests for rule 1 must cover a lead byte with a bad continuation, a lead byte cut short by ASCII, and a lead byte cut short by the end of the file, each reported at the lead byte with a one-byte span.
+
+Run tests (each a complete program; `put` as defined by kernel-v9):
 
 - `v4-kw-wh`: `fn main() io { wh false { } }`. Prints nothing, status 0. Covers `wh`.
 - `v4-kw-ret`: `fn main() io { ret }`. Prints nothing, status 0. Covers `ret` with no expression.
@@ -199,7 +205,7 @@ Run tests (each a complete program; `put` as defined by kernel-v9). These are wr
 - `v4-comment`: `fn main() io { // put(9)` then a line with `put("a//b") }`. Output `a//b`. Covers rule 5 and a `//` inside text.
 - Token tests from RFC 0014 (`lex/tok-<token>`) are unchanged, plus `v4-tok-semi`: `fn main() io { put(1); put(2) }` with output `1`, `2`. Covers the `;` token.
 
-Compile-error tests (code and span; the expected record leaves `fix` out):
+Compile-error tests (code and span; the fix is `none`):
 
 | Test | Program | Error at | Code |
 | --- | --- | --- | --- |
@@ -234,9 +240,8 @@ Every grammar production is reached by a `v4-` run or compile-error test above, 
 
 1. **`false` is two tokens.** Under the counter, `false` costs 2 and `true` costs 1. The only spellings of four letters or fewer are non-words, such as `fals` and `no`, and `no` collides with `not`. This draft keeps `false`. Principle 8 says a longer form needs a measurement that shows fewer errors. The owner should decide whether that measurement is needed or the saving is worth a non-word.
 2. **Layout.** Principle 1 asks for a canonical layout that is the only valid one. This draft accepts all spacing and all line breaks, and no RFC yet defines the formatter. A later RFC should define the layout and whether the compiler rejects other layouts (with a new code and a fix).
-3. **Existing tests that the changed rules affect.** The base rules say existing conformance tests are never edited or deleted, so this draft adds `v4-` tests and does not change any. The only conformance test in the repository is `conformance/kernel/print-one.test` (RFC 0020, which uses `print`). The `lex/` tests named above are not yet written, so none exists to retire. Under this RFC `print-one.test` cannot pass once a checker runs. The owner decides how it is retired. Node unit tests (`compiler/stage0/src/**/*.test.ts`) are not conformance tests. They encode the superseded rules, and the PR that changes a rule updates them in the same change.
-4. **E0003 position for `let let`.** RFC 0014's test `lex/ident-keyword` and RFC 0004's `diag/record-shape` put E0003 at the first `let`. This draft puts it at the second `let`, the keyword in the name position, which is the position rule G3 defines. The two tests disagree with this rule and with each other's reading. The group should choose one reading before either test is written. Until then, implementers follow G3.
+3. **RFC 0014 and RFC 0020 tests that the owner's brief would rewrite.** The brief says this RFC's implementation rewrites the existing grammar, example and conformance test. The base rules say existing conformance tests are never edited or deleted. This draft takes the second reading and adds `v4-` tests. Tests that depend on the changed rules will fail under this RFC unless the group retires them: `lex/punct-semicolon` (`;` is now a token), `lex/ws-crlf` (CR is now E0001), `lex/kw-while`, `lex/kw-return`, `lex/kw-example` (the keywords are renamed), and in RFC 0020's tests, every program that relies on a newline or uses `let x: T`, `var x: T`, or `print`. The group must decide how these are retired.
+4. **E0003 position for `let let`.** RFC 0014's test `lex/ident-keyword` and RFC 0004's `diag/record-shape` put E0003 at the first `let`. This draft puts it at the second `let`, the keyword in the name position, which is the position rule G3 defines. The two tests disagree with this rule and with each other's reading. The group should choose one reading.
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
-6. **New codes.** E0003 and the codes of `kernel-v9` (E0200 to E0202, E0300 to E0303, E0400) are not in `spec/errors.json`. The first PR that emits each must add it there. E0500 and E0006 are already there.
-7. **Leading zero.** RFC 0004's `diag/fix-present` expects E0001 for `007` with fix `7`. Rule 8 says E0006. Until the group settles it, the lexer emits E0006, as rule 8 says. The conflict is with RFC 0004.
-8. **Kernel dependency.** The meaning of every form is given by `kernel-v9` (RFC 0049), and the run tests use its builtin `put`. RFC 0049 is rejected. Lexing, parsing and the compile-error tests in this RFC do not depend on it, because the parser rejects those programs before any meaning is needed. The run tests wait for an accepted kernel that defines `put`, `wh`, `ret` and `ex` as this RFC uses them.
+6. **New codes.** E0003 and the codes of `kernel-v9` (E0200 to E0202, E0300 to E0303, E0400) are not in `spec/errors.json`. The first PR that emits each must add it there.
+7. **Leading zero.** RFC 0004's `diag/fix-present` expects E0001 for `007` with fix `7`. Rule 8 says E0006. The conflict is with RFC 0004, and the group must settle it.
