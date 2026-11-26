@@ -1,0 +1,43 @@
+name: site
+
+# Deploys the site after each nightly run (and on demand). Kept out of nightly.yml because
+# deploy-pages looks its artifact up among the run's first 100 artifacts.
+
+on:
+  workflow_run:
+    workflows: [nightly]
+    types: [completed]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  site:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Build site data
+        run: python site/build_data.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+      - name: Deploy to Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
