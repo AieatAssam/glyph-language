@@ -21,9 +21,9 @@ Prerequisite: RFC `retire-print-one`, not yet opened. It must be accepted first.
 
 **Gates.** This RFC is a supermajority RFC (RULES rule 4: `breaking` or `alters_tests`).
 
-- G-a. Open until voted. Approvals must be at least 0.75 of non-abstaining votes, rounded to four places (`tools/lib/rfc.py`). Quorum is five votes cast, abstentions included. Three approve and one reject passes. Three approve and two reject fails.
-- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` (`tools/lib/rfc.py`) compares slugs. Whether this is the same substance is the orchestrator's call, made before any vote.
-- G-c. Open. `tools/check/run` rule 5 reports 2 of 2 conformance tests passing, `print-one.test` among them (run this session). Under this RFC that test fails, so CI cannot pass until `retire-print-one` is accepted. No vote before it is accepted.
+- G-a. Open until voted. Approvals must be at least 0.75 of non-abstaining votes (`tools/lib/rfc.py`). Quorum is five votes, abstentions included.
+- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` compares slugs, and `kernel-v44` is not `kernel-v43`. The orchestrator decides before any vote whether this is the same substance. If the cooldown applies, withdraw.
+- G-c. Open. `tools/check/run` rule 5 reports 2 of 2 tests passing, `print-one.test` among them. Under this RFC that test fails, so CI cannot pass until `retire-print-one` is accepted. No vote before then.
 
 ## Summary
 
@@ -58,20 +58,24 @@ fn main() io fail { var i = 1; wh i <= 3 { put(sq(i)); i = i + 1 } }
 
 ## Motivation
 
-Attempt 44. RFC 0084 was rejected with three abstentions: voters could not check the kernel syntax, and its codes came from RFC 0020, which uses `print`. This text adds the kernel card and an example to Summary, states every test's output, and takes codes from RFC 0049 (same meanings, `put`).
+Attempt 44 followed the rejection of RFC 0084 (the gates and the unreadable syntax were the objections). The card and an example are now in the Summary; codes come from RFC 0049.
+
+Attempt 45. Subtask 1 of the plan (`fail` in `fn_decl`) had no file to change. Design L1 names the file and its precondition.
 
 ## Design
 
 Normative. "Must" and "is" bind implementers.
 
-L1. Tokens, keywords, literals and lexical and syntax errors are RFC 0048's. This RFC adds no token or keyword. The productions change as follows:
+L1. Tokens, keywords, literals and lexical and syntax errors are RFC 0048's. This RFC adds no token or keyword: `fail` is an `IDENT`, as `put` is. The productions change as follows:
 
 ```
 fn_decl = "fn" IDENT "(" [ param { "," param } ] ")" [ ":" rtype ] [ "io" ] [ "fail" ] block { "ex" expr }
 stmt    = ... | "ret" expr
 ```
 
-In `fn_decl`, `"fail"` is an `IDENT` whose text is `fail`, as `put` is. It is recognised only in that slot and is not a keyword. After the optional `io` and the optional `fail`, the parser requires `{`. Any other token there is E0100 at that token. So `fn main() fail io { }` is E0100 at `io`. A bare `ret` is a syntax error at the next token (RFC 0048, G12).
+A bare `ret` is a syntax error at the next token (RFC 0048, G12).
+
+**Where the change lives (subtask 1).** Add the optional `fail` to `fn_decl` in `compiler/stage0/src/kernel/parse-decl.ts`, the file RFC 0048 subtask 10 creates (its subtask 11 names it under `parser/`; this path is the one used here). Create no parser file. Precondition: RFC 0048 subtasks 1 to 11 merged. Until then, make no change and say so in the PR body. Unit tests may land with the change. Conformance tests land after RFC 0048 subtask 12: until then `check` exits 2 on every file, so a new test cannot pass and would break the gate.
 
 ### Types
 
@@ -83,7 +87,7 @@ T3. A `TEXT` token is valid only as the whole argument of a call to `put` (P1). 
 
 T4. No implicit conversions. No unit type.
 
-T5. A call to a function with no result is a statement only. Used as a value it is E0200 at the call, and the value has type `?`. A call used as a statement may have a result; the result is discarded (test `fn-discard`).
+T5. A call to a function with no result is a statement only. Used as a value it is E0200 at the call, and the value has type `?`.
 
 T6. `ptype` and `rtype` accept `Int` and `Bool` only. `Int` and `Bool` used as values are E0301 at the name.
 
@@ -143,9 +147,9 @@ C0. **Ordering.** The F7 check, and then example evaluation (EX3), run only when
 
 M1. A program has exactly one `main` with no parameters and no result. It may have `io` and `fail`. Missing is E0302 at the end-of-file token. A second is E0300 at its name. A `main` with a parameter or result is E0200 at the name `main`.
 
-P1. `put` is built in, with the signature `put(x) io`. It takes exactly one argument, which is an `Int` expression or a text literal (T3). Any other argument type, including `Bool`, is E0200 at the argument. Any other count is E0200 at `put`. A program declaring its own `put` gets E0300 at the name.
+P1. `put` is built in, with the signature `put(x) io`. It takes exactly one argument, which is an `Int` expression or a text literal (T3). Any other argument type, including `Bool`, is E0200 at the argument. Any other count is E0200 at `put`.
 
-P2. For an `Int`, `put` writes decimal with a leading `-` if negative, then one LF. For a text literal it writes the decoded bytes (RFC 0048, rule 9), then one LF. Output goes to standard output through WASI `fd_write`; each `put` finishes before the next statement.
+P2. For an `Int`, `put` writes decimal with a leading `-` if negative, then one LF. For a text literal it writes the decoded bytes (RFC 0048, rule 9), then one LF. Output goes to standard output through WASI `fd_write`, in statement order.
 
 ### Conditionals, loops and examples
 
@@ -169,7 +173,7 @@ TR3. Each call frame has its own loop counter, starting at 0. Each evaluation of
 
 ### Stable addresses
 
-A1. A declaration is addressed as `<file>::<name>`, with `<file>` repo-relative. An example is `<file>::<name>#<n>`, `<n>` counting from 1 in source order. No output field carries an address.
+A1. A declaration is addressed as `<file>::<name>`, with `<file>` repo-relative. An example is `<file>::<name>#<n>`, with `<n>` counting from 1 in source order among that function's examples.
 
 ### Card
 
@@ -177,7 +181,7 @@ K1. The implementing PR puts the `# Card: kernel` section of the Summary at the 
 
 ### Diagnostics
 
-Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's meanings. E0403 is new here. None is yet in `spec/errors.json`; the first PR that emits each adds it.
+Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 are RFC 0049's; E0403 is new here. The first PR that emits each code adds it to `spec/errors.json`.
 
 | Code | Meaning | Span |
 | --- | --- | --- |
@@ -193,7 +197,7 @@ Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's 
 
 ## Alternatives
 
-- **Keep bare `ret`, or drop the fail mark.** Rejected: bare `ret` pays for `fail`, and principle 3 asks that failure show in the signature.
+- **Keep bare `ret`, or drop the fail mark.** Rejected: bare `ret` pays for `fail`, and principle 3 wants failure in the signature.
 - **Keep `print` beside `put`.** Rejected: two names for one builtin break principle 1.
 - **A `Text` type now.** Deferred (Open question 4).
 
@@ -201,13 +205,13 @@ Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's 
 
 - Added: `fail` (one token per trapping function), F7, E0403, C0, T3, P1, K1.
 - Removed: bare `ret` (RFC 0048's `stmt`, F4's bare clause, the card's `ret [e]`) and tests `ret-bare` and `kc-ret-bare`.
-- Measured (rule 9, current spec): core 917 of 12000, card 244 of 2000. K1 adds about 370 tokens by hand, so the card reaches about 610 of 2000. The implementing PR re-measures.
+- Measured before K1: core 917 of 12000, card 244 of 2000. K1 adds about 370 by hand. The implementing PR re-measures.
 
 ## Test plan
 
-Conformance tests are files in `conformance/kernel/`, with `id`, `rfc` and `kind` in the meta block.
+Conformance tests are files in `conformance/kernel/`, with `id`, `rfc` and `kind` in the meta block. Every fix is `none` except the E0403 rows. C0 skips F7 in a compile-error program.
 
-Format: each backticked item in a program cell is one source line, numbered from 1; the word LF between items is a separator and adds no line. A compile-error row gives `CODE LINE` in `expect-errors`, LINE being the line of its span. E0403 rows use the JSON record form (code, span, fix). C0 skips F7 in a compile-error program.
+Unit tests for subtask 1, in `parse-decl.test.ts`: `fn f() fail { }` and `fn f() io fail { }` parse; `fn main() fail io { }` is E0100 at `io`. The conformance row `kc-fail-order` lands after RFC 0048 subtask 12 (L1).
 
 Run tests (status 0 unless stated):
 
@@ -329,7 +333,8 @@ RFC 0048's planned tests change as follows (T0048). None is in `conformance/` ye
 
 ## Open questions
 
-1. **TR3 limit.** The 10000000 steps are per call frame and not measured. They do not bound a run's total work.
-2. **Existing tests.** `tools/orchestrate.py` says a superseding RFC rewrites the old test; the base rules say tests are never edited. This draft follows the base rules, so G-c applies. The group must say which holds.
+1. **TR3 limit.** The 10000000 steps are per call frame, unmeasured. They do not bound a run's total work.
+2. **Existing tests.** `tools/orchestrate.py` and the base rules disagree on rewriting a superseded test. This draft follows the base rules (G-c). The group must say which holds.
 3. **Early exit.** Void functions cannot leave early. An early-exit form must pay under principle 6.
-4. **Text type.** Staged for the standard library RFC (see Summary).
+4. **Text type.** The kernel prints text but cannot bind, compare or store it. The standard library RFC takes this up.
+5. **Inherited items.** RFC 0048's open questions 4 and 7 are unchanged here.
