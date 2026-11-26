@@ -5,6 +5,9 @@
 // The body is either empty or one call with one integer argument. Names and integer spellings are
 // kept as written; the checker, which does not exist yet, decides what they mean.
 //
+// A keyword in the function name position is E0003 at the keyword (RFC 0048 rule 7 and G3). Every
+// other position the grammar rejects is E0100.
+//
 // ponytail: these two body shapes are the only ones accepted. Ceiling: any other program gets E0100
 // at its first unexpected token. Upgrade path: the kernel RFC's grammar replaces this file, one
 // production at a time, and each production gets its own spec/grammar.peg entry and conformance test.
@@ -48,9 +51,10 @@ export interface Program {
 }
 
 // A syntax error: the first token the grammar does not accept (RFC 0014 rule 13). Its span is that
-// token's span, or the end of the file when no token is left to read.
+// token's span, or the end of the file when no token is left to read. E0003 is a keyword where a
+// name is required (RFC 0048 G3).
 export interface ParseError {
-  code: 'E0100';
+  code: 'E0003' | 'E0100';
   start: number;
   end: number;
 }
@@ -65,6 +69,13 @@ class Stop {
     this.error = error;
   }
 }
+
+// The token kinds of the keywords, read from the token table so no second list exists.
+const KEYWORD_KINDS: ReadonlySet<number> = new Set(
+  Object.entries(Kind)
+    .filter(([name]) => name.startsWith('KW_'))
+    .map(([, kind]) => kind),
+);
 
 // Reads the token stream as the grammar sees it. NEWLINE tokens are skipped (see the ponytail note).
 class Cursor {
@@ -101,6 +112,13 @@ function ident(c: Cursor): Ident {
   return { text: t.text ?? '', start: t.start, end: t.end };
 }
 
+// The name after `fn`. A keyword there is E0003 at the keyword, not E0100.
+function fnName(c: Cursor): Ident {
+  const t = c.peek();
+  if (KEYWORD_KINDS.has(t.kind)) throw new Stop({ code: 'E0003', start: t.start, end: t.end });
+  return ident(c);
+}
+
 function call(c: Cursor): Call {
   const callee = ident(c);
   c.expect(Kind.LPAREN);
@@ -116,7 +134,7 @@ function call(c: Cursor): Call {
 
 function fnDecl(c: Cursor): FnDecl {
   const fnTok = c.expect(Kind.KW_FN);
-  const name = ident(c);
+  const name = fnName(c);
   c.expect(Kind.LPAREN);
   c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
