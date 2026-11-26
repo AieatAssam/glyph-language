@@ -46,15 +46,15 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 ### Lexical rules
 
-1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
+1. **Source text.** A source file is a byte sequence that must be valid UTF-8. A byte sequence is ill-formed when it is not a complete valid UTF-8 sequence, including a sequence cut short by the end of the file. An ill-formed sequence is error E0001 at its lead byte, the first byte of that sequence. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. A CR is therefore never a line end and never whitespace, in any context. A CR LF pair is two characters, and the CR is E0001.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. CR LF is not a line end: the CR is E0001 by rule 2, so no CR is ever whitespace and no CR LF pair is ever a line end.
 
-4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
+4. **Whitespace.** Space (U+0020) and LF are whitespace. No other byte is whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. A CR inside a comment is E0001 at the CR (rule 2), so it does not end the comment. There are no block comments. A comment produces no token.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token. A comment is trivia only as rule 5 defines it: a `/` that is not followed by `/` is the division token (rule 10).
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -64,7 +64,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
    Each keyword lexes as its own token kind, never as an identifier. The three shortened keywords replace `while`, `return` and `example`. A keyword where a name is required is E0003 at the keyword (G3). No other word is reserved. The builtin `put` (kernel-v9) is an identifier, so `put` is not a keyword.
 
-8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
+8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker, never by the lexer or the parser. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
 
 9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rule 2 forbids, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. The value of the token is the decoded UTF-8 bytes.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** A file may contain more than one lexical error (E0001, E0005, E0006, or E0500 where the lexer sees it). The one reported is the error whose span starts at the lowest byte offset. Lexing stops there, and no token is emitted after it. A file with a lexical error gives no tokens at all: the lex result is the error alone, and the parser does not run. Records follow RFC 0004 section 3.
+13. **Lexical error order.** Rules 1 and 2 are checked over the whole file before any token is read. The first byte they reject, if any, is the byte error. The scan reads tokens only up to the start of the byte error. A scanner error (E0001 at a non-ASCII character or a printable ASCII character outside the token set, E0005, or E0006) is the reported error if its span ends at or before the start of the byte error, or if there is no byte error. Otherwise the byte error is reported. The lexer reports exactly one error and returns no tokens, not even those before the error. Records follow RFC 0004 section 3. The lexer never reports E0500 (rule 8).
 
 ### Grammar
 
@@ -136,10 +136,10 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 6, 9, 11 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character. For ill-formed UTF-8, the lead byte (rule 1) | 1, 2, 3, 6, 9, 11, 13 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
-| E0005 | lexical | Malformed text literal | See rule 9 | 9 |
-| E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
+| E0005 | lexical | Malformed text literal | See rule 9 | 9, 13 |
+| E0006 | lexical | Integer literal with a leading zero | The literal | 8, 13 |
 | E0100 | syntax | Unexpected token: the grammar does not accept this token at this position | The token. At end of file, the `EOF` token | 10, G1 to G12 |
 | E0500 | limits | Integer literal above 9223372036854775807. Reported by the checker | The literal | 8 |
 
