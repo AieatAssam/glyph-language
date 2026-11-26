@@ -502,6 +502,21 @@ class MergebotRepoTests(RepoTestCase):
         self.assertEqual(blocked[-1]["data"]["rule"], 14)  # not rule 1 for base-only changes
         self.assertEqual(self.git("status", "--porcelain", "--", "audit"), "")  # events committed
 
+    def test_base_conflict_is_a_gate_block_not_a_crash(self):
+        self.write("compiler/stage0/fix.ts", "orig\n")
+        base = self.commit("orig")
+        self.git("checkout", "-b", "agent/impl-0004")
+        self.write("compiler/stage0/fix.ts", "branch\n")
+        head = self.commit("branch edit")
+        self.git("checkout", "main")
+        self.write("compiler/stage0/fix.ts", "main\n")
+        self.commit("main edit")  # same line changed on both sides: a real conflict
+        pr = {"class": "bugfix", "rfc": None, "subtask": None, "author": "impl-1"}
+        out = MB._merge_one(self.root, 4, pr, None, {"sha": head, "base_sha": base}, {})
+        self.assertIsNone(out)  # no raise: the caller moves on to the next PR
+        blocked = [e for e in audit.load_events(self.root) if e["type"] == "gate_blocked"]
+        self.assertIn("conflicts with base", blocked[-1]["data"]["reason"])
+
     def test_stale_check_is_skipped(self):
         self.git("checkout", "-b", "agent/impl-0004")
         self.write("compiler/stage0/fix.ts", "z\n")

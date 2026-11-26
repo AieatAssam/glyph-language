@@ -372,7 +372,9 @@ def cmd_merge(root, checkdir, benchdir=None) -> dict:
                            "failures": count},
                           f"stuck:{n}:{count}")
             continue
-        return _merge_one(root, n, pr, rfc, check, rules)
+        res = _merge_one(root, n, pr, rfc, check, rules)
+        if res is not None:
+            return res
     # Nothing merged: still publish the check_run and gate_blocked events (review planning reads them).
     sha = gitops.commit_all(root, "Audit: gate\n\nBot: mergebot", paths=["audit"])
     if sha:
@@ -401,7 +403,13 @@ def _merge_one(root, n, pr, rfc, check, rules) -> dict:
     probe = gitops.git(root, "merge-tree", "--write-tree", "--name-only", "HEAD", sha_head, check=False)
     clash = [f for f in probe.split("\n\n")[0].splitlines()[1:] if f]
     if any(not PLAN_FILE_RE.fullmatch(f) for f in clash):
-        raise RuntimeError(f"PR {n} conflicts with the base in {clash}")
+        # A conflict is a gate block, not a crash: a raise kills the merge job, so no other PR merges
+        # either. The next publisher update merges the base into the branch and clears it.
+        # ponytail: a stale branch is only retried when its agent pushes again, no auto-rebase.
+        _emit(root, "gate_blocked", {"pr": int(n)},
+              {"pr": int(n), "rule": 0, "reason": f"conflicts with base in {clash[:5]}", "subtask": None},
+              f"blocked:{n}:{sha_head}:conflict")
+        return None
     gitops.git(root, "merge", "--squash", *(["-X", "theirs"] if clash else []), sha_head)
     # Implemented once a non-plan PR lands with every subtask of the plan ticked.
     plan = Path(root) / "rfcs" / f"{pr.get('rfc')}.plan.md"
