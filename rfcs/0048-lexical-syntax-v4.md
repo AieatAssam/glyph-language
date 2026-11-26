@@ -50,11 +50,11 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. A line end has no meaning of its own, so no stage of the lexer or parser needs to know where line ends are. A CR is never a line end: it is E0001 by rule 2, so there is no CR LF pair and no CR LF rule.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. A comment ends only at an LF or the end of the file. A CR or other forbidden character inside it is E0001 by rule 2, so no comment ends at a CR. A `"` inside a comment has no meaning. There are no block comments. A comment produces no token.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -64,7 +64,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
    Each keyword lexes as its own token kind, never as an identifier. The three shortened keywords replace `while`, `return` and `example`. A keyword where a name is required is E0003 at the keyword (G3). No other word is reserved. The builtin `put` (kernel-v9) is an identifier, so `put` is not a keyword.
 
-8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
+8. **Integer literals.** A decimal integer is `0`, or a digit from `1` to `9` followed by zero or more digits. It has no sign and no underscore. A literal with a leading zero, such as `007`, is E0006 at the literal. The lexer records the digits as written. The value must be at most 9223372036854775807. A larger literal is E0500 at the literal, reported by the checker, not the lexer. The check applies to the literal alone, before any unary `-`, so `-9223372036854775808` is also E0500.
 
 9. **Text literals.** A text literal starts with `"` and ends at the next `"`. Between the quotes are any valid UTF-8 characters except `"`, `\`, and the characters rule 2 forbids, and the escapes `\n` (LF), `\"` (quote) and `\\` (backslash). Any other `\` sequence is E0005 at the backslash and the character after it. An LF or the end of the file before the closing quote is E0005 at the span from the opening quote to that point. The value of the token is the decoded UTF-8 bytes.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** The lexer reports the first lexical error (E0001, E0005, E0006 or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
+13. **Two passes and lexical errors.** Lexing runs in two passes. The first pass checks rules 1 and 2 over every byte of the file, from the start, and stops at the first failure. The second pass scans from the start: it skips whitespace and comments (rules 3 to 5), then reads one token (rules 6 to 11). The first pass finds every E0001 that comes from rules 1 and 2, so the second pass never sees a forbidden control character, a byte order mark, or an invalid UTF-8 byte. If either pass finds a lexical error (E0001, E0005 or E0006), the lexer returns that one error and no tokens at all, even tokens before the error. E0500 is not a lexical error (rule 8). Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -136,7 +136,7 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 6, 9, 11 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 6, 9, 11 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
@@ -168,7 +168,7 @@ Measured by hand with the counter in `tools/check/tokens.py`. The counter was no
 - Shortened words: `wh` for `while`, `ret` for `return`, `ex` for `example` and `put` for `print`. Each use saves one token. The spec text uses each as a word, so this is a saving in the spec's text too.
 - `;` costs one token per statement separator in programs. The counter cannot see line breaks, so the saving from removing `NEWLINE` is only in the rules text.
 - Removed: rules 14 and 15 of RFC 0014, the CR LF clause, the `NEWLINE` token kind, parenthesis-depth rules, the `type` production, the annotation syntax on `let` and `var`, and rules G2 and G3 of RFC 0020.
-- Added: the `;` token, and the grammar block above.
+- Added: the `;` token, the two-pass rule in rule 13, and the grammar block above.
 
 Core spec: the merge bot checks the 12,000-token cap with the protected counter. This RFC is expected to be roughly neutral against RFC 0014 and RFC 0020 together, but the figure is not measured here.
 
@@ -176,7 +176,7 @@ Spec card: one line for the fourteen keywords, one for the nineteen punctuation 
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`. A test's `expect-errors` object gives `code` and `span`, and `fix` where the test states one; the runner compares only the fields the object gives (`tools/check/conformance.py`). "Every fix is `none`" is a statement about these errors, not a field every test must carry.
+Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
 
