@@ -1,0 +1,12 @@
+--- meta
+id: kernel/print-one-lines
+rfc: 0048
+kind: run
+--- source
+fn main() io {
+  print(1)
+}
+--- expect-stdout
+1
+--- expect-exit
+0
