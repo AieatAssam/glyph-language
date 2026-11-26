@@ -31,10 +31,10 @@ test('the walking-skeleton program parses to one function with one call', () => 
   });
 });
 
-test('a trailing LF or CR LF changes no tree', () => {
+test('a trailing LF changes no tree, and a CR LF is E0001 at its CR, not a line end', () => {
   const plain = parseText(PROGRAM);
   assert.deepEqual(parseText(PROGRAM + '\n'), plain);
-  assert.deepEqual(parseText(PROGRAM + '\r\n'), plain);
+  assert.deepEqual(lex(Buffer.from(PROGRAM + '\r\n', 'utf8')).error, { code: 'E0001', start: 25, end: 26 });
 });
 
 test('a missing io effect is E0100 at the opening brace', () => {
