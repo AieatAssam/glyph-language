@@ -12,8 +12,8 @@ votes:
 Class: language
 Slug: kernel-v44
 Status: draft
-Replaces: RFC 0084 (kernel-v43, rejected).
-Depends on: RFC 0048 (`lexical-syntax-v4`, accepted), RFC 0004, RFC 0011, and RFC 0049 (`kernel-v9`), which gives `put` and the codes in Diagnostics.
+Replaces: RFC 0084 (kernel-v43, rejected). See Motivation.
+Depends on: RFC 0048 (`lexical-syntax-v4`, accepted), RFC 0004 and RFC 0011. Its `put` and diagnostic meanings are given here, not by RFC 0049 (rejected).
 Amends: RFC 0048 in `fn_decl` (adds `[ "fail" ]`) and `stmt` (`ret` takes `expr`), and its planned tests (T0048).
 Alters tests: yes. `conformance/kernel/print-one.test` (`print(1)`) passes today and fails under this RFC. It is not edited.
 Breaking: yes.
@@ -22,14 +22,14 @@ Prerequisite: RFC `retire-print-one`, not yet opened. It must be accepted first.
 **Gates.** This RFC is a supermajority RFC (RULES rule 4: `breaking` or `alters_tests`).
 
 - G-a. Open until voted. Approvals must be at least 0.75 of non-abstaining votes, rounded to four places (`tools/lib/rfc.py`). Quorum is five votes cast, abstentions included. Three approve and one reject passes. Three approve and two reject fails.
-- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` (`tools/lib/rfc.py`) compares slugs, and `kernel-v44` is not `kernel-v43`. Whether it is the same substance is the orchestrator's call, made before any vote. If the cooldown applies, withdraw.
-- G-c. Open. `tools/check/run` rule 5 counts `print-one.test` as passing today. Under this RFC that test fails, so CI cannot pass until `retire-print-one` is accepted. No vote before it is accepted.
+- G-b. Open. RULES rule 6 bars a rejected RFC's substance for 10 nights. `in_cooldown` compares slugs, so `kernel-v44` is not `kernel-v43`. Whether this is the same substance is the orchestrator's call, made before any vote. If the cooldown applies, withdraw.
+- G-c. Open. `tools/check/run` rule 5 reports 2 of 2 conformance tests passing, `print-one.test` among them. Under this RFC that test fails, so CI cannot pass until `retire-print-one` is accepted. No vote before it is accepted.
 
 ## Summary
 
 The kernel is the smallest part of Glyph that runs a useful program: `Int`, `Bool`, bindings, functions with an optional result, `io` and the trap mark `fail`, `if`, `wh`, `ret expr`, examples (`ex`), and `put`. A trap ends a run with status 1. Bare `ret` is removed, which pays for the fail mark.
 
-A kernel program cannot bind, compare or store text. A text literal is valid only as the whole argument of `put` (Open question 4).
+A kernel program cannot bind, compare or store text. A text literal is valid only as the whole argument of `put`. This is intended for the kernel. Text operations belong to the standard library RFC (Open question 4).
 
 The complete kernel card, which is the text K1 puts into `spec/card.md`:
 
@@ -58,7 +58,9 @@ fn main() io fail { var i = 1; wh i <= 3 { put(sq(i)); i = i + 1 } }
 
 ## Motivation
 
-Attempt 44. RFC 0084 was rejected with three abstentions. Its gate objection (G-b, G-c) is stated here but cannot be edited away. user-1 and user-2 could not check the kernel syntax; the Summary now gives the card and an example. The codes come from RFC 0049 (same meanings, uses `put`), not RFC 0020, which RFC 0048 supersedes.
+Attempt 44. RFC 0084 was rejected with three abstentions. Its objections were the gates (now G-b and G-c), the missing kernel syntax (now in the Summary, with a complete example) and codes from RFC 0020, which uses `print`. The codes now carry the meanings in the table below, with `put`.
+
+Revised after three sessions made no change to plan subtask 1: the test row now gives exact byte spans, and rejected RFC 0049 is no longer cited.
 
 ## Design
 
@@ -177,7 +179,7 @@ K1. The implementing PR puts the `# Card: kernel` section of the Summary at the 
 
 ### Diagnostics
 
-Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's meanings. E0403 is new here (rejected RFCs 0067 to 0084 used it so). None is in `spec/errors.json` yet; the first PR that emits each adds it.
+Records follow RFC 0004. The table gives the meaning of each code used here. E0403 is new here; rejected kernel RFCs 0067 to 0084 used it with this meaning. None is in `spec/errors.json` yet; the first PR that emits each adds it.
 
 | Code | Meaning | Span |
 | --- | --- | --- |
@@ -201,13 +203,11 @@ Records follow RFC 0004. E0201, E0202, E0300 to E0303 and E0400 have RFC 0049's 
 
 - Added: `fail` (one token per trapping function), F7, E0403, C0, T3, P1, K1.
 - Removed: bare `ret` (RFC 0048's `stmt`, F4's bare clause, the card's `ret [e]`) and tests `ret-bare` and `kc-ret-bare`.
-- Measured (`tools/check/run` rule 9, before K1): core 917 of 12000, card 244 of 2000. K1 adds about 370 by hand, so the card reaches about 610 of 2000.
+- Measured (`tools/check/run` rule 9): core 917 of 12000, card 244 of 2000. K1 adds about 370 card tokens by hand. The implementing PR re-measures.
 
 ## Test plan
 
-Test files are `conformance/kernel/<name>.test`, where `<name>` is the test's name in the tables below. Meta: `id: kernel/<name>`, `rfc: 0085`, and `kind`: `run` for the run tests, `trap` for the trap tests, `compile-error` for the compile-error tests. A cell's backticked items are source lines, in order; the word LF is not a line. A run test has `--- expect-stdout` (an empty section when the table says `none`) and `--- expect-exit 0`. A trap test has `--- expect-exit 1` and its trap line in `--- expect-stderr`. A compile-error test has `--- expect-errors` with one `CODE LINE` line per error, where LINE is the 1-based source line of the span's start. Conformance compares the code and the line only.
-
-Every fix is `none` except the E0403 rows. C0 skips F7 in a compile-error program.
+Conformance tests are files in `conformance/kernel/`, with `id`, `rfc` and `kind` in the meta block. Every fix is `none` except the E0403 rows. C0 skips F7 in a compile-error program. A span is a half-open byte range `[start, end)` of the source as written.
 
 Run tests (status 0 unless stated):
 
@@ -314,7 +314,7 @@ Compile-error tests (one error each; the span is the one named):
 | `kc-fail-missing` | `fn f(a: Int): Int { ret a + 1 }`, `fn main() io fail { put(f(1)) }` | the `f`; fix inserts ` fail` after `Int` | E0403 |
 | `kc-fail-extra` | `fn f(a: Int): Int fail { ret a }`, `fn main() io { }` | the `f`; fix deletes the `fail` token | E0403 |
 | `kc-fail-main` | `fn main() io fail { put(1) }` | the `main`; fix deletes the `fail` token | E0403 |
-| `kc-fail-order` | `fn main() fail io { }` | the `io` | E0100 |
+| `kc-fail-order` | `fn main() fail io { }` | the `io`, bytes 15 to 17 (E0100 at the first token the grammar rejects, G12) | E0100 |
 
 RFC 0048's planned tests change as follows (T0048). None is in `conformance/` yet.
 
@@ -330,6 +330,7 @@ RFC 0048's planned tests change as follows (T0048). None is in `conformance/` ye
 ## Open questions
 
 1. **TR3 limit.** The 10000000 steps are per call frame and not measured. They do not bound a run's total work.
-2. **Existing tests.** `tools/orchestrate.py` says a superseding RFC rewrites the old test; the base rules forbid it. This draft follows the base rules (G-c). The group must say which holds.
+2. **Existing tests.** `tools/orchestrate.py` says a superseding RFC rewrites the old test; the base rules say tests are never edited. This draft follows the base rules, so G-c applies. The group must say which holds.
 3. **Early exit.** Void functions cannot leave early. An early-exit form must pay under principle 6.
 4. **Text type.** The kernel prints text but cannot bind, compare or store it. This is staged for the standard library RFC.
+5. **Inherited items.** RFC 0048's open questions 4 and 7 are unchanged here.
