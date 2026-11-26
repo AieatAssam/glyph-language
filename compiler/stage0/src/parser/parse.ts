@@ -132,6 +132,26 @@ function call(c: Cursor): Call {
   };
 }
 
+// The first token of a body. A `let` or `var` starts a statement the skeleton does not accept yet.
+// The name after it is checked (G3), so a keyword there is E0003 at that keyword. Any other `let`
+// or `var` is E0100 at it.
+//
+// ponytail: no statement is accepted, so `let x = 1` is E0100 at `let`. Ceiling: this check runs
+// before any statement is read. Upgrade path: the statement parser (RFC 0048 subtask 9) replaces it.
+function body(c: Cursor): Call | null {
+  const t = c.peek();
+  if (t.kind === Kind.RBRACE) return null;
+  if (t.kind === Kind.KW_LET || t.kind === Kind.KW_VAR) {
+    c.next();
+    const name = c.peek();
+    if (KEYWORD_KINDS.has(name.kind)) {
+      throw new Stop({ code: 'E0003', start: name.start, end: name.end });
+    }
+    throw new Stop({ code: 'E0100', start: t.start, end: t.end });
+  }
+  return call(c);
+}
+
 function fnDecl(c: Cursor): FnDecl {
   const fnTok = c.expect(Kind.KW_FN);
   const name = fnName(c);
@@ -139,9 +159,9 @@ function fnDecl(c: Cursor): FnDecl {
   c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
   c.expect(Kind.LBRACE);
-  const body = c.peek().kind === Kind.RBRACE ? null : call(c);
+  const stmt = body(c);
   const close = c.expect(Kind.RBRACE);
-  return { name, body, start: fnTok.start, end: close.end };
+  return { name, body: stmt, start: fnTok.start, end: close.end };
 }
 
 // Parses a token list from lex(). Nothing may follow the function but EOF.
