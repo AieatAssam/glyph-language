@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkMessage } from './message.ts';
 
 type Entry = { code: string; message: string; meaning: string; retired?: boolean };
 
@@ -23,8 +22,4 @@ test('E0010 lies in the lexical block E0001 to E0099', () => {
 test('E0010 has the message and meaning given by RFC 0011', () => {
   assert.equal(entries[0]?.message, 'source file does not end in .gl');
   assert.equal(entries[0]?.meaning, 'the path given is not a source file');
-});
-
-test('E0010 message passes the RFC 0004 message rules in message.ts', () => {
-  assert.deepEqual(checkMessage(entries[0]?.message ?? ''), []);
 });

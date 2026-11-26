@@ -1,14 +1,11 @@
-// Diagnostic record and JSON Lines writer (RFC 0004 sections 2 and 3).
-// The field order of the output is fixed here, whatever order the caller builds the object in.
+// Diagnostic record and JSON Lines writer (RFC 0050 section 2, which replaces RFC 0004's record).
+// The key order of the output is fixed here, whatever order the caller builds the object in.
 
 export type Severity = 'error' | 'warning';
 
 export interface Span {
-  file: string;
   start: number;
   end: number;
-  line: number;
-  column: number;
 }
 
 export interface Fix {
@@ -18,32 +15,25 @@ export interface Fix {
 
 export interface Diagnostic {
   code: string;
-  severity: Severity;
-  message: string;
+  severity?: Severity;
   span: Span;
   fix?: Fix;
 }
 
 function spanJson(span: Span): Span {
-  return {
-    file: span.file,
-    start: span.start,
-    end: span.end,
-    line: span.line,
-    column: span.column,
-  };
+  return { start: span.start, end: span.end };
 }
 
-// Returns one JSON object as text, with no line feed and no trailing comma.
-// The caller adds the line feed when it writes the record to standard error.
-// The `fix` key is written only when the record has a fix.
+// Returns one record as text, with no line feed and no trailing comma. The caller adds the line feed
+// when it writes the record to standard error. Keys are written in the order code, severity, span,
+// fix. `severity` is written only when it is not `error`, since absent means error. `fix` is written
+// only when the record has one. No other key is written.
 export function toJsonLine(record: Diagnostic): string {
-  const out: Record<string, unknown> = {
-    code: record.code,
-    severity: record.severity,
-    message: record.message,
-    span: spanJson(record.span),
-  };
+  const out: Record<string, unknown> = { code: record.code };
+  if (record.severity !== undefined && record.severity !== 'error') {
+    out.severity = record.severity;
+  }
+  out.span = spanJson(record.span);
   if (record.fix !== undefined) {
     out.fix = { span: spanJson(record.fix.span), replacement: record.fix.replacement };
   }
@@ -58,7 +48,7 @@ export function isLexical(code: string): boolean {
   return n >= 1 && n <= 99;
 }
 
-// Returns a new array sorted by span.start, then by code. Records equal on both keep their
+// Returns a new array sorted by span.start, then by code. Records equal on both keys keep their
 // input order, so the same input always gives the same output. The input is not changed.
 export function sortRecords(records: readonly Diagnostic[]): Diagnostic[] {
   return records

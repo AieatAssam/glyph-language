@@ -36,7 +36,7 @@ async function main(argv: string[]): Promise<number> {
     // A file the front end cannot read yet falls through to cli.ts, as before.
     let records: Diagnostic[] = [];
     try {
-      records = diagnosticsOf(Buffer.from(readFileSync(path)), path);
+      records = diagnosticsOf(Buffer.from(readFileSync(path)));
     } catch {
       records = [];
     }

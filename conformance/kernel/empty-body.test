@@ -1,0 +1,9 @@
+--- meta
+id: kernel/empty-body
+rfc: 0048
+kind: run
+--- source
+fn main() io { }
+--- expect-stdout
+--- expect-exit
+0

@@ -57,29 +57,28 @@ test('build without -o OUT, or with a bad flag or empty OUT, exits 2 with the us
   assert.deepEqual(call(['build', 'main.gl', '-x', 'out.wasm']), { code: 2, out: '', err: USAGE });
 });
 
-const E0010_LINE = (file: string) =>
-  '{"code":"E0010","severity":"error","message":"source file does not end in .gl",' +
-  `"span":{"file":"${file}","start":0,"end":0,"line":1,"column":1}}\n`;
+// The E0010 record. It names no file: the path is not in the record (RFC 0050 section 2).
+const E0010_LINE = '{"code":"E0010","span":{"start":0,"end":0}}\n';
 
 test('a path that is not a source file gives the E0010 record and exits 1, for each subcommand', () => {
   for (const file of ['prog.txt', 'PROG.GL', 'main.glyph', 'missing.txt']) {
-    assert.deepEqual(call(['check', file]), { code: 1, out: '', err: E0010_LINE(file) }, file);
-    assert.deepEqual(call(['run', file]), { code: 1, out: '', err: E0010_LINE(file) }, file);
+    assert.deepEqual(call(['check', file]), { code: 1, out: '', err: E0010_LINE }, file);
+    assert.deepEqual(call(['run', file]), { code: 1, out: '', err: E0010_LINE }, file);
     assert.deepEqual(
       call(['build', file, '-o', 'out.wasm']),
-      { code: 1, out: '', err: E0010_LINE(file) },
+      { code: 1, out: '', err: E0010_LINE },
       file,
     );
   }
 });
 
 test('the source-file rule comes before the argument checks for check, run and build', () => {
-  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: E0010_LINE('prog.txt') });
-  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: E0010_LINE('prog.txt') });
+  assert.deepEqual(call(['build', 'prog.txt']), { code: 1, out: '', err: E0010_LINE });
+  assert.deepEqual(call(['check', 'prog.txt', 'extra']), { code: 1, out: '', err: E0010_LINE });
 });
 
-test('a path with a directory part is reported with the path as given', () => {
-  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: E0010_LINE('dir/prog.txt') });
+test('a path with a directory part gives the same E0010 record', () => {
+  assert.deepEqual(call(['run', 'dir/prog.txt']), { code: 1, out: '', err: E0010_LINE });
 });
 
 test('nothing is written to standard output except for --version', () => {
