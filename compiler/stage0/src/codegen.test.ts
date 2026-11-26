@@ -35,8 +35,8 @@ test('the largest Int prints in full, and 0 prints as 0', async () => {
   assert.equal((await run(wasmOf('fn main() io { print(0) }'))).stdout, '0\n');
 });
 
-test('CR LF line ends give the same module output as LF', () => {
-  assert.deepEqual(wasmOf('fn main() io { print(1) }\r\n'), wasmOf('fn main() io { print(1) }\n'));
+test('a CR LF line end is refused, since CR is not allowed (RFC 0048 rule 3)', () => {
+  assert.equal('wasm' in compile(Buffer.from('fn main() io { print(1) }\r\n', 'utf8')), false);
 });
 
 test('a callee other than print is refused with a reason that names it', () => {
