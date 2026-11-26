@@ -15,8 +15,13 @@ test('plain ASCII with LF line ends passes', () => {
   assert.equal(checkBytes(Buffer.from('let a = 1\nlet b = 2\n', 'utf8')), null);
 });
 
-test('a valid CR LF file passes', () => {
-  assert.equal(checkBytes(Buffer.from('let a = 1\r\nlet b = 2\r\n', 'utf8')), null);
+test('a CR LF file is E0001 at the CR (RFC 0048 rules 2 and 3)', () => {
+  assert.deepEqual(checkBytes(Buffer.from('let a = 1\r\nlet b = 2\r\n', 'utf8')), { code: 'E0001', start: 9, end: 10 });
+});
+
+test('a CR in a comment or in a text literal is E0001 at the CR', () => {
+  assert.deepEqual(checkBytes(Buffer.from('// a\rb\n', 'utf8')), { code: 'E0001', start: 4, end: 5 });
+  assert.deepEqual(checkBytes(Buffer.from('"a\rb"\n', 'utf8')), { code: 'E0001', start: 2, end: 3 });
 });
 
 test('valid non-ASCII text outside any literal passes: 2, 3 and 4 byte sequences', () => {

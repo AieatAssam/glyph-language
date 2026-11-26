@@ -31,29 +31,22 @@ test('the walking-skeleton program parses to one function with one call', () => 
   });
 });
 
-test('a trailing LF or CR LF changes no tree', () => {
+test('a trailing LF changes no tree, and a trailing CR LF is E0001 at the CR (RFC 0048 rule 3)', () => {
   const plain = parseText(PROGRAM);
   assert.deepEqual(parseText(PROGRAM + '\n'), plain);
-  assert.deepEqual(parseText(PROGRAM + '\r\n'), plain);
+  assert.deepEqual(lex(Buffer.from(PROGRAM + '\r\n', 'utf8')).error, { code: 'E0001', start: 25, end: 26 });
 });
 
-test('an empty block with a line end parses to a function with no call (RFC 0048)', () => {
-  assert.deepEqual(parseText('fn main() io {\n}'), {
-    tree: { fn: { name: { text: 'main', start: 3, end: 7 }, body: null, start: 0, end: 16 } },
-  });
+test('an empty block parses to a function with no call, with any spacing between the braces (RFC 0048)', () => {
+  for (const text of ['fn main() io {}', 'fn main() io { }', 'fn main() io {\n}', 'fn main() io { \n}', 'fn main() io {\n\n}']) {
+    assert.deepEqual(parseText(text), {
+      tree: { fn: { name: { text: 'main', start: 3, end: 7 }, body: null, start: 0, end: text.length } },
+    });
+  }
 });
 
-test('an empty block without a line end is E0100 at its closing brace (RFC 0048)', () => {
-  assert.deepEqual(parseText('fn main() io {}'), { error: { code: 'E0100', start: 14, end: 15 } });
-  assert.deepEqual(parseText('fn main() io { }'), { error: { code: 'E0100', start: 15, end: 16 } });
-});
-
-test('a space between the braces and the LF is E0100 at the closing brace (RFC 0048)', () => {
-  assert.deepEqual(parseText('fn main() io { \n}'), { error: { code: 'E0100', start: 16, end: 17 } });
-});
-
-test('two LFs between the braces are E0100 at the closing brace (RFC 0048)', () => {
-  assert.deepEqual(parseText('fn main() io {\n\n}'), { error: { code: 'E0100', start: 16, end: 17 } });
+test('a block that is not closed is E0100 at end of file (RFC 0048)', () => {
+  assert.deepEqual(parseText('fn main() io {'), { error: { code: 'E0100', start: 14, end: 14 } });
 });
 
 test('a missing io effect is E0100 at the opening brace', () => {

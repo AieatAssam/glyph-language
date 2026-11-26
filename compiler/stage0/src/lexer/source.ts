@@ -1,6 +1,7 @@
-// Whole-file byte checks for a Glyph source file (RFC 0014 rules 1 to 3, and the context-free part
-// of rule 2). This is the first lexical stage. It reads no tokens and knows nothing of comments or
-// text literals, so it rejects a forbidden character wherever it appears.
+// Whole-file byte checks for a Glyph source file (RFC 0048 rules 1 and 2, and the LF of rule 3). This
+// is the first lexical stage. It reads no tokens and knows nothing of comments or text literals, so
+// it rejects a forbidden character wherever it appears. CR is a control character, so it is an error
+// wherever it appears, including in a CR LF pair (RFC 0048 rule 2).
 //
 // Error position: a broken UTF-8 sequence is reported at the first byte of that sequence. This is
 // the lead byte, so a byte that starts an ill-formed sequence is always the reported byte, even
@@ -9,7 +10,6 @@
 export type LexError = { code: string; start: number; end: number };
 
 const LF = 0x0a;
-const CR = 0x0d;
 
 function fail(start: number, end: number): LexError {
   return { code: 'E0001', start, end };
@@ -42,19 +42,11 @@ export function checkBytes(buf: Buffer): LexError | null {
     const b = buf[i];
 
     if (b < 0x80) {
-      if (b === CR) {
-        // The CR of a CR LF pair is one line end with its LF. Any other CR is an error.
-        if (i + 1 < n && buf[i + 1] === LF) {
-          i += 2;
-          continue;
-        }
-        return fail(i, i + 1);
-      }
       if (b === LF) {
         i += 1;
         continue;
       }
-      // U+0000 to U+001F and U+007F, which includes tab.
+      // U+0000 to U+001F and U+007F, which includes tab and CR (RFC 0048 rule 2).
       if (b < 0x20 || b === 0x7f) {
         return fail(i, i + 1);
       }
