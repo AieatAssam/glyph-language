@@ -344,6 +344,7 @@ def plan_design(ctx) -> list[Asg]:
                                 "need to repair the code. The gate reads JSON Lines on stderr and only the keys "
                                 "`code`, `span.start`, `span.end`, `fix.span` and `fix.replacement`; keep those "
                                 "names and shapes, everything else may go. A missing `severity` means error.")
+                    why += premise_findings(repo, tries[-1])
                 why += (f"\n\nAttempt {len(tries) + 1}. RFC {tries[-1]} (`rfcs/{tries[-1]}-{last['slug']}.md`) was "
                         f"{last['status']}. Keep what voters accepted and fix every objection:\n{objections or '- (none recorded)'}")
             base = spec["slug"].split("-v")[0] if re.search(r"-v\d+$", spec["slug"]) else spec["slug"]
@@ -384,7 +385,7 @@ def plan_design(ctx) -> list[Asg]:
                 out[d] = Asg(d, "design", "propose", (
                     f"No RFC is open. {focus_for(st, i)}\n\n"
                     f"## Benchmark findings\n{findings_text(repo)}{overfit_note(repo)}\n\n## Open user issues\n{issues_text(st)}\n\n"
-                    f"## Roadmap (top)\n{roadmap_top(repo)}\n\n"
+                    f"## Roadmap (top)\n{roadmap_top(repo)}\n\n{superseded_on_premise(repo, rfcs)}"
                     "Propose one RFC grounded in a finding or issue. Cite it in the Motivation section."))
 
     discussion = [n for n in open_ if rfcs[n]["status"] == "discussion"]
@@ -398,6 +399,28 @@ def plan_design(ctx) -> list[Asg]:
                 f"Comment on an open RFC. Give one concrete comment through `comment` with target `{{\"rfc\": \"{n}\"}}`. "
                 "Say what you would cut before adding anything.\n\n" + rfc_block(repo, n, rfcs[n])), rfc=n)
     return [out[d] for d in designers if d in out]
+
+
+def premise_findings(repo, n) -> str:
+    """The owner's token-premise findings for superseded RFC `n`, or ''."""
+    text = repo.read(f"governance/premise/{n}.md")
+    return f"\n\nThe owner's measured findings on RFC {n}; fix each one:\n\n{text.strip()}" if text else ""
+
+
+def superseded_on_premise(repo, rfcs) -> str:
+    """Findings of superseded non-founding RFCs that no later RFC of the same base has replaced."""
+    out = []
+    for n in by_num(rfcs):
+        r = rfcs[n]
+        base = re.sub(r"-v\d+$", "", r["slug"])
+        if r["status"] != "superseded" or base in FOUNDING_SLUGS or not repo.read(f"governance/premise/{n}.md"):
+            continue
+        if any(m > n and re.sub(r"-v\d+$", "", rfcs[m]["slug"]) == base and rfcs[m]["status"] not in DEAD for m in rfcs):
+            continue
+        out.append(f"RFC {n} (`{r['slug']}`) was superseded on the token premise; a replacement may be proposed as "
+                   f"`{base}-v{len([m for m in rfcs if re.sub(r'-v[0-9]+$', '', rfcs[m]['slug']) == base]) + 1}`."
+                   + premise_findings(repo, n))
+    return ("## Superseded on the token premise\n" + "\n\n".join(out) + "\n\n") if out else ""
 
 
 def plan_vote(ctx) -> list[Asg]:
