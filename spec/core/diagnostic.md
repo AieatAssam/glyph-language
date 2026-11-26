@@ -1,16 +1,21 @@
 # Diagnostics
 
-Every compiler diagnostic is one JSON object on one line of standard error (JSON Lines). No other output format exists.
+Every compiler diagnostic is one JSON object on one line of standard error (JSON Lines). No other output format exists. Records follow RFC 0050, which replaces RFC 0004's record.
 
 ## Record
 
-A record has these fields, in this order:
+A record has these keys, in this order:
 
-- `code`: `E` followed by four digits, such as `E0001`.
-- `severity`: `error` or `warning`. `warning` is reserved; no warnings are defined yet.
-- `message`: one sentence, lowercase first word, no trailing full stop, no quoted source text longer than 20 bytes.
-- `span`: `{file, start, end, line, column}`. `file` is the path as given on the command line. `start` and `end` are byte offsets, `end` exclusive. `line` and `column` are 1-based; column counts bytes.
-- `fix`: optional `{span, replacement}`. Replacing the bytes at `span` with `replacement` (UTF-8, possibly empty) makes the code valid without changing meaning the author could not infer. Present only when one edit does that.
+- `code`: `E` followed by four digits, such as `E0006`. Required.
+- `severity`: optional. Absent means `error`. `warning` is reserved; no warnings are defined, so the compiler never writes it.
+- `span`: `{"start":N,"end":N}`. Byte offsets into the one source file named on the command line; `end` is exclusive. Required.
+- `fix`: optional `{"span":{"start":N,"end":N},"replacement":S}`. Replacing the bytes at `fix.span` with the UTF-8 string `S` (possibly empty) makes the code valid without changing meaning the author could not infer. Present only when one edit does that.
+
+No other key is written. Line and column are derived from `span.start` by a tool when needed. Each record is written compactly, with no spaces.
+
+Example, a leading zero in `007` at bytes 0 to 3:
+
+`{"code":"E0006","span":{"start":0,"end":3},"fix":{"span":{"start":0,"end":3},"replacement":"7"}}`
 
 A program with no errors writes no diagnostic lines and exits with status 0.
 
@@ -20,7 +25,7 @@ Records are written in order of `span.start`, then `code`. Lexical errors stop c
 
 ## Codes
 
-Each code is listed once in `spec/errors.json` with a message template and a one-line meaning. Codes are never reused. A removed code stays in the file marked `retired`. A new code takes the next unused number in its block:
+Each code is listed once in `spec/errors.json` as `{"code":"E0006","meaning":"..."}`. `meaning` is a noun phrase of at most ten words, for a reader of the catalogue. It is not written into records. Codes are never reused. A removed code stays in the file marked `"retired":true` with no other change. A new code takes the next unused number in its block:
 
 | Block | Codes |
 | --- | --- |
@@ -31,11 +36,9 @@ Each code is listed once in `spec/errors.json` with a message template and a one
 | effects and capabilities | E0400 to E0499 |
 | limits and constants | E0500 to E0599 |
 
-A message template may change wording in a later RFC without changing its code.
-
 ## Tests
 
-A compile-error test states its expected records as JSON. The runner compares `code`, `span` and `fix`, not `message`.
+A compile-error test states its expected records as JSON lines. The runner compares `code`, `severity` (absent means `error`), `span` and `fix`. A run test states its expected standard error exactly.
 
 ## Runtime traps
 

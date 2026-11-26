@@ -4,9 +4,7 @@ Source: *.gl, compiler glyphc
 
 # Card: diagnostics
 
-Diagnostic: one JSON object per line on standard error.
-
-Fields in order: `code` (E + 4 digits), `severity` (error), `message` (one lowercase sentence, no final full stop), `span` {file, start, end, line, column} (byte offsets, end exclusive, 1-based line and byte column), optional `fix` {span, replacement}.
+Diagnostic: one JSON object per line on standard error, keys in order: `{"code":"E0001","severity":"error","span":{"start":N,"end":N},"fix":{"span":{"start":N,"end":N},"replacement":S}}`. `severity` is optional and absent means error. `fix` is optional. No other key.
 
 No errors: no diagnostic lines, exit 0. Trap: exit 1 and `trap: <kind>` on stderr, no code.
 
