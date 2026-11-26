@@ -2,20 +2,21 @@
 # RFC 0048 (rules 3 and 4), and nothing wider:
 #
 #   fn main() io { print(1) }
+#   fn main() io { }
 #
 # Spaces and LF are whitespace. They separate tokens and change no program, so each production that
 # needs a separator takes it as optional, or as one or more spaces and LF. Each production matches
 # the token sequence the lexer and parser accept for this shape. Later kernel subtasks widen this
 # file one production at a time, each with a conformance test that reaches it.
 #
-# ponytail: the body is one call, and the function is main with the io effect. Ceiling: an empty
-# body, a second statement, and any other effect or parameter are rejected here, and the parser
-# rejects them too. Upgrade path: the statement and parameter productions of RFC 0048 are added one
-# at a time, each with a run test.
+# ponytail: the body is empty or one call, and the function is main with the io effect. Ceiling: a
+# second statement, and any other effect or parameter, are rejected here, and the parser rejects them
+# too. Upgrade path: the statement and parameter productions of RFC 0048 are added one at a time,
+# each with a run test.
 
 program  <- ws fn_decl ws !.
 fn_decl  <- "fn" sp ident ws "(" ws ")" ws "io" ws block
-block    <- "{" ws call ws "}"
+block    <- "{" ws call? ws "}"
 call     <- ident ws "(" ws int ws ")"
 ident    <- [A-Za-z_] [A-Za-z0-9_]*
 int      <- [0-9]+

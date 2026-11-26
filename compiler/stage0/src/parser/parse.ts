@@ -1,13 +1,13 @@
 // Parser for the walking-skeleton program (RFC 0014 rule 13, E0100), and nothing wider:
 //
-//   fn NAME ( ) io { NAME ( INT ) }
+//   fn NAME ( ) io { [ NAME ( INT ) ] }
 //
-// The tree is one function whose body is one call with one integer argument. Names and integer
-// spellings are kept as written; the checker, which does not exist yet, decides what they mean.
+// The body is either empty or one call with one integer argument. Names and integer spellings are
+// kept as written; the checker, which does not exist yet, decides what they mean.
 //
-// ponytail: this shape is the only one accepted. Ceiling: any other program gets E0100 at its first
-// unexpected token. Upgrade path: the kernel RFC's grammar replaces this file, one production at a
-// time, and each production gets its own spec/grammar.peg entry and conformance test.
+// ponytail: these two body shapes are the only ones accepted. Ceiling: any other program gets E0100
+// at its first unexpected token. Upgrade path: the kernel RFC's grammar replaces this file, one
+// production at a time, and each production gets its own spec/grammar.peg entry and conformance test.
 //
 // ponytail: NEWLINE tokens are skipped here. The lexer does not emit them yet (RFC 0014 subtask 8),
 // and once it does, skipping them is wrong for any program with statements on separate lines.
@@ -34,10 +34,11 @@ export interface Call {
   end: number;
 }
 
-// fn NAME ( ) io BODY. Its span runs from `fn` to the closing brace.
+// fn NAME ( ) io BODY. Its span runs from `fn` to the closing brace. The body is null when the
+// braces are empty.
 export interface FnDecl {
   name: Ident;
-  body: Call;
+  body: Call | null;
   start: number;
   end: number;
 }
@@ -120,7 +121,7 @@ function fnDecl(c: Cursor): FnDecl {
   c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
   c.expect(Kind.LBRACE);
-  const body = call(c);
+  const body = c.peek().kind === Kind.RBRACE ? null : call(c);
   const close = c.expect(Kind.RBRACE);
   return { name, body, start: fnTok.start, end: close.end };
 }

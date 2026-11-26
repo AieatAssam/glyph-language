@@ -31,6 +31,14 @@ test('the walking-skeleton program parses to one function with one call', () => 
   });
 });
 
+test('an empty body parses to a function with a null body, with its span up to the closing brace', () => {
+  assert.deepEqual(parseText('fn main() io { }'), {
+    tree: {
+      fn: { name: { text: 'main', start: 3, end: 7 }, body: null, start: 0, end: 16 },
+    },
+  });
+});
+
 test('a trailing LF changes no tree, and a CR LF is E0001 at its CR, not a line end', () => {
   const plain = parseText(PROGRAM);
   assert.deepEqual(parseText(PROGRAM + '\n'), plain);
