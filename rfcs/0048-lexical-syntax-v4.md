@@ -48,13 +48,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. A CR is an error whether or not an LF follows it. The check does not depend on what the lexer is scanning: a control character is E0001 as a token, in a comment or in a text literal.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. This check runs over the whole file before any token is read.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. A CR never ends a line. It is an error under rule 2, so there is no CR LF rule.
+3. **Line end.** The byte 0x0A (LF) is a line end. A line end is exactly one byte. It is whitespace and produces no token. The byte 0x0D (CR) is never a line end and never whitespace. Rule 2 rejects it, so a CR LF pair is E0001 at the CR. There is no CR LF rule.
 
-4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. The stage that skips whitespace and comments (rule 5) returns only the offset of the next token. It records no line ends and no other output. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
+4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). Trivia is the run of spaces, LF bytes and comments (rule 5) before a token. Trivia ends at the first byte that is none of these. That byte starts a token, or it is an error. A tab is not whitespace and is E0001 by rule 2.
 
-5. **Comments.** Outside a text literal, `//` starts a comment. The lexer takes `//` as a comment start before it considers the `/` operator of rule 10. Any other `/` is that operator. The comment is every character after `//` up to, but not including, the next LF or the end of the file. A comment may hold any valid UTF-8 character (rule 6), except that a control character is an error (rule 2). There are no block comments. A comment produces no token.
+5. **Comments.** Outside a text literal, `//` starts a comment. Its text is every byte after the `//` up to, but not including, the first LF or the end of the file. There are no block comments. A comment produces no token. Bytes inside a comment are checked by rule 2 as any other bytes, so a tab or CR in a comment is E0001. A double quote in a comment starts nothing.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** Where a file has more than one lexical error, the reported error is the one at the lowest byte offset. The lexer reports it (E0001, E0005, E0006 or E0500 where the lexer sees it), emits no tokens after it, and stops. Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** The lexer reports the first lexical error (E0001, E0005, E0006 or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -136,7 +136,7 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR, in a comment or text literal too), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 5, 6, 9, 11 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 6, 9, 11 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
@@ -204,9 +204,6 @@ Compile-error tests (code and span; the fix is `none`):
 | Test | Program | Error at | Code |
 | --- | --- | --- | --- |
 | `v4-err-cr` | `fn main() io {` CR LF ` put(1) }` | the CR | E0001 |
-| `v4-err-cr-comment` | `fn main() io { } // a` CR `b` | the CR | E0001 |
-| `v4-err-tab-comment` | `fn main() io { } // a` TAB `b` | the TAB | E0001 |
-| `v4-err-slash-top` | `fn main() io { } / /` | the first `/` | E0100 |
 | `v4-err-semi-lead` | `fn main() io { ; put(1) }` | the first `;` | E0100 |
 | `v4-err-semi-trail` | `fn main() io { put(1); }` | the `}` | E0100 |
 | `v4-err-semi-top` | `fn main() io { } ;` | the top-level `;` | E0100 |
@@ -228,8 +225,6 @@ Compile-error tests (code and span; the fix is `none`):
 | `v4-err-keyword-fn` | `fn io() io { }` | the `io` | E0003 |
 | `v4-err-keyword-param` | `fn f(ret: Int) io { }` | the `ret` | E0003 |
 | `v4-err-eof` | `fn main() io { put(1)` | the `EOF` | E0100 |
-
-The three rows `v4-err-cr-comment`, `v4-err-tab-comment` and `v4-err-slash-top` test rules 2, 5 and 10. Each needs only the lexer and parser, so it can run before any kernel is accepted. In the first two, the comment runs from `//` to the end of the file, and the control character is inside it. The lexical error is reported at its own offset, as rule 13 requires.
 
 Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/int-too-big`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`.
 
