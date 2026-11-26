@@ -29,10 +29,12 @@ test('the program tokens have exact spans, and the names and digits keep their t
   assert.deepEqual(tokens[12], { kind: Kind.EOF, start: PROGRAM.length, end: PROGRAM.length });
 });
 
-test('an LF or CR LF after the program changes no token kind, and only the NEWLINE span grows', () => {
+test('an LF after the program changes no token kind', () => {
   assert.deepEqual(kinds(PROGRAM + '\n'), kinds(PROGRAM));
-  assert.deepEqual(kinds(PROGRAM + '\r\n'), kinds(PROGRAM));
-  assert.deepEqual(src(PROGRAM + '\r\n').tokens.at(-2), { kind: Kind.NEWLINE, start: 25, end: 27 });
+});
+
+test('a CR LF after the program is E0001 at the CR, with no tokens', () => {
+  assert.deepEqual(src(PROGRAM + '\r\n'), { tokens: [], error: { code: 'E0001', start: 25, end: 26 } });
 });
 
 test('a comment is skipped, and a // inside it does not start a token', () => {
@@ -43,8 +45,9 @@ test('an empty file gives only EOF at offset 0', () => {
   assert.deepEqual(src(''), { tokens: [{ kind: Kind.EOF, start: 0, end: 0 }], error: null });
 });
 
-test('a file of only spaces and line ends gives only EOF', () => {
-  assert.deepEqual(kinds('  \n\r\n '), [Kind.EOF]);
+test('a file of only spaces and LF gives only EOF, and a CR in it is E0001 at the CR', () => {
+  assert.deepEqual(kinds('  \n\n '), [Kind.EOF]);
+  assert.deepEqual(src('  \n\r\n '), { tokens: [], error: { code: 'E0001', start: 3, end: 4 } });
 });
 
 test('a file with no final line end still gets the final NEWLINE, and EOF is last', () => {
@@ -131,11 +134,8 @@ test('case 1: a valid file with LF gives its kinds, a NEWLINE at 9..10 and EOF a
   });
 });
 
-test('case 2: a valid file with CR LF gives NEWLINE at 9..11 and EOF at 11', () => {
-  const { tokens, error } = src('let a = 1\r\n');
-  assert.equal(error, null);
-  assert.deepEqual(tokens.at(-2), { kind: Kind.NEWLINE, start: 9, end: 11 });
-  assert.deepEqual(tokens.at(-1), { kind: Kind.EOF, start: 11, end: 11 });
+test('case 2: a file with CR LF is E0001 at the CR at 9..10, with no tokens', () => {
+  assert.deepEqual(src('let a = 1\r\n'), { tokens: [], error: { code: 'E0001', start: 9, end: 10 } });
 });
 
 test('case 3: an empty file gives EOF at 0..0 only', () => {
