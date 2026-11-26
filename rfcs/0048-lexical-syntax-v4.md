@@ -42,7 +42,7 @@ On the counter: `tools/check/tokens.py` charges ceil(n/4) for an alphabetic run 
 
 ## Design
 
-Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value. A *span* is a half-open range `[start, end)` of byte offsets into the source file, counted from 0. The span of a token runs from its first byte to its last byte. The span of an expression runs from the first byte of its first token to the last byte of its last token, and so includes any whitespace or comment between them. A span of a character is the span of its bytes.
+Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar value. A *byte* is an 8-bit value.
 
 ### Lexical rules
 
@@ -50,11 +50,11 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. No token contains an LF, and a line end has no span in any record. There is no CR LF rule.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. Rules 1 and 2 are checked over the whole file before any other rule, so a CR is an error before any token or line end is read. A stage that scans whitespace and comments and meets a CR anyway does not treat it as whitespace, as a line end or as part of a comment. That stage stops at the CR and returns its offset.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment. The comment runs from the `//` up to, but not including, the next LF or the end of the file. That LF is whitespace (rule 3). There are no block comments. A comment produces no token, and a `"` inside a comment does not start a text literal.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. A CR cannot occur in a comment, because rule 2 rejects it first. There are no block comments. A comment produces no token.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -74,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **One lexical error.** A file gets at most one lexical error, and when it has one the lexer emits no tokens. Rules 1 and 2 are checked over the whole file first. The first byte they reject is the byte error, and the scan does not start at or after that byte. The scan finds the other lexical errors (from rules 6, 8, 9 and 11) as it goes. A scan error is reported only if its span ends before the byte error starts. Otherwise the byte error is reported, because the scan error reaches the byte error and is caused by it. The lexer reports E0001, E0005 and E0006 only. E0500 is not a lexer code (rule 8). Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** The lexer reports the first lexical error (E0001, E0005, E0006 or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -176,9 +176,11 @@ Spec card: one line for the fourteen keywords, one for the nineteen punctuation 
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X (see Design, for spans). For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
+Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
+
+Stage tests. Rules 1 and 2 run first, so every CR case is a conformance test on the whole file. The node tests of the whitespace and comment stage (`compiler/stage0/src/lexer/trivia.test.ts`) check rules 3 and 5 on byte strings that contain no CR: an LF is a one-byte line end; a comment ends before its LF, or at the end of the file; a double quote in a comment is ignored; a tab stops the scan. They also check the stop rule of rule 3: a CR given to that stage is not skipped and is not a line end, so a CR LF pair gives a stop at the CR with no line end recorded.
 
 Run tests (each a complete program; `put` as defined by kernel-v9):
 
@@ -239,4 +241,3 @@ Every grammar production is reached by a `v4-` run or compile-error test above, 
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **New codes.** E0003 and the codes of `kernel-v9` (E0200 to E0202, E0300 to E0303, E0400) are not in `spec/errors.json`. The first PR that emits each must add it there.
 7. **Leading zero.** RFC 0004's `diag/fix-present` expects E0001 for `007` with fix `7`. Rule 8 says E0006. The conflict is with RFC 0004, and the group must settle it.
-8. **Kernel.** This RFC's meaning and its run tests rely on `kernel-v9` (RFC 0049) and the builtin `put`. RFC 0049 is rejected, so no run test or grammar-file change can be checked until an accepted kernel defines `put`. Syntax-only compile-error tests do not depend on it.
