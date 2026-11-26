@@ -1,12 +1,12 @@
-// Tests for the catalogue check (RFC 0004 section 4). Fixture catalogues only; no file is read.
+// Tests for the catalogue check (RFC 0050 section 4). Fixture catalogues only; no file is read.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkCatalogue } from './catalogue-check.ts';
 
 const entry = (code: string, retired?: boolean) =>
   retired === undefined
-    ? { code, message: 'm', meaning: 'm' }
-    : { code, message: 'm', meaning: 'm', retired };
+    ? { code, meaning: 'm' }
+    : { code, meaning: 'm', retired };
 
 const kinds = (problems: { kind: string; code: string | null }[]) =>
   problems.map((p) => `${p.kind}:${p.code}`);
@@ -61,7 +61,7 @@ test('the same code emitted at many spans is not reported', () => {
 });
 
 test('an entry with no string code is malformed, and the other entries are still checked', () => {
-  const catalogue = [entry('E0100'), { message: 'm', meaning: 'm' }, 7, null];
+  const catalogue = [entry('E0100'), { meaning: 'm' }, 7, null];
   const problems = checkCatalogue(catalogue, ['E0200']);
   assert.deepEqual(problems.map((p) => p.kind), ['malformed', 'malformed', 'malformed', 'missing']);
   assert.deepEqual(problems.map((p) => p.code), [null, null, null, 'E0200']);
@@ -91,4 +91,24 @@ test('checking twice gives the same result and does not change the inputs', () =
   const first = checkCatalogue(catalogue, emitted);
   assert.deepEqual(checkCatalogue(catalogue, emitted), first);
   assert.equal(JSON.stringify([catalogue, emitted]), before);
+});
+
+test('a code in each block of RFC 0050 section 4, at both ends, gives no block problem', () => {
+  const codes = [
+    'E0001', 'E0099', 'E0100', 'E0199', 'E0200', 'E0299',
+    'E0300', 'E0399', 'E0400', 'E0499', 'E0500', 'E0599',
+  ];
+  assert.deepEqual(checkCatalogue(codes.map((c) => entry(c)), []), []);
+});
+
+test('a code outside every block is reported as block, and so is a malformed number', () => {
+  const catalogue = [entry('E0000'), entry('E0600'), entry('E001')];
+  const problems = checkCatalogue(catalogue, []);
+  assert.deepEqual(kinds(problems), ['block:E0000', 'block:E0600', 'block:E001']);
+  assert.equal(problems[1].detail, 'E0600 lies in no block of RFC 0050 section 4');
+});
+
+test('a code outside every block is reported once, however often it is listed', () => {
+  const problems = checkCatalogue([entry('E0600'), entry('E0600')], []);
+  assert.deepEqual(kinds(problems), ['block:E0600', 'repeated:E0600']);
 });
