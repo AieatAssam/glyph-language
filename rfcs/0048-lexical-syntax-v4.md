@@ -30,8 +30,6 @@ Changes from RFC 0014 and RFC 0020:
 
 The kernel's test programs in this RFC use `put`, the builtin defined by `kernel-v9`.
 
-Revision note. This revision states, in rules 3, 4 and 5, what a token stage does with a CR and with trivia. Before, the RFC said CR is an error but did not say what the trivia stage does when it reaches one, and the implementation of rule 3 was left to guess. No decision changes. The rules that bind the language are the same as before.
-
 ## Motivation
 
 Models write Glyph and need one way to write each construct. RFC 0014 and RFC 0020 had three problems that this draft fixes.
@@ -50,13 +48,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. The byte check of rules 1 and 2 runs over the whole file before any token is read, so these errors are found before any token stage sees the bytes.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. A line end has no effect on the meaning of the program or on any diagnostic. There is no CR LF rule. A CR is never a line end, whether or not an LF follows it. By rule 2 it is E0001 wherever it appears. A token stage that is handed a CR anyway, for example in a unit test that calls it on raw bytes, stops at the CR and does not consume it. It does not treat the CR as whitespace, as a line end or as comment text.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A line end leaves no record and no state. The lexer does not report where line ends are.
 
-4. **Whitespace and trivia.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). Trivia is whitespace and comments (rules 3 and 5). Between tokens the lexer skips trivia and stops at the first byte that is not trivia. A CR is not trivia, so the lexer stops at it.
+4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12). Whitespace is skipped by position alone. Rule 2 has already rejected every other control character in the file, so skipping never meets a CR or a tab (rule 13).
 
-5. **Comments.** Outside a text literal, `//` starts a comment. The comment body is every byte after the `//` up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token. By rule 2 the body holds no control character, so no comment body contains a CR, and a comment never ends at a CR.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token and no record. Inside a comment a `"` starts nothing. A `/` not followed by `/` is the division token (rule 10).
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -76,7 +74,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** The lexer reports the first lexical error (E0001, E0005, E0006 or E0500 where the lexer sees it) and emits no tokens after it. Records follow RFC 0004 section 3.
+13. **Lexical errors stop lexing.** The lexer checks every byte of the file against rules 1 and 2 before it reads any token. If that check finds an error, let B be the offset of its first byte. The scan then covers only the bytes before B. If the scan finds an error from rules 6, 8, 9 or 11 whose span ends at or before B, that scanner error is reported. Otherwise the byte error at B is reported. If the byte check finds no error, the first scanner error is reported. The lexer reports one error and emits no tokens. The codes are E0001, E0005 and E0006. E0500 is not a lexer code (rule 8). Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -170,7 +168,7 @@ Measured by hand with the counter in `tools/check/tokens.py`. The counter was no
 - Shortened words: `wh` for `while`, `ret` for `return`, `ex` for `example` and `put` for `print`. Each use saves one token. The spec text uses each as a word, so this is a saving in the spec's text too.
 - `;` costs one token per statement separator in programs. The counter cannot see line breaks, so the saving from removing `NEWLINE` is only in the rules text.
 - Removed: rules 14 and 15 of RFC 0014, the CR LF clause, the `NEWLINE` token kind, parenthesis-depth rules, the `type` production, the annotation syntax on `let` and `var`, and rules G2 and G3 of RFC 0020.
-- Added: the `;` token, and the grammar block above. The revision note and the CR and trivia wording in rules 2 to 5 are prose in the spec and add a few tokens to the core. They are expected to fit inside the existing cap.
+- Added: the `;` token, and the grammar block above.
 
 Core spec: the merge bot checks the 12,000-token cap with the protected counter. This RFC is expected to be roughly neutral against RFC 0014 and RFC 0020 together, but the figure is not measured here.
 
@@ -228,11 +226,11 @@ Compile-error tests (code and span; the fix is `none`):
 | `v4-err-keyword-param` | `fn f(ret: Int) io { }` | the `ret` | E0003 |
 | `v4-err-eof` | `fn main() io { put(1)` | the `EOF` | E0100 |
 
+- `v4-err-order`: the program is `fn main() io { put("a`, then LF, then `}`, then CR, then LF. The first error is E0005 at the span from the opening quote up to the LF, because that scanner error ends before the CR (rule 13). The CR is not reported. Code E0005.
+
 Lexical tests from RFC 0014 that remain valid and are unchanged: `lex/ident-run`, `lex/int-run`, `lex/kw-<word>` for the eleven keywords that keep their spelling, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/ident-ascii`, `lex/punct-bracket`, `lex/bang-alone`, `lex/text-bad-escape`, `lex/text-unterminated`, `lex/int-leading-zero`, `lex/int-too-big`, `lex/text-escape`, `lex/comment-line`, `lex/newline-in-group`, `lex/newline-blank`.
 
 Every grammar production is reached by a `v4-` run or compile-error test above, or by an RFC 0014 test: `program`, `fn_decl`, `param`, `ptype`, `rtype`, `block`, all seven `stmt` forms, `args`, and each level of `expr` through `primary`.
-
-Unit tests for rules 3 to 5 (token stage, not conformance) are the lexer's own tests. They cover: a comment ends before its LF; a comment ends at the end of the file; trivia stops at a CR and does not consume it; a CR is never a line end. Those tests call the trivia stage on raw bytes, so they check rule 3's stop behaviour directly.
 
 ## Open questions
 
