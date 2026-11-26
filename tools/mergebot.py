@@ -207,7 +207,13 @@ def _front_matter_file(text: str, status: str, votes: dict) -> str:
     fm, body = {}, text
     if text.startswith("---\n") and "\n---\n" in text[4:]:
         head, body = text[4:].split("\n---\n", 1)
-        fm = yaml.safe_load(head) or {}
+        try:
+            fm = yaml.safe_load(head) or {}
+        except yaml.YAMLError:  # agent-written front matter is not always valid YAML: keep it as plain lines
+            fm = dict(ln.split(":", 1) for ln in head.splitlines() if ":" in ln)
+            fm = {k.strip(): v.strip() for k, v in fm.items()}
+        if not isinstance(fm, dict):
+            fm = {}
     fm["status"] = status
     fm["votes"] = {a: v["vote"] for a, v in sorted(votes.items())}
     return "---\n" + yaml.safe_dump(fm, sort_keys=True) + "---\n" + body
