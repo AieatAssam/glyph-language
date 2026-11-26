@@ -200,7 +200,7 @@ def run_one(repo, path, work, caps, host):
            "src": None, "stdin": "", "wasm_stdout": None, "wasm_exit": None,
            "wasm_trap": None}
     try:
-        test = parse_test(path.read_text(encoding="utf-8"))
+        test = parse_test(path.read_bytes().decode("utf-8"))  # keep CR bytes: no universal newlines
     except (ValueError, OSError) as e:
         rec["detail"] = "malformed: %s" % e
         return rec
@@ -210,7 +210,7 @@ def run_one(repo, path, work, caps, host):
     rec["source"] = body + "\n"
     work.mkdir(parents=True, exist_ok=True)
     src = work / "main.gl"
-    src.write_text(rec["source"], encoding="utf-8")
+    src.write_bytes(rec["source"].encode("utf-8"))
     wasm, wasm2 = work / "out.wasm", work / "out2.wasm"
 
     try:

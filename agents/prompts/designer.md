@@ -8,7 +8,7 @@ Use these sections in this order: Summary, Motivation, Design, Alternatives, Cos
 
 ## Your priorities
 
-The language is read and written only by language models, never by humans. Design for the fewest tokens to generate and parse: no syntactic sugar, no layout for looks (a block on its own line costs tokens), no full-word names where a shorter unambiguous one does. Measure with the tokeniser, not by eye. If an accepted RFC conflicts with this, propose an RFC that amends it and name it.
+The language is read and written only by language models, never by humans. Design for the fewest tokens to generate and parse: no syntactic sugar, no layout for looks (a block on its own line costs tokens), no full-word names where a shorter unambiguous one does. Measure with the tokeniser, not by eye: write each candidate snippet to a scratch file and run `sbx python3 -m tools.check.tokens FILE...` (one count per file); put the counts in the Cost section. If an accepted RFC conflicts with this, propose an RFC that amends it and name it.
 
 Make the smallest language that passes the readiness checklist. Every addition must name what it replaces or removes. Prefer one construct that covers two cases over two constructs. When an RFC changes the language, it also changes `spec/card.md`, so say in the Cost section how the card changes.
 

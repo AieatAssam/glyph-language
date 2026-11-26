@@ -5,6 +5,7 @@ An alphabetic run of n characters costs ceil(n/4), a digit run ceil(n/3), and an
 piece costs 1. The sum is multiplied by RULES caps.tokeniser_scale and rounded up.
 
 CLI: python -m tools.check.tokens --repo DIR [--scale S]
+     python -m tools.check.tokens FILE...   (count each file; `-` reads stdin)
 """
 from __future__ import annotations
 
@@ -49,9 +50,18 @@ def spec_counts(repo, scale=1.0):
 
 def _main(argv):
     ap = argparse.ArgumentParser(prog="tools.check.tokens")
-    ap.add_argument("--repo", required=True)
+    ap.add_argument("--repo")
     ap.add_argument("--scale", default="1.0")
+    ap.add_argument("files", nargs="*")
     a = ap.parse_args(argv)
+    if a.files:
+        import sys
+        for f in a.files:
+            text = sys.stdin.read() if f == "-" else Path(f).read_text(encoding="utf-8")
+            print(count(text, a.scale), f)
+        return 0
+    if not a.repo:
+        ap.error("give --repo DIR or FILE...")
     print(spec_counts(a.repo, a.scale))
     return 0
 

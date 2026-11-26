@@ -37,7 +37,7 @@ Anything else you write is discarded. Never write under `.github/`, `governance/
 
 ## Checking your work
 
-Shell commands run in a sandbox with no network. Only these commands are allowed, each started with `sbx` and run alone (no `&&`, pipes or `ls`); read and list files with Read, Glob and Grep instead, and count a file's bytes with `sbx wc -c path`. Run the compiler on a file:
+Shell commands run in a sandbox with no network. Only these commands are allowed, each started with `sbx` and run alone (no `&&`, pipes or `ls`); read and list files with Read, Glob and Grep instead, and count a file's bytes with `sbx wc -c path` and its tokens with `sbx python3 -m tools.check.tokens path`. Run the compiler on a file:
 
     sbx bin/glyphc check path/to/file.toy
     sbx bin/glyphc run path/to/file.toy

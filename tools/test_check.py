@@ -59,6 +59,14 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(tokens.count("a.b", scale=2), 6)
         self.assertEqual(tokens.count("a.b", scale=1.5), 5)
 
+    def test_cli_counts_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "s.gl"
+            f.write_text("hello a.b")
+            r = subprocess.run([sys.executable, "-m", "tools.check.tokens", str(f)],
+                               capture_output=True, text=True, check=True)
+            self.assertEqual(r.stdout.split()[0], "5")
+
 
 class ConformanceParseTests(unittest.TestCase):
     def test_parses_run_test(self):
@@ -126,6 +134,14 @@ class FixtureRunTests(unittest.TestCase):
 
 
 class RunnerRobustnessTests(unittest.TestCase):
+    def test_cr_bytes_in_source_reach_main_gl(self):
+        with tempfile.TemporaryDirectory() as d:
+            t = Path(d) / "crlf.test"
+            t.write_bytes(b"--- meta\nid: crlf\nkind: compile-error\n--- source\nx\r\ny\n--- expect-errors\nE1 1\n")
+            rec = conformance.run_one(Path(d) / "repo", t, Path(d) / "w", {}, None)
+            self.assertEqual(rec["source"], "x\r\ny\n")
+            self.assertEqual((Path(d) / "w" / "main.gl").read_bytes(), b"x\r\ny\n")
+
     def test_missing_repo_reports_failures_without_crashing(self):
         result = run.run_checks(Path(tempfile.mkdtemp()) / "absent")
         for num in GATE_RULES:
