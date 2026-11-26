@@ -46,15 +46,15 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 ### Lexical rules
 
-1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the lead byte of the first ill-formed sequence: the first byte of a sequence that is not valid UTF-8, whether the sequence has a wrong continuation byte, a forbidden lead byte, or is cut short by a following ASCII byte or by the end of the file. The span is that one byte. A byte order mark (U+FEFF) is E0001 wherever it appears, over its three bytes.
+1. **Source text.** A source file is a byte sequence that must be valid UTF-8. Invalid UTF-8 is error E0001 at the first invalid byte. A byte order mark (U+FEFF) is E0001 wherever it appears.
 
-2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character.
+2. **Forbidden control characters.** The control characters U+0000 to U+001F and U+007F are errors wherever they appear, including in comments and text literals, except LF (rule 3). This covers the tab (U+0009) and the CR (U+000D). Each is E0001 at that character. These checks cover the whole file and run before any token is read (rule 13). So no later rule ever sees a CR, a tab or another forbidden byte.
 
-3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. There is no CR LF rule. A CR is never a line end, even when an LF follows it: a CR, alone or before an LF, is E0001 under rule 2.
+3. **Line end.** LF (U+000A) is a line end. It is whitespace and produces no token. A CR is never a line end and is never whitespace. Rule 2 makes it an error, so there is no CR LF pair to handle.
 
 4. **Whitespace.** Space (U+0020) and LF are whitespace. Whitespace separates tokens and produces no token. Spacing and line breaks do not change the program: two source texts with the same token sequence are the same program (G12).
 
-5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. There are no block comments. A comment produces no token.
+5. **Comments.** Outside a text literal, `//` starts a comment that runs up to, but not including, the next LF or the end of the file. A comment contains no CR, because rule 2 rejects a CR anywhere in the file. There are no block comments. A comment produces no token.
 
 6. **Identifiers.** An identifier is one ASCII letter (`A`-`Z`, `a`-`z`) or `_`, followed by zero or more ASCII letters, digits or `_`. Identifiers are case-sensitive. A non-ASCII character outside a text literal or comment is E0001 at that character. `Int`, `Bool`, `Text`, `put` and `main` are identifiers, not keywords.
 
@@ -74,11 +74,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each token has exactly one kind. Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`. There is no `NEWLINE` kind.
 
-13. **Lexical errors stop lexing.** The lexer finds two kinds of error, and reports at most one.
-    - A *byte error* B is the first error under rules 1 and 2 in the file, found by a check over every byte before any token is scanned.
-    - A *token error* T is the first error found by the token scan (E0001 from rule 6 or 11, E0005, E0006, or E0500 where the lexer sees it). The token scan starts no token at or after the start of B.
+13. **Lexical errors stop lexing, and one error is reported.** Rules 1 and 2 are checked over the whole file before any token is read. Let B be the first error of those checks, by byte offset, if there is one. The scan reads tokens only up to the start of B. Let S be the first error the scan finds, if there is one: E0001, E0005 or E0006. The lexer reports the error as follows.
+    - If there is no B, it reports S, if any.
+    - If there is no S, it reports B.
+    - If S ends at or before the start of B, it reports S.
+    - Otherwise it reports B. An error that runs into B is taken to be caused by B. For example, a text literal that contains a tab is reported as the tab.
 
-    If there is no B, the reported error is T. If there is no T, the reported error is B. If both exist, the reported error is T when T ends at or before the start of B, and B otherwise. So a token error that runs into a byte error is caused by that byte error, and the byte error wins. For example, in the file `"ab`, then LF, then a tab, the text literal is unterminated at the LF, so T is E0005 and ends before the tab. E0005 is reported. In the file `"a`, then a tab, then `b"`, the text scan runs into the tab, so T is E0001 at the tab, which is also B. E0001 is reported. On any error the lexer emits no tokens after it. Records follow RFC 0004 section 3.
+    Whichever is reported, the lexer emits no tokens. Records follow RFC 0004 section 3.
 
 ### Grammar
 
@@ -140,7 +142,7 @@ G12. The parser ignores spacing and line ends. It reports E0100 at the first tok
 
 | Code | Block | Meaning | Span | Rules |
 | --- | --- | --- | --- | --- |
-| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character. For invalid UTF-8, the lead byte alone. For a byte order mark, its three bytes | 1, 2, 3, 6, 9, 11 |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character (including tab and CR), non-ASCII outside text and comments, or printable ASCII outside the token set | The character | 1, 2, 3, 6, 9, 11 |
 | E0003 | lexical | Keyword where a name is required. Reported by the parser | The keyword | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | 8 |
@@ -183,8 +185,6 @@ Spec card: one line for the fourteen keywords, one for the nineteen punctuation 
 Conformance tests live in `conformance/lex/`. A run test states stdout, stderr and exit status. A compile-error test holds one program with one error and states the expected records as JSON. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In this RFC, "at X" means the span of the token X. For an expression the span runs from its first token to its last. Every fix is `none`. Every compile-error program is a whole program, and any program that is not about `main` contains `fn main() io { }`.
 
 The tests from RFC 0014 that do not depend on a changed rule keep their names and their expected results. The tests in the list below with the `v4-` prefix are new. Tests from RFC 0014 that this RFC changes are listed under Open questions 3.
-
-Node tests for rule 13 (in `compiler/stage0/src/lexer/`) must cover both outcomes: a token error that ends before a byte error is reported, and a token error that runs into a byte error loses to it. Node tests for rule 1 must cover a lead byte with a bad continuation, a lead byte cut short by ASCII, and a lead byte cut short by the end of the file, each reported at the lead byte with a one-byte span.
 
 Run tests (each a complete program; `put` as defined by kernel-v9):
 
