@@ -48,6 +48,14 @@ test('an empty block without a line end is E0100 at its closing brace (RFC 0048)
   assert.deepEqual(parseText('fn main() io { }'), { error: { code: 'E0100', start: 15, end: 16 } });
 });
 
+test('a space between the braces and the LF is E0100 at the closing brace (RFC 0048)', () => {
+  assert.deepEqual(parseText('fn main() io { \n}'), { error: { code: 'E0100', start: 16, end: 17 } });
+});
+
+test('two LFs between the braces are E0100 at the closing brace (RFC 0048)', () => {
+  assert.deepEqual(parseText('fn main() io {\n\n}'), { error: { code: 'E0100', start: 16, end: 17 } });
+});
+
 test('a missing io effect is E0100 at the opening brace', () => {
   assert.deepEqual(parseText('fn main() { print(1) }'), {
     error: { code: 'E0100', start: 10, end: 11 },

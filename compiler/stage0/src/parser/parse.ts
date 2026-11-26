@@ -76,11 +76,22 @@ class Cursor {
     this.tokens = tokens.filter((t) => t.kind !== Kind.NEWLINE);
   }
 
-  // True when the next token is `}` and exactly one LF sits between it and the `{` before it: the
-  // empty block of the form `"{" LF "}"` in spec/grammar.peg.
+  // True when the next token is `}` and the only text between it and the `{` before it is one LF:
+  // the empty block of the form `"{" LF "}"` in spec/grammar.peg. Spans decide this, so trivia
+  // (a space or a comment) between the braces and the LF makes it false.
   lfEmptyBlockNext(): boolean {
-    const i = this.all.indexOf(this.peek());
-    return i >= 2 && this.all[i - 1]?.kind === Kind.NEWLINE && this.all[i - 2]?.kind === Kind.LBRACE;
+    const close = this.peek();
+    const i = this.all.indexOf(close);
+    if (i < 2) return false;
+    const nl = this.all[i - 1];
+    const open = this.all[i - 2];
+    return (
+      nl?.kind === Kind.NEWLINE &&
+      open?.kind === Kind.LBRACE &&
+      nl.start === open.end &&
+      close.start === nl.end &&
+      nl.end - nl.start === 1
+    );
   }
 
   peek(): Token {
