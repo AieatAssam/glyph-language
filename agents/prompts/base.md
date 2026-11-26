@@ -27,7 +27,7 @@ Anything else you write is discarded. Never write under `.github/`, `governance/
    "body": "Implements subtask 2 of the plan.", "files": ["compiler/stage0/src/lexer.ts", "conformance/kernel/int.test"]},
   {"type": "update_pr", "pr": 12, "body": "Addresses review.", "files": ["compiler/stage0/src/lexer.ts"], "subtask": 2},
   {"type": "review", "pr": 12, "verdict": "request_changes", "body": "Line 40 changes behaviour the RFC does not describe."},
-  {"type": "open_issue", "title": "Cannot tell if print adds a newline", "body": "Program: ... Message: ...", "labels": ["docs"]},
+  {"type": "open_issue", "title": "Cannot tell if print adds a newline", "body": "Program: ... Message: ...", "labels": ["documentation"]},
   {"type": "close_issue", "issue": 5, "reason": "Fixed by the spec change in PR 12."},
   {"type": "digest", "title": "Two RFCs proposed", "body": "Two RFCs were proposed. Nothing merged."}
 ]}

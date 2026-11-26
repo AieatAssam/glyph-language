@@ -48,3 +48,15 @@ class SchemaCoverageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_prompt_issue_example_uses_an_existing_label():
+    # A label the repo lacks makes `gh issue create` fail, and the whole session is refused as a no-op.
+    from pathlib import Path
+    text = (Path(__file__).resolve().parent.parent / "agents/prompts/base.md").read_text()
+    existing = {"accessibility", "bug", "documentation", "duplicate", "enhancement", "good first issue",
+                "help wanted", "invalid", "question", "wontfix"}
+    for line in text.splitlines():
+        if '"type": "open_issue"' in line:
+            labels = line.split('"labels": [', 1)[1].split("]", 1)[0]
+            assert {x.strip().strip('"') for x in labels.split(",")} <= existing, line
