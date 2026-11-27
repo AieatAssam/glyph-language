@@ -1,0 +1,8 @@
+--- meta
+id: kernel/stmt-put-two-args
+rfc: 0109
+kind: compile-error
+--- source
+main io{put 1 2}
+--- expect-errors
+{"code":"E0100","span":{"start":14,"end":15,"line":1}}
