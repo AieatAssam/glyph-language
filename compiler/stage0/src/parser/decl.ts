@@ -1,11 +1,12 @@
 // Declarations (RFC 0104 grammar: decl, param, ptype, rtype, block; G2, G4, G5, G9, G10, G12, G13).
-// parseDecl reads one declaration that starts at tokens[at]. It does not read statements (subtask 8)
-// or expressions: each expression is handed to the ExprParser that the caller passes in.
+// parseDecl reads one declaration that starts at tokens[at]. Its block is read by parseBlock in
+// stmt.ts, and each expression is handed to the ExprParser that the caller passes in.
 //
 //   decl = IDENT [ "(" param { "," param } ")" ] [ rtype ] [ "io" ] [ "fail" ] block { "ex" expr }
 //
-// The marks come in that order (G10). A block is `{ [ ret [expr] ] }` for now.
+// The marks come in that order (G10).
 import { Kind, type Token } from '../lexer/token.ts';
+import { parseBlock } from './stmt.ts';
 
 export interface Span {
   start: number;
@@ -156,26 +157,4 @@ function parseParam(tokens: readonly Token[], at: number): { param: Param; next:
     end: typeTok.end,
   };
   return { param, next: at + 2 };
-}
-
-// Reads "{" [ "ret" [ expr ] ] "}" starting at the "{" at index at. G2: nothing but "}" may follow ret.
-function parseBlock(
-  tokens: readonly Token[],
-  at: number,
-  expr: ExprParser,
-): { span: Span; next: number } | ParseError {
-  if (tokens[at].kind !== Kind.LBRACE) return errAt(tokens[at]);
-  let i = at + 1;
-  if (tokens[i].kind === Kind.KW_RET) {
-    i += 1;
-    if (tokens[i].kind !== Kind.RBRACE) {
-      const value = expr(tokens, i);
-      if ('code' in value) return value;
-      i = value.next;
-    }
-  }
-  // ponytail: statements are subtask 8 (parser/stmt.ts). Until then any token before "}" other than
-  // ret is E0100 at that token, so `main io{put 1}` is refused. Upgrade path: read stmt here.
-  if (tokens[i].kind !== Kind.RBRACE) return errAt(tokens[i]);
-  return { span: { start: tokens[at].start, end: tokens[i].end }, next: i + 1 };
 }
