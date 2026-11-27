@@ -599,7 +599,8 @@ def plan_implement(ctx) -> list[Asg]:
         items.append(dict(rfc=n, kind="subtask", r=r, plan=plan, subtask=idx, text=text, pr=pr))
     if not items and blocked:  # everything left says BLOCKED: someone must look whether that is still true
         items = [blocked[turn_of(ctx) % len(blocked)]]
-    # Early merge: the shared founding PR fails only on conformance (rules 3 and 5). On odd turns its
+    # Early merge: the shared founding PR fails only on the walking skeleton's rules (3, 5, 10, 11: the
+    # bundle, conformance, grammar and examples the early brief creates). On odd turns its
     # slot goes to a fix item that makes the gate pass, so the PR can merge before its plan is done.
     turn = turn_of(ctx)
     founding_pr = _founding_impl_pr(prs, rfcs)
@@ -610,7 +611,7 @@ def plan_implement(ctx) -> list[Asg]:
                       and str((e.get("subject") or {}).get("pr")) == str(founding_pr))
         stuck = blocked >= limit
         mine = [i for i in items if i.get("pr") == int(founding_pr) and not i.get("fix")]
-        if mine and failed and failed <= {"3", "5", "10"}:  # 10: no spec/grammar.peg yet
+        if mine and failed and failed <= {"3", "5", "10", "11"}:  # 10: no spec/grammar.peg yet; 11: no examples/ yet
             ref = mine[0]
             items.append(dict(rfc=ref["rfc"], kind="subtask", r=ref["r"], plan=ref["plan"], subtask=ref["subtask"],
                               text="merge early", pr=int(founding_pr), fix=True, early=True))

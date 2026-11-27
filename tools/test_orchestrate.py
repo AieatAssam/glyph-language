@@ -697,9 +697,11 @@ class SharedPrAndBriefs(unittest.TestCase):
         self.assertNotIn("merge early", even.body)
 
     def test_early_merge_covers_a_missing_grammar(self):
-        st, check = self.state({"3", "5", "10"})
+        st, check = self.state({"3", "5", "10", "11"})
         odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
-        self.assertIn("spec/grammar.peg", self.subtasks(st, [check] + odd)[0].body)
+        body = self.subtasks(st, [check] + odd)[0].body
+        self.assertIn("spec/grammar.peg", body)
+        self.assertIn("merge early", body)
 
     def test_early_merge_needs_a_failure_only_in_rules_3_and_5(self):
         st, check = self.state({"3", "2"})
