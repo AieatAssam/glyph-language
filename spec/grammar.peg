@@ -12,16 +12,21 @@
 # these programs use. Later subtasks widen this file one production at a time, each with a
 # conformance test that reaches it.
 #
-# ponytail: spacing is fixed to the programs' spelling. Ceiling: any other layout is rejected here,
-# although the lexer accepts it under RFC 0104 rule 4 only when it is canonical. Upgrade path: the
-# parser subtasks (plan 7 to 9) add the optional spacing and the statement productions.
+# ponytail: spacing is loose between statements (`" "?` accepts a statement that touches the one
+# before it, which RFC 0104 rule 4 makes E0002) and exact inside a statement. Ceiling: the grammar
+# accepts some layouts the lexer rejects. Upgrade path: the parser subtasks (plan 7 to 9) make the
+# spacing exact, as RFC 0104 rule 4 requires.
 #
 # ponytail: the RFC 0020 empty block is `{`, any run of spaces and LFs, `}`. Ceiling: only the empty
 # block and the single call. Upgrade path: the kernel retirement under RFC 0105 removes it.
 
 program   <- fn_decl "\n"? !. / main_decl "\n"? !.
-main_decl <- "main io{" put_stmt "}"
-put_stmt  <- "put " int
+main_decl <- "main io{" stmt ( " "? stmt )* "}"
+stmt      <- let_stmt / put_stmt
+let_stmt  <- "let " ident "=" int
+put_stmt  <- "put" ( " " ( int / ident ) / text )
+text      <- "\"" text_char* "\""
+text_char <- "\\\\" / "\\\"" / [^"\\]
 fn_decl   <- "fn " ident "() io " block
 block     <- "{" [ \n]* "}" / "{ " call " }"
 call      <- ident "(" int ")"
