@@ -1,0 +1,10 @@
+--- meta
+id: diag/v9-clean
+rfc: 0112
+kind: run
+--- source
+main io{put 7}
+--- expect-stdout
+7
+--- expect-exit
+0

@@ -1,0 +1,8 @@
+--- meta
+id: diag/v9-fix-present
+rfc: 0112
+kind: compile-error
+--- source
+main io{put 007}
+--- expect-errors
+{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}
