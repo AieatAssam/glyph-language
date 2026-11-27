@@ -1,0 +1,8 @@
+--- meta
+id: kernel/kc-empty-params
+rfc: 0109
+kind: compile-error
+--- source
+f()Int{}
+--- expect-errors
+{"code":"E0100","span":{"start":2,"end":3}}

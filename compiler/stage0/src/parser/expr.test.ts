@@ -126,5 +126,5 @@ test('cmp_op: each of the six comparison operators parses as one comparison in a
 });
 
 test('put-((4)) parses as a whole program (unary minus over a grouped expression)', () => {
-  assert.ok('tree' in parse(lex(Buffer.from('main io fail{put-((4))}')).tokens));
+  assert.ok('tree' in parse(lex(Buffer.from('main io{put-((4))}')).tokens));
 });

@@ -1,0 +1,8 @@
+--- meta
+id: kernel/kc-fail-after-io
+rfc: 0109
+kind: compile-error
+--- source
+main io fail{put 1}
+--- expect-errors
+{"code":"E0100","span":{"start":8,"end":12}}

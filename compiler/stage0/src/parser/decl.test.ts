@@ -1,6 +1,6 @@
-// Tests for the parser skeleton and declarations (RFC 0104 grammar, G2, G4, G5, G9, G10, G12, G13).
-// Each case lexes a source text, checks that lexing succeeded, and parses the tokens. Offsets are
-// bytes from 0.
+// Tests for the parser skeleton and declarations (RFC 0104 grammar, G2, G4, G5, G9, G10, G12, G13;
+// RFC 0109 L1, L3 and F1: a declaration has no `fail` mark). Each case lexes a source text, checks
+// that lexing succeeded, and parses the tokens. Offsets are bytes from 0.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
@@ -23,7 +23,6 @@ test('main io{} parses to one declaration with no parameters, an io mark and an 
         params: null,
         result: null,
         io: { start: 5, end: 7 },
-        fail: null,
         body: { start: 7, end: 9 },
         ex: [],
         start: 0,
@@ -37,9 +36,9 @@ test('a block whose only item is a bare ret parses (G2: ret is last)', () => {
   assert.deepEqual(parseText('g io{ret}').tree?.decls[0].body, { start: 4, end: 9 });
 });
 
-test('f(n Int)Int fail{} parses the parameter, the result type and the fail mark', () => {
-  // f0 (1 n2 sp3 Int4-6 )7 Int8-10 sp11 fail12-15 {16 }17
-  assert.deepEqual(parseText('f(n Int)Int fail{}'), {
+test('f(n Int)Int{} parses the parameter and the result type, with no mark', () => {
+  // f0 (1 n2 sp3 Int4-6 )7 Int8-10 {11 }12
+  assert.deepEqual(parseText('f(n Int)Int{}'), {
     tree: {
       decls: [{
         name: { text: 'f', start: 0, end: 1 },
@@ -51,21 +50,37 @@ test('f(n Int)Int fail{} parses the parameter, the result type and the fail mark
         }],
         result: { text: 'Int', start: 8, end: 11 },
         io: null,
-        fail: { start: 12, end: 16 },
-        body: { start: 16, end: 18 },
+        body: { start: 11, end: 13 },
         ex: [],
         start: 0,
-        end: 18,
+        end: 13,
       }],
     },
   });
 });
 
-test('f(n Int)Int fail{ret n+1} parses, and its block holds the ret value', () => {
-  // The body runs from the { at 16 to the } at 24, which ends the text (length 25).
-  const r = parseText('f(n Int)Int fail{ret n+1}');
+test('f(n Int)Int{ret n+1} parses, and its block holds the ret value', () => {
+  // The body runs from the { at 11 to the } at 19, which ends the text (length 20).
+  const r = parseText('f(n Int)Int{ret n+1}');
   assert.ok('tree' in r);
-  assert.deepEqual(r.tree.decls[0].body, { start: 16, end: 25 });
+  assert.deepEqual(r.tree.decls[0].body, { start: 11, end: 20 });
+});
+
+test('a declaration with no parameters and no parentheses parses (RFC 0109 F1): f{}', () => {
+  assert.deepEqual(parseText('f{}'), {
+    tree: {
+      decls: [{
+        name: { text: 'f', start: 0, end: 1 },
+        params: null,
+        result: null,
+        io: null,
+        body: { start: 1, end: 3 },
+        ex: [],
+        start: 0,
+        end: 3,
+      }],
+    },
+  });
 });
 
 test('two declarations in a row need no separator, and the second starts at its own name', () => {
@@ -84,12 +99,24 @@ test('an empty program, with no tokens but EOF, is accepted', () => {
   assert.deepEqual(parseText(''), { tree: { decls: [] } });
 });
 
-test('f io Int{} gives E0100 at Int: the result type comes before io (G10)', () => {
-  assert.deepEqual(parseText('f io Int{}'), e0100(5, 8));
+test('kc-fail-after-io: main io fail{put 1} gives E0100 at fail, since fail is no mark (RFC 0109 L1)', () => {
+  assert.deepEqual(parseText('main io fail{put 1}'), e0100(8, 12));
 });
 
-test('f fail io{} gives E0100 at io: io comes before fail (G10)', () => {
-  assert.deepEqual(parseText('f fail io{}'), e0100(7, 9));
+test('kc-fail-after-name: main fail{} gives E0100 at fail (RFC 0109 L1)', () => {
+  assert.deepEqual(parseText('main fail{}'), e0100(5, 9));
+});
+
+test('f(n Int)Int fail{} gives E0100 at fail: the block is expected after the result type', () => {
+  assert.deepEqual(parseText('f(n Int)Int fail{}'), e0100(12, 16));
+});
+
+test('f fail io{} gives E0100 at fail: no mark comes before io, and no fail mark exists', () => {
+  assert.deepEqual(parseText('f fail io{}'), e0100(2, 6));
+});
+
+test('f io Int{} gives E0100 at Int: the result type comes before io (G10)', () => {
+  assert.deepEqual(parseText('f io Int{}'), e0100(5, 8));
 });
 
 test('f()Int{} gives E0100 at the closing parenthesis: a parameter list is not empty (G9)', () => {
@@ -104,7 +131,7 @@ test('main io{ex 1} gives E0100 at ex: ex is not a statement (G5)', () => {
   assert.deepEqual(parseText('main io{ex 1}'), e0100(8, 10));
 });
 
-test('fn main io{} gives E0100 at main: fn is an identifier, so main is unexpected (G12)', () => {
+test('fn main io{} gives E0100 at main: fn is an identifier, so main is unexpected (G12, RFC 0109 L3)', () => {
   assert.deepEqual(parseText('fn main io{}'), e0100(3, 7));
 });
 

@@ -1,10 +1,12 @@
-// Declarations (RFC 0104 grammar: decl, param, ptype, rtype, block; G2, G4, G5, G9, G10, G12, G13).
-// parseDecl reads one declaration that starts at tokens[at]. Its block is read by parseBlock in
-// stmt.ts, and each expression is handed to the ExprParser that the caller passes in.
+// Declarations (RFC 0104 grammar: decl, param, ptype, rtype, block; G2, G4, G5, G9, G10, G12, G13;
+// RFC 0109 L1, L3 and F1: no `fail` mark). parseDecl reads one declaration that starts at
+// tokens[at]. Its block is read by parseBlock in stmt.ts, and each expression is handed to the
+// ExprParser that the caller passes in.
 //
-//   decl = IDENT [ "(" param { "," param } ")" ] [ rtype ] [ "io" ] [ "fail" ] block { "ex" expr }
+//   decl = IDENT [ "(" param { "," param } ")" ] [ rtype ] [ "io" ] block { "ex" expr }
 //
-// The marks come in that order (G10).
+// The marks come in that order (G10): result type, then io. Any other token where the block is
+// expected, such as `fail`, is E0100 at that token.
 import { Kind, type Token } from '../lexer/token.ts';
 import { errAt, type ParseError, nameErr } from './errors.ts';
 import { parseBlock } from './stmt.ts';
@@ -25,14 +27,13 @@ export interface Param extends Span {
   type: Ident;
 }
 
-// params is null for a declaration with no parentheses (G9). result, io and fail are null when
+// params is null for a declaration with no parentheses (G9, F1). result and io are null when
 // absent. ex has one span per `ex` clause, from the keyword to the end of its expression.
 export interface Decl extends Span {
   name: Ident;
   params: Param[] | null;
   result: Ident | null;
   io: Span | null;
-  fail: Span | null;
   body: Span;
   ex: Span[];
 }
@@ -83,12 +84,6 @@ export function parseDecl(tokens: readonly Token[], at: number, expr: ExprParser
     i += 1;
   }
 
-  let fail: Span | null = null;
-  if (tokens[i].kind === Kind.KW_FAIL) {
-    fail = spanOf(tokens[i]);
-    i += 1;
-  }
-
   const block = parseBlock(tokens, i, expr);
   if ('code' in block) return block;
   i = block.next;
@@ -106,7 +101,6 @@ export function parseDecl(tokens: readonly Token[], at: number, expr: ExprParser
     params,
     result,
     io,
-    fail,
     body: block.span,
     ex,
     start: nameTok.start,
