@@ -61,9 +61,11 @@ test('f(n Int)Int fail{} parses the parameter, the result type and the fail mark
   });
 });
 
-// Needs expressions (subtask 9): `ret n+1` is read by the expression parser, which is not here yet.
-test('f(n Int)Int fail{ret n+1} parses', { todo: 'needs parser/expr.ts (subtask 9)' }, () => {
-  assert.ok('tree' in parseText('f(n Int)Int fail{ret n+1}'));
+test('f(n Int)Int fail{ret n+1} parses, and its block holds the ret value', () => {
+  // The body runs from the { at 16 to the } at 24, which ends the text (length 25).
+  const r = parseText('f(n Int)Int fail{ret n+1}');
+  assert.ok('tree' in r);
+  assert.deepEqual(r.tree.decls[0].body, { start: 16, end: 25 });
 });
 
 test('two declarations in a row need no separator, and the second starts at its own name', () => {
