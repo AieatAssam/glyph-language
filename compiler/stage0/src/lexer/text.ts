@@ -22,6 +22,7 @@ export type TextResult = { token: Token } | { error: LexError };
 const DOUBLE_QUOTE = 0x22;
 const BACKSLASH = 0x5c;
 const CR = 0x0d;
+const LF = 0x0a;
 
 // The byte each escape character decodes to: `"` gives a quote, `\` gives a backslash (rule 9).
 const ESCAPES: ReadonlyMap<number, number> = new Map([
@@ -75,7 +76,8 @@ export function lexText(buf: Buffer, pos: number): TextResult {
       i += 2;
       continue;
     }
-    if (b < 0x20 || b === 0x7f) return fail('E0001', i, i + 1);
+    // Rule 2 excludes LF: inside a literal it is content (rule 9), so only the other controls fail.
+    if ((b < 0x20 && b !== LF) || b === 0x7f) return fail('E0001', i, i + 1);
     if (b < 0x80) {
       out.push(b);
       i += 1;
