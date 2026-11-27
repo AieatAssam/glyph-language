@@ -15,7 +15,7 @@ const RFC_KEYWORDS = [
 ];
 
 const RFC_PUNCTUATION = [
-  '(', ')', '{', '}', ',', ':', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
+  '(', ')', '{', '}', ',', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
 ];
 
 test('the keywords equal the RFC 0104 list, in order', () => {
@@ -37,21 +37,21 @@ test('put, fail, wh, ret and ex have their own kinds', () => {
   assert.equal(Kind.KW_EX, KEYWORD_KIND.ex);
 });
 
-test('the punctuation spellings equal the eighteen RFC 0014 tokens, in order', () => {
+test('the punctuation spellings equal the seventeen RFC 0104 tokens, in order', () => {
   assert.deepEqual([...PUNCTUATION], RFC_PUNCTUATION);
   assert.deepEqual(Object.keys(PUNCTUATION_KIND), RFC_PUNCTUATION);
 });
 
-test('there are eighteen punctuation kinds, one per token', () => {
+test('there are seventeen punctuation kinds, one per token', () => {
   const kinds = RFC_PUNCTUATION.map((p) => PUNCTUATION_KIND[p as keyof typeof PUNCTUATION_KIND]);
-  assert.equal(kinds.length, 18);
-  assert.equal(new Set(kinds).size, 18);
+  assert.equal(kinds.length, 17);
+  assert.equal(new Set(kinds).size, 17);
 });
 
-test('every kind value is unique (rule 12): 38 kinds, no two equal', () => {
+test('every kind value is unique (rule 12): 37 kinds, no two equal', () => {
   const values = Object.values(Kind);
-  assert.equal(values.length, 38);
-  assert.equal(new Set(values).size, 38);
+  assert.equal(values.length, 37);
+  assert.equal(new Set(values).size, 37);
 });
 
 test('the keyword and punctuation kinds are all members of Kind', () => {

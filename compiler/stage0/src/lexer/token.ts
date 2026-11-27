@@ -9,9 +9,9 @@ export const KEYWORDS = [
 
 export type Keyword = (typeof KEYWORDS)[number];
 
-// The eighteen punctuation and operator tokens, in RFC 0014 rule 10 order.
+// The seventeen punctuation and operator tokens, in RFC 0104 rule 10 order. There is no `:` or `;`.
 export const PUNCTUATION = [
-  '(', ')', '{', '}', ',', ':', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
+  '(', ')', '{', '}', ',', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
 ] as const;
 
 export type Punctuation = (typeof PUNCTUATION)[number];
@@ -40,7 +40,6 @@ export const Kind = {
   LBRACE: 16,
   RBRACE: 17,
   COMMA: 18,
-  COLON: 19,
   ASSIGN: 20,
   EQ: 21,
   NE: 22,
@@ -88,7 +87,6 @@ export const PUNCTUATION_KIND: Readonly<Record<Punctuation, Kind>> = {
   '{': Kind.LBRACE,
   '}': Kind.RBRACE,
   ',': Kind.COMMA,
-  ':': Kind.COLON,
   '=': Kind.ASSIGN,
   '==': Kind.EQ,
   '!=': Kind.NE,

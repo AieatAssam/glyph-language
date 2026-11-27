@@ -34,8 +34,14 @@ test('an LF after the program changes no token kind, and a CR LF is E0001 at the
   assert.deepEqual(src(PROGRAM + '\r\n'), { tokens: [], error: { code: 'E0001', start: 25, end: 26 } });
 });
 
-test('a comment is skipped, and a // inside it does not start a token', () => {
-  assert.deepEqual(kinds('fn // print("x")\nmain'), [Kind.IDENT, Kind.NEWLINE, Kind.IDENT, Kind.NEWLINE, Kind.EOF]);
+test('there are no comments: // is two SLASH tokens, and the text after it is lexed (RFC 0104 rule 5)', () => {
+  assert.deepEqual(kinds('1//2'), [Kind.INT, Kind.SLASH, Kind.SLASH, Kind.INT, Kind.NEWLINE, Kind.EOF]);
+  assert.deepEqual(kinds('fn // "x"'), [Kind.IDENT, Kind.SLASH, Kind.SLASH, Kind.TEXT, Kind.NEWLINE, Kind.EOF]);
+});
+
+test('a ; or : in a program is E0001 at that character, and nothing is lexed', () => {
+  assert.deepEqual(src('let a:Int=1'), { tokens: [], error: { code: 'E0001', start: 5, end: 6 } });
+  assert.deepEqual(src('put 1;'), { tokens: [], error: { code: 'E0001', start: 5, end: 6 } });
 });
 
 test('an empty file gives only EOF at offset 0', () => {
