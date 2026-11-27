@@ -26,14 +26,14 @@ function glyphc(args: string[]): { status: number | null; stdout: string; stderr
 }
 
 test('run of the walking-skeleton program prints 1 and exits 0', () => {
-  const { file } = source('prog.gl', 'fn main() io { print(1) }\n');
+  const { file } = source('prog.gl', 'main io{put 1}');
   const r = glyphc(['run', file]);
   assert.equal(r.stdout, '1\n');
   assert.equal(r.status, 0);
 });
 
 test('build writes a module that validates and prints 1 when run', async () => {
-  const { dir, file } = source('prog.gl', 'fn main() io { print(1) }\n');
+  const { dir, file } = source('prog.gl', 'main io{put 1}');
   const out = join(dir, 'prog.wasm');
   const r = glyphc(['build', file, '-o', out]);
   assert.equal(r.status, 0, r.stderr);
@@ -46,23 +46,23 @@ test('build writes a module that validates and prints 1 when run', async () => {
 });
 
 test('two builds of the same source write the same bytes', () => {
-  const { dir, file } = source('prog.gl', 'fn main() io { print(1) }\n');
+  const { dir, file } = source('prog.gl', 'main io{put 1}');
   glyphc(['build', file, '-o', join(dir, 'a.wasm')]);
   glyphc(['build', file, '-o', join(dir, 'b.wasm')]);
   assert.deepEqual(readFileSync(join(dir, 'a.wasm')), readFileSync(join(dir, 'b.wasm')));
 });
 
 test('build of a program outside the skeleton exits 1 with the compile reason and writes nothing', () => {
-  const { dir, file } = source('prog.gl', 'fn main() { print(1) }\n');
+  const { dir, file } = source('prog.gl', 'main{put 1}');
   const out = join(dir, 'prog.wasm');
   const r = glyphc(['build', file, '-o', out]);
   assert.equal(r.status, 1);
-  assert.ok(r.stderr.endsWith('glyphc: E0100 at byte 10\n'), r.stderr);
+  assert.ok(r.stderr.endsWith('glyphc: E0100 at byte 4\n'), r.stderr);
   assert.equal(existsSync(out), false);
 });
 
 test('build of a path that is not a source file still gets the E0010 record from cli.ts', () => {
-  const { dir, file } = source('prog.txt', 'fn main() io { print(1) }\n');
+  const { dir, file } = source('prog.txt', 'main io{put 1}');
   const r = glyphc(['build', file, '-o', join(dir, 'prog.wasm')]);
   assert.equal(r.status, 1);
   assert.ok(r.stderr.includes('"code":"E0010"'), r.stderr);

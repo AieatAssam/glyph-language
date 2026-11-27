@@ -1,17 +1,17 @@
-// Parser for the walking-skeleton program (RFC 0014 rule 13, E0100), and nothing wider:
+// Parser for the walking-skeleton program (RFC 0104 grammar, decl and put; E0100), and nothing wider:
 //
-//   fn NAME ( ) io { NAME ( INT ) }
+//   NAME io { put INT }
 //
-// The tree is one function whose body is one call with one integer argument. Names and integer
+// The tree is one function whose body is one put of one integer. The put is kept in the call shape
+// that codegen.ts reads: its callee is `print`, spanning the `put` keyword. Names and integer
 // spellings are kept as written; the checker, which does not exist yet, decides what they mean.
 //
 // ponytail: this shape is the only one accepted. Ceiling: any other program gets E0100 at its first
-// unexpected token. Upgrade path: the kernel RFC's grammar replaces this file, one production at a
-// time, and each production gets its own spec/grammar.peg entry and conformance test.
+// unexpected token. Upgrade path: parser/index.ts (the RFC 0104 parser) replaces this file, and
+// codegen.ts reads a put statement instead of the synthesized print call.
 //
-// ponytail: NEWLINE tokens are skipped here. The lexer does not emit them yet (RFC 0014 subtask 8),
-// and once it does, skipping them is wrong for any program with statements on separate lines.
-// Upgrade path: the parser reads NEWLINE as a statement end when the grammar needs one.
+// ponytail: NEWLINE tokens are skipped here. The lexer ends a file with one, and LF is not a token
+// (RFC 0104 rule 3), so the grammar never sees it. Upgrade path: none needed.
 import { Kind, type Token } from '../lexer/token.ts';
 
 export interface Ident {
@@ -34,7 +34,7 @@ export interface Call {
   end: number;
 }
 
-// fn NAME ( ) io BODY. Its span runs from `fn` to the closing brace. A BODY of `{ }` has no call (null).
+// NAME io BODY. Its span runs from the name to the closing brace. A BODY of `{}` has no call (null).
 export interface FnDecl {
   name: Ident;
   body: Call | null;
@@ -100,32 +100,27 @@ function ident(c: Cursor): Ident {
   return { text: t.text ?? '', start: t.start, end: t.end };
 }
 
-function call(c: Cursor): Call {
-  const callee = ident(c);
-  c.expect(Kind.LPAREN);
+// put INT, read as the call print(INT) (see the header note).
+function put(c: Cursor): Call {
+  const kw = c.expect(Kind.KW_PUT);
   const argTok = c.expect(Kind.INT);
-  const close = c.expect(Kind.RPAREN);
   return {
-    callee,
+    callee: { text: 'print', start: kw.start, end: kw.end },
     arg: { text: argTok.text ?? '', start: argTok.start, end: argTok.end },
-    start: callee.start,
-    end: close.end,
+    start: kw.start,
+    end: argTok.end,
   };
 }
 
 function fnDecl(c: Cursor): FnDecl {
-  const fnTok = c.expect(Kind.KW_FN);
   const name = ident(c);
-  c.expect(Kind.LPAREN);
-  c.expect(Kind.RPAREN);
   c.expect(Kind.KW_IO);
   c.expect(Kind.LBRACE);
-  // ponytail: an empty block is `{` `}` with any spacing or line ends between them (RFC 0048 block
-  // rule). Ceiling: no statement but the call. Upgrade path: the kernel parser subtasks add the
-  // statement forms.
-  const body = c.peek().kind === Kind.RBRACE ? null : call(c);
+  // ponytail: an empty block is `{` `}` (RFC 0104 block). Ceiling: no statement but the put.
+  // Upgrade path: parser/index.ts reads the statement forms.
+  const body = c.peek().kind === Kind.RBRACE ? null : put(c);
   const close = c.expect(Kind.RBRACE);
-  return { name, body, start: fnTok.start, end: close.end };
+  return { name, body, start: name.start, end: close.end };
 }
 
 // Parses a token list from lex(). Nothing may follow the function but EOF.
