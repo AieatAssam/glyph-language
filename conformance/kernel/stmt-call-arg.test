@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-call-arg
+rfc: 0109
+kind: run
+--- source
+g(n Int)io{put n}main io{g(4)}
+--- expect-stdout
+4
+--- expect-exit
+0

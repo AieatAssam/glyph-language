@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-ret-value
+rfc: 0109
+kind: run
+--- source
+f Int{ret 2}main io{put f()}
+--- expect-stdout
+2
+--- expect-exit
+0

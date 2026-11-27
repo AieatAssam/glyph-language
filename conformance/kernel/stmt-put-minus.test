@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-put-minus
+rfc: 0109
+kind: run
+--- source
+main io{put-7}
+--- expect-stdout
+-7
+--- expect-exit
+0

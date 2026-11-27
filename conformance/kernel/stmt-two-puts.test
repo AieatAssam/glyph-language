@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-two-puts
+rfc: 0109
+kind: run
+--- source
+main io{put 1 put 2}
+--- expect-stdout
+1
+2
+--- expect-exit
+0

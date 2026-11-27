@@ -1,0 +1,8 @@
+--- meta
+id: kernel/stmt-literal-start
+rfc: 0109
+kind: compile-error
+--- source
+main io{1}
+--- expect-errors
+{"code":"E0100","span":{"start":8,"end":9,"line":1}}

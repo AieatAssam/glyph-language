@@ -1,0 +1,8 @@
+--- meta
+id: kernel/stmt-ret-not-last
+rfc: 0109
+kind: compile-error
+--- source
+f Int{ret 1 put 2}main io{put f()}
+--- expect-errors
+{"code":"E0100","span":{"start":12,"end":15,"line":1}}

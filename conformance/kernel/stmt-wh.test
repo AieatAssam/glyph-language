@@ -1,0 +1,11 @@
+--- meta
+id: kernel/stmt-wh
+rfc: 0109
+kind: run
+--- source
+main io{var i=0 wh i<2{put i i=i+1}}
+--- expect-stdout
+0
+1
+--- expect-exit
+0

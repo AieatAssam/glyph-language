@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-if-else
+rfc: 0109
+kind: run
+--- source
+main io{if true{put 1}else{put 2}}
+--- expect-stdout
+1
+--- expect-exit
+0

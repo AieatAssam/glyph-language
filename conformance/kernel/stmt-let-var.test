@@ -1,0 +1,10 @@
+--- meta
+id: kernel/stmt-let-var
+rfc: 0109
+kind: run
+--- source
+main io{let a=1 var b=2 b=a put b}
+--- expect-stdout
+1
+--- expect-exit
+0
