@@ -75,6 +75,11 @@ test('two declarations in a row need no separator, and the second starts at its 
   assert.deepEqual(r.tree.decls[1].io, { start: 11, end: 13 });
 });
 
+test('ptype and rtype: Int and Bool are accepted as a parameter type and as a result type', () => {
+  assert.ok('tree' in parseText('f(a Bool,b Int)Bool{ret a}'));
+  assert.ok('tree' in parseText('f(a Int)Int{ret a}'));
+});
+
 test('an empty program, with no tokens but EOF, is accepted', () => {
   assert.deepEqual(parseText(''), { tree: { decls: [] } });
 });

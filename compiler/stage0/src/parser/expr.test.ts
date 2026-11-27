@@ -119,6 +119,12 @@ test('empty parentheses are E0100 at the closing parenthesis', () => {
   assert.deepEqual(parsed('()'), { code: 'E0100', start: 1, end: 2 });
 });
 
+test('cmp_op: each of the six comparison operators parses as one comparison in an expression', () => {
+  for (const op of ['==', '!=', '<', '<=', '>', '>=']) {
+    assert.ok('tree' in parse(lex(Buffer.from(`main io{put 1${op}2}`)).tokens), op);
+  }
+});
+
 test('put-((4)) parses as a whole program (unary minus over a grouped expression)', () => {
   assert.ok('tree' in parse(lex(Buffer.from('main io fail{put-((4))}')).tokens));
 });
