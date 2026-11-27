@@ -6,16 +6,12 @@
 //
 // The marks come in that order (G10).
 import { Kind, type Token } from '../lexer/token.ts';
+import { errAt, type ParseError, nameErr } from './errors.ts';
 import { parseBlock } from './stmt.ts';
 
-export interface Span {
-  start: number;
-  end: number;
-}
+export type { ParseError, SyntaxCode } from './errors.ts';
 
-// Every syntax error is E0100 (RFC 0104 Diagnostics). Keyword-as-name errors (E0003) come in subtask 10.
-export interface ParseError {
-  code: 'E0100';
+export interface Span {
   start: number;
   end: number;
 }
@@ -49,10 +45,6 @@ export type ExprParser = (tokens: readonly Token[], at: number) => ExprStep;
 
 export type DeclStep = { decl: Decl; next: number } | ParseError;
 
-function errAt(t: Token): ParseError {
-  return { code: 'E0100', start: t.start, end: t.end };
-}
-
 function spanOf(t: Token): Span {
   return { start: t.start, end: t.end };
 }
@@ -68,7 +60,7 @@ function isType(t: Token): boolean {
 
 export function parseDecl(tokens: readonly Token[], at: number, expr: ExprParser): DeclStep {
   const nameTok = tokens[at];
-  if (nameTok.kind !== Kind.IDENT) return errAt(nameTok);
+  if (nameTok.kind !== Kind.IDENT) return nameErr(nameTok);
   let i = at + 1;
 
   let params: Param[] | null = null;
@@ -143,10 +135,10 @@ function parseParams(tokens: readonly Token[], at: number): { params: Param[]; n
   }
 }
 
-// Reads one param, `IDENT ptype`. A name that is a keyword is E0100 here; E0003 comes in subtask 10.
+// Reads one param, `IDENT ptype`. A keyword as the name is E0003 (G3); any other non-IDENT is E0100.
 function parseParam(tokens: readonly Token[], at: number): { param: Param; next: number } | ParseError {
   const nameTok = tokens[at];
-  if (nameTok.kind !== Kind.IDENT) return errAt(nameTok);
+  if (nameTok.kind !== Kind.IDENT) return nameErr(nameTok);
   const typeTok = tokens[at + 1];
   // G4: the type is Int or Bool, and any other token is E0100 at that token.
   if (!isType(typeTok)) return errAt(typeTok);

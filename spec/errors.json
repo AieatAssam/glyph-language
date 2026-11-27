@@ -1,6 +1,7 @@
 [
   {"code": "E0001", "message": "invalid byte or character in source", "meaning": "invalid byte or character in source"},
   {"code": "E0002", "message": "non-canonical layout", "meaning": "non-canonical layout: a gap that is not the canonical gap"},
+  {"code": "E0003", "message": "keyword where an identifier is required", "meaning": "keyword where an identifier is required"},
   {"code": "E0005", "message": "malformed text literal", "meaning": "malformed text literal: unknown escape or no closing quote"},
   {"code": "E0006", "message": "integer literal has a leading zero", "meaning": "an integer literal starts with 0 and has more digits"},
   {"code": "E0010", "message": "source file does not end in .gl", "meaning": "the path given is not a source file"},

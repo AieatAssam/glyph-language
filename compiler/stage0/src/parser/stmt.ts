@@ -1,4 +1,4 @@
-// Blocks and statements (RFC 0104 grammar: block, stmt, args; G1, G2, G7, G11).
+// Blocks and statements (RFC 0104 grammar: block, stmt, args; G1, G2, G3, G7, G11).
 //
 //   block = "{" { stmt } [ "ret" [ expr ] ] "}"
 //   stmt  = "let" IDENT "=" expr | "var" IDENT "=" expr | IDENT "=" expr | IDENT "(" [ args ] ")"
@@ -8,13 +8,10 @@
 // Statements have no separator (G1). Only `}` or `ret` may end the statement list, so `ret` is the
 // last item (G2).
 import { Kind, type Token } from '../lexer/token.ts';
-import type { ExprParser, ParseError, Span } from './decl.ts';
+import { errAt, type ParseError, nameErr } from './errors.ts';
+import type { ExprParser, Span } from './decl.ts';
 
 type Step = { next: number } | ParseError;
-
-function errAt(t: Token): ParseError {
-  return { code: 'E0100', start: t.start, end: t.end };
-}
 
 // The kinds that start a statement. Any other token before `}` or `ret` is E0100 at that token.
 function startsStmt(kind: number): boolean {
@@ -54,9 +51,9 @@ function stmt(tokens: readonly Token[], at: number, expr: ExprParser): Step {
   switch (t.kind) {
     case Kind.KW_LET:
     case Kind.KW_VAR: {
-      // G3 (a keyword as the name) is subtask 10; until then a non-identifier name is E0100.
+      // G3: a keyword where the name is required is E0003; any other non-identifier is E0100.
       const name = tokens[at + 1];
-      if (name.kind !== Kind.IDENT) return errAt(name);
+      if (name.kind !== Kind.IDENT) return nameErr(name);
       if (tokens[at + 2].kind !== Kind.ASSIGN) return errAt(tokens[at + 2]);
       return exprStep(tokens, at + 3, expr);
     }
