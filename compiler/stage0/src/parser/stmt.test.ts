@@ -103,3 +103,47 @@ test('a let with no equals sign is E0100 at the token after the name', () => {
 test('a block that is not closed is E0100 at EOF', () => {
   assert.deepEqual(parseText('main io{if true{}'), e0100(17, 17));
 });
+
+// The cases below use the real expression parser (parser/expr.ts), since put(1,2) and put-7 need
+// its grouping and unary rules. parse() with no second argument uses it.
+const parseReal = (text: string) => {
+  const { tokens, error } = lex(Buffer.from(text, 'utf8'));
+  assert.equal(error, null);
+  return parse(tokens);
+};
+
+const acceptsReal = (text: string) => {
+  const r = parseReal(text);
+  assert.ok('tree' in r, text);
+  assert.equal(r.tree.decls[0].body.end, text.length, text);
+};
+
+test('two puts with no separator are two statements (G1, P1)', () => {
+  acceptsReal('main io{put a put b}');
+});
+
+test('put-7 is put with a unary minus, not a binary minus with no left operand (P1)', () => {
+  acceptsReal('main io{put-7}');
+});
+
+test('put 1 2 is E0100 at the second 2: put takes one expression (P1)', () => {
+  assert.deepEqual(parseReal('main io{put 1 2}'), e0100(14, 15));
+});
+
+test('put(1,2) is E0100 at the comma: put takes one expression (P1)', () => {
+  assert.deepEqual(parseReal('main io{put(1,2)}'), e0100(13, 14));
+});
+
+test('a statement that starts with an operator is E0100 at that operator (L2)', () => {
+  assert.deepEqual(parseReal('main io{+1}'), e0100(8, 9));
+  assert.deepEqual(parseReal('main io{-1}'), e0100(8, 9));
+});
+
+test('a statement that starts with ( or a text literal is E0100 at that token (L2)', () => {
+  assert.deepEqual(parseReal('main io{(1)}'), e0100(8, 9));
+  assert.deepEqual(parseReal('main io{"a"}'), e0100(8, 11));
+});
+
+test('ret that is not last in its block is E0100 at the statement after it (G2)', () => {
+  assert.deepEqual(parseReal('main io{ret put 1}'), e0100(12, 15));
+});
