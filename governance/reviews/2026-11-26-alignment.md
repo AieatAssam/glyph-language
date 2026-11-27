@@ -155,4 +155,6 @@ Briefs now filed (`governance/BRIEFS.yml`), all amending RFCs 0104 and 0105, and
 - `fail-mark`: 39 of 1,108 tokens in RFC 0105's programs, derivable by the compiler. RFC 0105 kept it; the constitution wording in this change now addresses it directly.
 - `input`: still nothing reads standard input.
 
-Read "RFC 0085 stays accepted" above as moot: it is superseded. The equivalent decision now is that RFC 0105 stays accepted despite its vote, for the same reason, and the same trailer supersedes it if you prefer.
+Read "RFC 0085 stays accepted" above as moot: it is superseded.
+
+**Owner decision, 2026-11-27: RFC 0105 is superseded and the kernel restarts.** Its vote was not a decision by anyone who had read it. The replacement gets `governance/premise/0105.md` in its brief; the fail mark moved there from the briefs, so two briefs remain (`word-spelling`, `input`). The new attempt is voted under this change's quorum and electorate.
