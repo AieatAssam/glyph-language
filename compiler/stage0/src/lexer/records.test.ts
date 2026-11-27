@@ -52,6 +52,23 @@ test('a lexer error found by lex() gives the same record, with its line and colu
   assert.deepEqual(record.span, { file: 'prog.gl', start: 7, end: 8, line: 1, column: 8 });
 });
 
+test('an E0006 record carries the fix key: the literal span, then the replacement (RFC 0104 rule 8)', () => {
+  const bytes = Buffer.from('main io{put 007}', 'utf8');
+  const { error } = lex(bytes);
+  assert.ok(error !== null);
+  const record = lexErrorRecord(error, bytes, 'p.gl');
+  assert.deepEqual(record.fix, {
+    span: { file: 'p.gl', start: 12, end: 15, line: 1, column: 13 },
+    replacement: '7',
+  });
+  assert.equal(
+    lexErrorLine(error, bytes, 'p.gl'),
+    '{"code":"E0006","severity":"error","message":"integer literal has a leading zero",' +
+      '"span":{"file":"p.gl","start":12,"end":15,"line":1,"column":13},' +
+      '"fix":{"span":{"file":"p.gl","start":12,"end":15,"line":1,"column":13},"replacement":"7"}}',
+  );
+});
+
 test('each lexer code has a message that passes the message rules', () => {
   for (const code of CODES) {
     const record = lexErrorRecord({ code, start: 0, end: 1 }, LINE3, 'a.gl');

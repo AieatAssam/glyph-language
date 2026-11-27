@@ -93,7 +93,10 @@ test('a text literal is lexed to a TEXT token with its decoded value', () => {
 });
 
 test('an integer with a leading zero is E0006 over the whole literal, with no tokens', () => {
-  assert.deepEqual(src('007'), { tokens: [], error: { code: 'E0006', start: 0, end: 3 } });
+  assert.deepEqual(src('007'), {
+    tokens: [],
+    error: { code: 'E0006', start: 0, end: 3, fix: { start: 0, end: 3, replacement: '7' } },
+  });
 });
 
 test('a lone ! is E0001 at the !', () => {
@@ -118,7 +121,10 @@ test('a non-ASCII letter in an identifier is E0001 at its first byte, with its w
 
 test('a scanner error before a byte error is the one reported', () => {
   // E0006 at 0..3 comes before the tab at 4.
-  assert.deepEqual(src('007\t'), { tokens: [], error: { code: 'E0006', start: 0, end: 3 } });
+  assert.deepEqual(src('007\t'), {
+    tokens: [],
+    error: { code: 'E0006', start: 0, end: 3, fix: { start: 0, end: 3, replacement: '7' } },
+  });
 });
 
 test('a byte error before a scanner error is the one reported', () => {

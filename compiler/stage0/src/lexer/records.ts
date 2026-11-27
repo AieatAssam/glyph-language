@@ -27,12 +27,21 @@ export function lexErrorRecord(error: LexError, bytes: Uint8Array, file: string)
     throw new Error(`records: no message for lexical code ${error.code}`);
   }
   const { line, column } = positionOf(bytes, error.start);
-  return {
+  const record: Diagnostic = {
     code: error.code,
     severity: 'error',
     message,
     span: { file, start: error.start, end: error.end, line, column },
   };
+  if (error.fix !== undefined) {
+    // The fix span is the one the lexer gives; its line and column are those of its start.
+    const at = positionOf(bytes, error.fix.start);
+    record.fix = {
+      span: { file, start: error.fix.start, end: error.fix.end, line: at.line, column: at.column },
+      replacement: error.fix.replacement,
+    };
+  }
+  return record;
 }
 
 // Returns the record for one lexical error as one JSON line, with no line feed.
