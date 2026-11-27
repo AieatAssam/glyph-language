@@ -1,0 +1,10 @@
+--- meta
+id: parse/skeleton-put-one
+rfc: 0104
+kind: run
+--- source
+main io{put 1}
+--- expect-stdout
+1
+--- expect-exit
+0

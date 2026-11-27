@@ -1,26 +1,29 @@
-# Grammar for the walking-skeleton programs of RFC 0020 (kernel-v8), and nothing wider:
+# Grammar for the walking-skeleton programs, and nothing wider. Two spellings are accepted:
 #
-#   fn main() io { print(1) }
-#   fn main() io {}
-#   fn main() io {
-#   }
+#   RFC 0104 (lexical-syntax-v6), the form of the walking skeleton:
+#     main io{put 1}
+#   RFC 0020 (kernel-v8), kept until RFC 0105 (kernel-v46) retires it (conformance/kernel/print-one):
+#     fn main() io { print(1) }
+#     fn main() io {}
+#     fn main() io {
+#     }
 #
-# Each production is the RFC 0020 production of the same name, restricted to the spelling these
-# programs use (single spaces in a call; any spacing or line ends in an empty block, as RFC 0048
-# allows). Later kernel subtasks widen this file one production at a time, each with a conformance
-# test that reaches it.
+# Each production is the RFC 0020 or RFC 0104 production of the same name, restricted to the spelling
+# these programs use. Later subtasks widen this file one production at a time, each with a
+# conformance test that reaches it.
 #
 # ponytail: spacing is fixed to the programs' spelling. Ceiling: any other layout is rejected here,
-# although RFC 0020's lexer accepts it. Upgrade path: the kernel parser subtasks (plan 9 to 11) add
-# the optional spacing and the statement productions.
+# although the lexer accepts it under RFC 0104 rule 4 only when it is canonical. Upgrade path: the
+# parser subtasks (plan 7 to 9) add the optional spacing and the statement productions.
 #
-# ponytail: the empty block is the RFC 0048 block rule with no statement: `{`, any run of spaces and
-# LFs, `}`. Both parse.ts and codegen.ts accept it (conformance/lex/v4-lf-only). Ceiling: only the
-# empty block and the single call. Upgrade path: the RFC 0048 parser subtasks add the statement forms.
+# ponytail: the RFC 0020 empty block is `{`, any run of spaces and LFs, `}`. Ceiling: only the empty
+# block and the single call. Upgrade path: the kernel retirement under RFC 0105 removes it.
 
-program  <- fn_decl "\n"? !.
-fn_decl  <- "fn " ident "() io " block
-block    <- "{" [ \n]* "}" / "{ " call " }"
-call     <- ident "(" int ")"
-ident    <- [A-Za-z_] [A-Za-z0-9_]*
-int      <- [0-9]+
+program   <- fn_decl "\n"? !. / main_decl "\n"? !.
+main_decl <- "main io{" put_stmt "}"
+put_stmt  <- "put " int
+fn_decl   <- "fn " ident "() io " block
+block     <- "{" [ \n]* "}" / "{ " call " }"
+call      <- ident "(" int ")"
+ident     <- [A-Za-z_] [A-Za-z0-9_]*
+int       <- [0-9]+
