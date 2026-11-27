@@ -43,14 +43,28 @@ test('io is the io keyword and has no text', () => {
   assert.deepEqual(at('io'), { token: { kind: Kind.KW_IO, start: 0, end: 2 } });
 });
 
-test('every one of the fourteen keywords lexes as its own kind', () => {
+test('every one of the fifteen keywords lexes as its own kind', () => {
   const kinds = [
-    Kind.KW_FN, Kind.KW_LET, Kind.KW_VAR, Kind.KW_IF, Kind.KW_ELSE, Kind.KW_WHILE, Kind.KW_RETURN,
-    Kind.KW_TRUE, Kind.KW_FALSE, Kind.KW_AND, Kind.KW_OR, Kind.KW_NOT, Kind.KW_EXAMPLE, Kind.KW_IO,
+    Kind.KW_LET, Kind.KW_VAR, Kind.KW_IF, Kind.KW_ELSE, Kind.KW_WH, Kind.KW_RET,
+    Kind.KW_TRUE, Kind.KW_FALSE, Kind.KW_AND, Kind.KW_OR, Kind.KW_NOT, Kind.KW_EX, Kind.KW_IO,
+    Kind.KW_PUT, Kind.KW_FAIL,
   ];
+  assert.equal(KEYWORDS.length, 15);
   KEYWORDS.forEach((word, i) => {
     assert.deepEqual(at(word), { token: { kind: kinds[i], start: 0, end: word.length } }, word);
   });
+});
+
+test('lex/kw-fail: fail is a keyword, and failure is an identifier', () => {
+  assert.deepEqual(at('fail'), { token: { kind: Kind.KW_FAIL, start: 0, end: 4 } });
+  assert.deepEqual(at('failure'), ident('failure'));
+});
+
+test('fn, while, return and example are identifiers now (RFC 0104 rule 7)', () => {
+  assert.deepEqual(at('fn'), ident('fn'));
+  assert.deepEqual(at('while'), ident('while'));
+  assert.deepEqual(at('return'), ident('return'));
+  assert.deepEqual(at('example'), ident('example'));
 });
 
 test('a keyword followed by a space stops at the space', () => {

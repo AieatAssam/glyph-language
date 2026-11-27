@@ -13,7 +13,7 @@ const PROGRAM = 'fn main() io { print(1) }';
 
 test('the walking-skeleton program gives its token kinds in order, ending in NEWLINE and EOF', () => {
   assert.deepEqual(kinds(PROGRAM), [
-    Kind.KW_FN, Kind.IDENT, Kind.LPAREN, Kind.RPAREN, Kind.KW_IO,
+    Kind.IDENT, Kind.IDENT, Kind.LPAREN, Kind.RPAREN, Kind.KW_IO,
     Kind.LBRACE, Kind.IDENT, Kind.LPAREN, Kind.INT, Kind.RPAREN, Kind.RBRACE,
     Kind.NEWLINE, Kind.EOF,
   ]);
@@ -22,7 +22,7 @@ test('the walking-skeleton program gives its token kinds in order, ending in NEW
 
 test('the program tokens have exact spans, and the names and digits keep their text', () => {
   const { tokens } = src(PROGRAM);
-  assert.deepEqual(tokens[0], { kind: Kind.KW_FN, start: 0, end: 2 });
+  assert.deepEqual(tokens[0], { kind: Kind.IDENT, start: 0, end: 2, text: 'fn' });
   assert.deepEqual(tokens[1], { kind: Kind.IDENT, start: 3, end: 7, text: 'main' });
   assert.deepEqual(tokens[8], { kind: Kind.INT, start: 21, end: 22, text: '1' });
   assert.deepEqual(tokens[11], { kind: Kind.NEWLINE, start: PROGRAM.length, end: PROGRAM.length });
@@ -35,7 +35,7 @@ test('an LF after the program changes no token kind, and a CR LF is E0001 at the
 });
 
 test('a comment is skipped, and a // inside it does not start a token', () => {
-  assert.deepEqual(kinds('fn // print("x")\nmain'), [Kind.KW_FN, Kind.NEWLINE, Kind.IDENT, Kind.NEWLINE, Kind.EOF]);
+  assert.deepEqual(kinds('fn // print("x")\nmain'), [Kind.IDENT, Kind.NEWLINE, Kind.IDENT, Kind.NEWLINE, Kind.EOF]);
 });
 
 test('an empty file gives only EOF at offset 0', () => {
