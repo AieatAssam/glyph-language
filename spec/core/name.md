@@ -6,4 +6,4 @@ Source files end in `.gl`. A path is a source file when its final component, the
 
 The compiler is `glyphc`. Its subcommands are `check`, `run` and `build`. Their behaviour is defined by later sections.
 
-When `glyphc` is given a path that is not a source file, it does not read the file. It writes one diagnostic with code `E0010` and exits nonzero, as the diagnostic section defines.
+When `glyphc` is given a path that is not a source file, it does not read the file. It writes one diagnostic with code `E0010` and exits as the Exit status part of the diagnostic section defines.
