@@ -1,0 +1,8 @@
+--- meta
+id: lex/v6-err-zero-00
+rfc: 0104
+kind: compile-error
+--- source
+main io{put 00}
+--- expect-errors
+{"code":"E0006","span":{"start":12,"end":14},"fix":{"span":{"start":12,"end":14},"replacement":"0"}}
