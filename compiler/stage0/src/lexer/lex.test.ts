@@ -136,6 +136,41 @@ test('there are no comments, so a tab after // is E0001 at the tab', () => {
   assert.deepEqual(src('fn//a\tb'), { tokens: [], error: { code: 'E0001', start: 5, end: 6 } });
 });
 
+// First-error rule (RFC 0104 rule 13): the first lexical error is the only result, with no tokens.
+
+test('a bad gap at byte 4 and a bad character at byte 9 give the gap error only, and no tokens', () => {
+  // main is bytes 0 to 3, the gap is bytes 4 to 5, io is 6 and 7, { is 8, and ; is 9.
+  assert.deepEqual(src('main  io{;'), {
+    tokens: [],
+    error: { code: 'E0002', start: 4, end: 6, fix: { start: 4, end: 6, replacement: ' ' } },
+  });
+});
+
+test('an E0006 at byte 0 is reported before the non-canonical gap after it', () => {
+  assert.deepEqual(src('007 ;'), {
+    tokens: [],
+    error: { code: 'E0006', start: 0, end: 3, fix: { start: 0, end: 3, replacement: '7' } },
+  });
+});
+
+test('a bad character at byte 1 is reported before the bad gap after it', () => {
+  assert.deepEqual(src('a;  b'), { tokens: [], error: { code: 'E0001', start: 1, end: 2 } });
+});
+
+test('a later byte error does not replace an earlier gap error, and the valid tokens are dropped', () => {
+  assert.deepEqual(src('main  io{put 1}\t'), {
+    tokens: [],
+    error: { code: 'E0002', start: 4, end: 6, fix: { start: 4, end: 6, replacement: ' ' } },
+  });
+});
+
+test('a file with no lexical error gives its token kinds, a NEWLINE and EOF, and error null', () => {
+  assert.deepEqual(kinds('main io{}'), [
+    Kind.IDENT, Kind.KW_IO, Kind.LBRACE, Kind.RBRACE, Kind.NEWLINE, Kind.EOF,
+  ]);
+  assert.equal(src('main io{}').error, null);
+});
+
 // Cases from the tester's proposal for subtask 9. Offsets are bytes from 0.
 
 test('case 1: a valid file gives its tokens, a NEWLINE at 7..7 and EOF at 7', () => {
