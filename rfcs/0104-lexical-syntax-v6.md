@@ -12,34 +12,25 @@ votes:
 
 Class: language
 Slug: lexical-syntax-v6
-Status: draft (attempt 6)
-Replaces: RFC 0048 (lexical-syntax-v4, superseded by the owner).
-Revises: RFC 0102 (lexical-syntax-v5, rejected on attempt 5). It keeps what voters accepted there and changes only what Summary lists.
+Replaces: RFC 0048 (lexical-syntax-v4).
+Revises: RFC 0102 (lexical-syntax-v5, rejected).
 Amends: RFC 0004 (expected results of `diag/fix-present` and `diag/record-shape`, Design section "Expected results"); RFC 0014 (its rules 3, 5, 7, 8, 13 to 15, as restated here); RFC 0050 (its `diag/record-shape` line, E0100 at bytes 4 to 7, is replaced).
 Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `spec/core/diagnostic.md`. Codes are listed in `spec/errors.json`.
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things, each answering a recorded objection:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
 
-- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
+- **Line feeds.** A line feed outside a text literal is E0002. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
-- **One syntax.** RFC 0103's forms (`n:Int`, `):Int`, `main()`, a two-line sample) are not adopted. `kernel-v46` uses the forms in this RFC.
-- **Text tests.** Tests that bind a text literal with `let` now use `put`. `kernel-v46` rule T3 makes a text literal valid only as the argument of `put`.
+- **One syntax.** The forms `n:Int`, `):Int`, `main()` and a two-line sample are not used. `kernel-v46` uses the forms in this RFC.
+- **Text.** A text literal is valid only as the argument of `put` (`kernel-v46` rule T3).
 
 The rest is RFC 0102 as voters accepted it. `;` is removed. `ret` ends its block. `put` is a keyword and takes its argument without parentheses: `put x`. The top level holds only declarations. A parameter is `n Int`, a result follows the `)` as `)Int`, and a declaration with no parameters has no parentheses: `main io{...}`. Comments are removed. A raw LF inside a text literal is content, and the `\n` escape is removed.
 
 ## Motivation
 
 Models write Glyph and need one way to write each construct. RFC 0048 left choices open: where line breaks counted, whether `;` was needed, and two parameter spellings. Each costs tokens, and each is a place for a model to err. The owner measured the base program at 94 tokens. Dropping `;` takes it to 90, and `put x` takes three calls to 88.
-
-Objections to RFC 0102, and how this draft answers each:
-
-- designer-safe and tester: rule 2 and the last sentence of rule 4 said a line feed in a gap is E0001, while the E0002 row and tests `v5-fmt-newline` and `v5-fmt-trailing-lf` expected E0002. Fixed by rule 2 (line feed excluded) and rules 3 and 4 (line feed is E0002). Control characters other than LF stay E0001 by rule 2.
-- tester: the keyword list omitted `fail`, which the kernel grammar used as a terminal. Fixed by rule 7.
-- tester and designer-min: the grammar and examples disagreed with the kernel. Settled here (Summary, "One syntax"). Kernel-v46 is revised to match.
-- tester: `v5-text` and `v5-text-lf` bound a text value with `let`, which kernel-v46 rejects. Changed to `put`.
-- user-1: no way to leave a note in a program. Comments stay out. The compiler ignores them, and the RFC and the tests carry the meaning (Alternatives).
 
 ## Design
 
@@ -192,15 +183,17 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`. One test is one file `conformance/lex/<name>.test` in the runner's container form (`tools/check/conformance.py`): a `--- meta` block with `id: lex/<name>`, `rfc: 0104` and `kind`, then the sections for its kind.
 
-Test file form (`conformance.py` container). Each `.test` file has a `--- meta` block with `id: lex/<name>` (or `parse/<name>`), `rfc: 0104` and `kind: run` or `compile-error`, then `--- source`. A run test has `--- expect-stdout` and `--- expect-exit`. A compile-error test has `--- expect-errors` with one JSON line per record: `{"code":C,"span":{"start":a,"end":b}}`, plus `"fix":{"span":{"start":a,"end":b},"replacement":R}` where the row gives a fix. A row with no fix has no `fix` key. Records are compared by `code`, `span` and `fix` only.
+- `run`: `--- source`, `--- expect-stdout`, `--- expect-exit`. The expect-stdout body is the program's stdout with its last LF removed, since the runner removes one before comparing. Empty output is an empty section. The Output column of the run table is that body.
+- `compile-error`: `--- source`, `--- expect-errors`. Each line of expect-errors is one JSON object `{"code":C,"span":{"start":a,"end":b}}`, where bytes a to b are the table's span (end exclusive). Where the table gives a fix, the object also has `"fix":{"span":{"start":a,"end":b},"replacement":R}`, with R the table's replacement (`""` for empty). Rows with no fix have no `fix` key. The runner compares only the keys written, and the records must match one to one.
+- `fmt`: `--- source`, `--- expect-stdout` (the canonical program with no final LF).
 
-Control bytes. A source holding a CR, a tab, a BOM or invalid UTF-8 sets `source-escapes: hex` in meta and writes each such byte as `\xHH`; `\\` is one backslash. So `v6-err-cr` has `main io{\x0Dput 1}`, and `v6-fmt-trailing-lf` has `main io{}\x0A`. A raw LF inside a `--- source` section is a line feed in the program, so `v6-fmt-newline` and `v6-text-lf` need no escape.
+Source rules. The runner adds one LF to every source unless the meta block has `source-final-lf: no`. Rule 4 makes a final LF E0002, and a lexical error stops the lexer before any later LF, so the added LF breaks every test whose program reaches the parser or checker. Every test in this section therefore has `source-final-lf: no`, except `v6-fmt-trailing-lf`, whose one LF is the one the runner adds. This key needs a change to the runner, which is open question 8. A CR is written with `source-escapes: hex` as `\x0D`. In that mode `\\` is one backslash, so each backslash in source is written twice. Only `v6-err-cr` needs hex mode. A raw LF inside a source section is an LF in the file, and it is the LF the test means.
 
-Spans assume the source is the row's program exactly. Open question 8 covers a runner that adds a line feed.
+Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller. `v6-err-int-big` needs the checker (E0500). The other tests need only the lexer and parser.
 
-Run tests (stdout and exit 0 unless stated):
+Run tests (exit 0 unless stated; the Output column is the expect-stdout body):
 
 | Test | Program | Output | Covers |
 | --- | --- | --- | --- |
@@ -220,7 +213,7 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
-Compile-error tests (one record each; fix `none` unless stated):
+Compile-error tests (one record each; the fix is written only where the table gives one):
 
 | Test | Program | Record at | Code |
 | --- | --- | --- | --- |
@@ -234,8 +227,8 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
 | `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
 | `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
-| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
-| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
+| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix bytes 12 to 15 replacement `7` | E0006 |
+| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix bytes 12 to 14 replacement `0` | E0006 |
 | `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
 | `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
 | `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
@@ -287,4 +280,4 @@ Retirement. Agents may not edit or delete an existing conformance test. The test
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **`fail` as a keyword.** This draft makes `fail` a keyword so the kernel's mark needs no position rule. If voters prefer a contextual word, `kernel-v46` must change with it.
 7. **New codes.** E0002 and E0003, and the kernel codes E0200 to E0202, E0300 to E0303, E0400 and E0403, are not in `spec/errors.json`. The first PR that emits each adds it there.
-8. **Runner line feed.** `source_bytes` in `tools/check/conformance.py` adds one LF to every source. Rule 4 makes an LF after the last token E0002, so with that LF every run test fails to compile and each span after the last token moves by one. The tables assume no LF is added. Options: (a) the runner takes a meta key that adds no LF; (b) rule 4 allows one LF at end of file, which changes a decision and needs a new RFC that names this one. The owner chooses. `tools/` is the architect's.
+8. **Runner support for `source-final-lf`.** `tools/check/conformance.py` function `source_bytes` appends one LF to every source. Rule 4 makes that LF E0002 in every test program, so every test in the Test plan except `v6-fmt-trailing-lf` fails until the runner honours `source-final-lf: no` and writes the source without the added LF. `tools/` is owner-owned. The owner should add the key before the subtasks that write these tests are merged.
