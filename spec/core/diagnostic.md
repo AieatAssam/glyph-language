@@ -12,7 +12,9 @@ A record has these fields, in this order:
 - `span`: `{file, start, end, line, column}`. `file` is the path as given on the command line. `start` and `end` are byte offsets, `end` exclusive. `line` and `column` are 1-based; column counts bytes.
 - `fix`: optional `{span, replacement}`. Replacing the bytes at `span` with `replacement` (UTF-8, possibly empty) makes the code valid without changing meaning the author could not infer. Present only when one edit does that.
 
-A program with no errors writes no diagnostic lines and exits with status 0.
+## Exit status
+
+A program with no errors writes no diagnostic lines and exits with status 0. A run that writes one or more records with severity `error` exits with status 1.
 
 ## Order
 
