@@ -3,7 +3,7 @@
 A compiled programming language designed, specified, implemented and evolved by a team of AI agents, for language models as its primary users. It compiles to WebAssembly and aims at self-hosting.
 
 - Build spec: [docs/SPEC.md](docs/SPEC.md). Interfaces between components: [CONTRACTS.md](CONTRACTS.md).
-- Constitution and rules: [governance/](governance/). These are the only human design inputs.
+- Constitution and rules: [governance/](governance/). These are the only human design inputs. The owner asks for an RFC through [governance/BRIEFS.yml](governance/BRIEFS.yml) and retires an accepted one with an `Owner-Supersedes-RFC: NNNN` commit trailer; reviews are in [governance/reviews/](governance/reviews/).
 - Everything runs in GitHub Actions (`.github/workflows/nightly.yml`) and GitHub Pages.
 
 ## Owner setup

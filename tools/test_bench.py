@@ -208,7 +208,7 @@ class ScoreTests(unittest.TestCase):
             self.assertEqual(m["repair"], 1.0)
             self.assertEqual(m["read"], 0.5)
             self.assertEqual(m["edit1"], 1.0)
-            self.assertEqual(m["token_efficiency"], 1.0)
+            self.assertEqual(m["token_efficiency"], 0.5)  # no baseline: parity
             self.assertGreater(out["fitness"], 0)
 
     def test_repair_is_zero_when_fix_fails(self):
@@ -221,10 +221,14 @@ class ScoreTests(unittest.TestCase):
     def test_token_efficiency_against_baseline(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = self.write_results(Path(tmp), [result("write", "k", 1, 1, tokens=50)])
-            base = {"tokens_per_task": {"k": 100}}
+            base = {"tokens_per_task": {"k": 100}}  # half the baseline's tokens: full marks
             self.assertEqual(score.compute(d, base)["metrics"]["token_efficiency"], 1.0)
-            base = {"tokens_per_task": {"k": 25}}
+            base = {"tokens_per_task": {"k": 400}}  # no credit past half
+            self.assertEqual(score.compute(d, base)["metrics"]["token_efficiency"], 1.0)
+            base = {"tokens_per_task": {"k": 50}}   # parity with the baseline
             self.assertEqual(score.compute(d, base)["metrics"]["token_efficiency"], 0.5)
+            base = {"tokens_per_task": {"k": 25}}   # twice the baseline's tokens
+            self.assertEqual(score.compute(d, base)["metrics"]["token_efficiency"], 0.25)
 
 
 class PipelineTests(unittest.TestCase):

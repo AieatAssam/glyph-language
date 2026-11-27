@@ -12,8 +12,9 @@ Definitions (first attempt = attempt 1):
   repair     of attempt-1 compile failures, share whose attempt 2 passes (1.0 when there are none)
   read       share of read predictions exactly equal to real stdout (read runs only on passing programs)
   edit1      share of edit programs passing the variant tests on the first try
-  token_efficiency  sum of baseline output tokens / sum of this run's, over keys solved in both, capped at 1.
-                    Without --baseline it is 1.0 (use this for the Python baseline run itself) and 0 when nothing is solved.
+  token_efficiency  half of (sum of baseline output tokens / sum of this run's), over keys solved in both,
+                    capped at 1: parity with the baseline scores 0.5, half its tokens scores 1.
+                    Without --baseline it is 0.5 (use this for the Python baseline run itself) and 0 when nothing is solved.
 """
 from __future__ import annotations
 
@@ -63,12 +64,14 @@ def compute(results_dir: Path, baseline: dict | None = None) -> dict:
             tokens[g[0]] = passing[0] if g[0] not in tokens else tokens[g[0]]
     tokens_per_task = {k: v for k, v in sorted(tokens.items())}
     if baseline is None:
-        token_eff = 1.0 if tokens else 0.0
+        token_eff = 0.5 if tokens else 0.0  # the baseline against itself: ratio 1
     else:
         base = baseline.get("tokens_per_task", {})
         common = [k for k in tokens if k in base]
         den = sum(tokens[k] for k in common)
-        token_eff = min(1.0, sum(base[k] for k in common) / den) if common and den else 0.0
+        # ratio 1 is parity with the baseline and scores 0.5; half the baseline's tokens scores 1.
+        # The old cap at ratio 1 gave no credit for the language's purpose: fewer tokens than Python.
+        token_eff = min(2.0, sum(base[k] for k in common) / den) / 2 if common and den else 0.0
 
     parts = {"pass1": pass1, "pass3": pass3, "repair": repair, "read": read,
              "edit1": edit1, "token_efficiency": token_eff}

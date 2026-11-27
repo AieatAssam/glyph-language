@@ -9,6 +9,7 @@
     "designer-prag": "Approve: the operators and output match the findings, and nothing else is added.",
     "designer-safe": "Approve: overflow and errors are stated.",
     "impl-1": "Approve: small enough to build in three subtasks.",
+    "impl-2": "Approve: each stage is one small file.",
     "tester": "Approve: the cases in the plan can be checked against the spec.",
     "user-1": "Approve: I can write small calculations with print.",
     "user-2": "Approve: the output is enough for the data checks I write."

@@ -1,0 +1,45 @@
+# Owner briefs. Owner-protected, like the rest of governance/.
+#
+# A brief asks the designers for one RFC by name. It gives evidence and a question. It does not give
+# the answer: the design and the vote are the agents'. The orchestrator opens each brief once, keeps
+# at most `brief_max_open` in discussion or voting, re-opens a rejected one with its objections, and
+# drops it after `brief_max_attempts` rejections (governance/RULES.md).
+#
+# Every figure below is from `python3 -m tools.check.tokens`, the protected counter, run on the
+# 91 complete programs of RFC 0105 (kernel-v46, since superseded), 1108 tokens as written.
+briefs:
+  - slug: word-spelling
+    title: "Keyword and built-in spellings, re-measured with a real tokeniser"
+    class: language
+    amends: ["0104"]
+    brief: |
+      RFC 0048 shortened `while`, `return`, `example` and `print` to `wh`, `ret`, `ex` and `put`
+      because the counter of the time charged one token per four letters. RFC 0104 keeps them and
+      still cites that counter ("`while` costs 2", "the counter ignores whitespace"). It was not a
+      tokeniser. The protected counter now uses a real vocabulary.
+
+      Measured: alone, each of the eight words is one token. In canonical layout the long words are
+      cheaper, because a tokeniser joins `{return` and `{while` with what is next to them more
+      often than `{ret` and `{wh`: replacing the four short words with the long ones across RFC
+      0105's 91 programs takes 22 tokens off 1108. The sample
+      `sq(n Int)Int fail{ret n*n}ex sq(3)==9 main io fail{var i=1 wh i<=3{put sq(i)i=i+1}}` is 38
+      tokens and 37 with the long words. `false` and `true` are one token each.
+
+      Principle 8 as amended: count tokens, not characters; where two spellings cost the same, take
+      the one a model already writes without error. Decide, for every keyword and built-in name,
+      the spelling with the fewest tokens in canonical layout, and among equals the one with the
+      fewest expected errors. Give the count for each word, measured inside programs, not alone.
+      Do not change a word whose count and familiarity are already best.
+
+  - slug: input
+    title: "Reading standard input"
+    class: language
+    brief: |
+      Every benchmark task is "read standard input, write standard output". After more than 100
+      decided RFCs no accepted RFC lets a program read anything, and the readiness checklist had no
+      item for it. Dev fitness is 0.0 and stays there until a program can read.
+
+      Decide the smallest input primitive that the kernel's types can carry today (the kernel has
+      `Int` and `Bool`; text is a literal argument of `put` only). State its effect, what it returns
+      at end of input, and its traps. One built-in, measured with the counter, with a run test that
+      echoes or sums its input.

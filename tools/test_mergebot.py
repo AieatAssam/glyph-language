@@ -11,13 +11,13 @@ from unittest import mock
 
 from bench.harness import common as BC, plan as PL
 from tools import mergebot as MB
-from tools.lib import audit, rfc as F, roster as RO, rules as R
+from tools.lib import audit, gitops, rfc as F, roster as RO, rules as R
 from tools.lib import state as S
 
 REPO = Path(__file__).resolve().parents[1]
 RULES = R.load_rules(REPO)
 ROSTER = RO.load_roster(REPO)
-VOTERS = RO.voters(ROSTER)  # designer-min, designer-prag, designer-safe, impl-1, tester, user-1, user-2
+VOTERS = RO.voters(ROSTER)  # designer-min, designer-prag, designer-safe, impl-1, impl-2, tester
 
 
 def vote_rec(author, votes, alters=False, breaking=False):
@@ -26,58 +26,65 @@ def vote_rec(author, votes, alters=False, breaking=False):
 
 
 class VotingTests(unittest.TestCase):
-    def test_quorum_needs_five_cast_votes(self):
-        rec = vote_rec("designer-min", {"impl-1": "approve", "tester": "approve",
-                                        "user-1": "approve", "user-2": "approve"})
+    def test_voters_are_the_agents_who_read_the_whole_rfc(self):
+        self.assertEqual(VOTERS, {"designer-min", "designer-prag", "designer-safe", "impl-1", "impl-2", "tester"})
+
+    def test_quorum_needs_three_votes_that_take_a_side(self):
+        rec = vote_rec("designer-min", {"impl-1": "approve", "tester": "approve"})
         res = F.tally(rec, VOTERS, RULES)
         self.assertEqual(res["outcome"], "rejected")
         self.assertIn("no quorum", res["reason"])
 
+    def test_abstentions_do_not_make_quorum(self):
+        # RFC 0085: one approval and four abstentions was "1/1 approve" and accepted.
+        rec = vote_rec("designer-safe", {"designer-min": "abstain", "designer-prag": "abstain",
+                                         "impl-1": "abstain", "impl-2": "abstain", "tester": "approve"})
+        res = F.tally(rec, VOTERS, RULES)
+        self.assertEqual(res["outcome"], "rejected")
+        self.assertIn("no quorum: 1 approve or reject, 3 required", res["reason"])
+
     def test_author_votes_are_ignored(self):
         rec = vote_rec("designer-min", {"designer-min": "approve", "designer-prag": "approve",
-                                        "impl-1": "approve", "tester": "approve", "user-1": "approve",
-                                        "user-2": "approve"})
+                                        "impl-1": "approve", "tester": "approve", "impl-2": "approve"})
         res = F.tally(rec, VOTERS, RULES)
         self.assertEqual(res["ignored"], {"designer-min": "author"})
         self.assertEqual(res["outcome"], "accepted")
 
     def test_non_voters_are_ignored(self):
-        rec = vote_rec("designer-min", {"reviewer": "reject", "scribe": "reject"})
+        rec = vote_rec("designer-min", {"reviewer": "reject", "scribe": "reject", "user-1": "approve"})
         res = F.tally(rec, VOTERS, RULES)
-        self.assertEqual(res["ignored"], {"reviewer": "not a voter", "scribe": "not a voter"})
+        self.assertEqual(res["ignored"], {"reviewer": "not a voter", "scribe": "not a voter",
+                                          "user-1": "not a voter"})
         self.assertEqual(res["approve"] + res["reject"] + res["abstain"], 0)
 
     def test_abstentions_do_not_count_against_ratio(self):
         rec = vote_rec("designer-min", {"designer-prag": "approve", "impl-1": "approve",
-                                        "tester": "approve", "user-1": "approve",
-                                        "user-2": "abstain", "designer-safe": "abstain"})
+                                        "tester": "approve", "impl-2": "abstain", "designer-safe": "abstain"})
         self.assertEqual(F.tally(rec, VOTERS, RULES)["outcome"], "accepted")
 
     def test_only_abstentions_rejected(self):
         rec = vote_rec("designer-min", {"designer-prag": "abstain", "impl-1": "abstain",
-                                        "tester": "abstain", "user-1": "abstain", "user-2": "abstain"})
+                                        "tester": "abstain", "impl-2": "abstain"})
         res = F.tally(rec, VOTERS, RULES)
         self.assertEqual((res["outcome"], res["reason"]), ("rejected", "only abstentions"))
 
     def test_two_thirds_boundary_accepts(self):
         rec = vote_rec("designer-min", {"designer-prag": "approve", "impl-1": "approve",
-                                        "tester": "approve", "user-1": "approve",
-                                        "user-2": "reject", "designer-safe": "reject"})
+                                        "tester": "reject"})
         self.assertEqual(F.tally(rec, VOTERS, RULES)["outcome"], "accepted")
 
     def test_just_below_two_thirds_rejects(self):
         rec = vote_rec("designer-min", {"designer-prag": "approve", "impl-1": "approve",
-                                        "tester": "approve", "user-1": "reject",
-                                        "user-2": "reject"})
+                                        "tester": "approve", "impl-2": "reject",
+                                        "designer-safe": "reject"})
         self.assertEqual(F.tally(rec, VOTERS, RULES)["outcome"], "rejected")
 
     def test_supermajority_for_altered_tests(self):
-        votes = {"designer-prag": "approve", "impl-1": "approve", "tester": "approve",
-                 "user-1": "approve", "user-2": "reject", "designer-safe": "reject"}
+        votes = {"designer-prag": "approve", "impl-1": "approve", "tester": "reject"}
         self.assertEqual(F.tally(vote_rec("designer-min", votes), VOTERS, RULES)["outcome"], "accepted")
         res = F.tally(vote_rec("designer-min", votes, alters=True), VOTERS, RULES)
         self.assertEqual(res["outcome"], "rejected")
-        five = dict(votes, **{"user-2": "approve"})
+        five = dict(votes, **{"impl-2": "approve", "designer-safe": "approve"})
         res = F.tally(vote_rec("designer-min", five, breaking=True), VOTERS, RULES)
         self.assertEqual(res["outcome"], "accepted")
         self.assertTrue(res["accepted_super"])
@@ -560,6 +567,46 @@ class MergebotRepoTests(RepoTestCase):
         log = self.root / "audit" / "events.jsonl"
         log.write_text(log.read_text().replace("c2", "c9"), encoding="utf-8")
         self.assertFalse(MB.cmd_verify(self.root)["ok"])
+
+
+class RetiredTestTests(RepoTestCase):
+    """Gate rule 6: a test of a superseded RFC may be deleted or rewritten; any other may not."""
+
+    TEST = "--- meta\nid: kernel/%s\nrfc: %s\nkind: run\n--- source\n%s\n--- expect-stdout\n1\n--- expect-exit\n0\n"
+
+    def setUp(self):
+        super().setUp()
+        self.write("conformance/kernel/old.test", self.TEST % ("old", "0020", "print(1)"))
+        self.write("conformance/kernel/live.test", self.TEST % ("live", "0085", "put(1)"))
+        self.base = self.commit("tests")
+        self.git("checkout", "-q", "-b", "work")
+
+    def altered(self, retired=()):
+        return gitops.removed_test_lines(self.root, self.base, self.commit("change"), retired=retired)
+
+    def test_adding_a_test_alters_nothing(self):
+        self.write("conformance/kernel/new.test", self.TEST % ("new", "0085", "put(2)"))
+        self.assertFalse(self.altered())
+
+    def test_rewriting_a_test_counts(self):
+        self.write("conformance/kernel/old.test", self.TEST % ("old", "0085", "put(1)"))
+        self.assertTrue(self.altered())
+
+    def test_superseded_rfc_test_may_be_rewritten_or_deleted(self):
+        self.write("conformance/kernel/old.test", self.TEST % ("old", "0085", "put(1)"))
+        self.assertFalse(self.altered(retired=["0020"]))
+        (self.root / "conformance/kernel/old.test").unlink()
+        self.assertFalse(self.altered(retired=["0020"]))
+
+    def test_a_live_test_is_still_protected_beside_a_retired_one(self):
+        (self.root / "conformance/kernel/old.test").unlink()
+        self.write("conformance/kernel/live.test", self.TEST % ("live", "0085", "put(3)"))
+        self.assertTrue(self.altered(retired=["0020"]))
+
+    def test_relabelling_a_live_test_does_not_retire_it(self):
+        # The rfc line is read from the base, so a PR cannot point a test at a superseded RFC to drop it.
+        self.write("conformance/kernel/live.test", self.TEST % ("live", "0020", "put(1)"))
+        self.assertTrue(self.altered(retired=["0020"]))
 
 
 class ClosePrTests(RepoTestCase):

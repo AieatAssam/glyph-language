@@ -1,5 +1,7 @@
 """Tests for the protected check package. Run: python3 -m unittest tools.test_check"""
+import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -50,14 +52,49 @@ class PegTests(unittest.TestCase):
 
 class TokenTests(unittest.TestCase):
     def test_counting_rules(self):
-        self.assertEqual(tokens.count("hello"), 2)      # ceil(5/4)
-        self.assertEqual(tokens.count("12345"), 2)      # ceil(5/3)
-        self.assertEqual(tokens.count("a.b"), 3)        # alpha 1, punct 1, alpha 1
-        self.assertEqual(tokens.count("   "), 0)
+        # A real vocabulary: a common word is one token whatever its length, digits go in threes.
+        self.assertEqual(tokens.count("hello"), 1)
+        self.assertEqual(tokens.count("12345"), 2)
+        self.assertEqual(tokens.count("a.b"), 2)        # `a`, `.b`: adjacent characters merge
+        self.assertEqual(tokens.count(""), 0)
+
+    def test_short_spelling_is_not_cheaper_than_the_common_word(self):
+        # The old counter charged ceil(letters/4), so `wh` beat `while`. Both are one token.
+        for long, short in ((" while", " wh"), (" return", " ret"), (" print", " put"), (" false", " true")):
+            self.assertEqual(tokens.count(long), tokens.count(short), (long, short))
+
+    def test_layout_costs_tokens(self):
+        # The old counter charged nothing for spaces and line ends.
+        tight = "fn main()io{var i=1;wh i<=3{put(i);i=i+1}}"
+        spaced = "fn main() io { var i = 1; wh i <= 3 { put(i); i = i + 1 } }"
+        lines = "fn main() io {\n  var i = 1;\n  wh i <= 3 {\n    put(i);\n    i = i + 1\n  }\n}\n"
+        self.assertLess(tokens.count(tight), tokens.count(spaced))
+        self.assertLess(tokens.count(spaced), tokens.count(lines))
+
+    def test_pieces_rebuild_the_text(self):
+        for text in ("fn f(a: Int): Int { ret a*2 }\n", "it's 1234567 caf\u00e9\r\n\tx  ", "E0200 {\"a\":[1,2]}//c\n\n"):
+            self.assertEqual("".join(tokens.pieces(text)), text)
+
+    def test_known_counts(self):
+        # Checked against the reference implementation of the same vocabulary.
+        self.assertEqual(tokens.count("a: Int"), 3)
+        self.assertEqual(tokens.count("a Int"), 2)
+        self.assertEqual(tokens.count("; "), 2)
+        self.assertEqual(tokens.count("fn sq(n: Int): Int fail { ret n * n } ex sq(3) == 9\n"
+                                      "fn main() io fail { var i = 1; wh i <= 3 { put(sq(i)); i = i + 1 } }"), 54)
 
     def test_scale_applies_before_rounding_up(self):
-        self.assertEqual(tokens.count("a.b", scale=2), 6)
-        self.assertEqual(tokens.count("a.b", scale=1.5), 5)
+        self.assertEqual(tokens.count("a.b", scale=2), 4)
+        self.assertEqual(tokens.count("a.b", scale=1.5), 3)
+
+    def test_cli_counts_a_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "x.gl"
+            p.write_text("fn main()io{put(1)}", encoding="utf-8")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(tokens._main([str(p)]), 0)
+            self.assertEqual(buf.getvalue().split()[0], str(tokens.count("fn main()io{put(1)}")))
 
     def test_cli_counts_files(self):
         with tempfile.TemporaryDirectory() as d:
@@ -65,7 +102,7 @@ class TokenTests(unittest.TestCase):
             f.write_text("hello a.b")
             r = subprocess.run([sys.executable, "-m", "tools.check.tokens", str(f)],
                                capture_output=True, text=True, check=True)
-            self.assertEqual(r.stdout.split()[0], "5")
+            self.assertEqual(r.stdout.split()[0], str(tokens.count("hello a.b")))  # the vocabulary's count, not letters/4
 
 
 class ConformanceParseTests(unittest.TestCase):
@@ -75,6 +112,22 @@ class ConformanceParseTests(unittest.TestCase):
         self.assertEqual(t["kind"], "run")
         self.assertEqual(t["sections"]["source"], "ok")
         self.assertEqual(t["sections"]["expect-stdout"], "")
+
+    def test_cr_in_a_source_survives_reading(self):
+        # Text-mode reading turned CR LF into LF, so no CR test could pass (issues 482 to 553).
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "cr.test"
+            p.write_bytes(b"--- meta\nid: a/cr\nkind: compile-error\n--- source\nfn main() io {\r\n}\n"
+                          b"--- expect-errors\nE0001 1\n")
+            t = conformance.read_test(p)
+            self.assertEqual(conformance.source_bytes(t), b"fn main() io {\r\n}\n")
+
+    def test_hex_escapes_only_when_asked(self):
+        body = "--- meta\nid: a/b\nkind: compile-error\n%s--- source\na\\x0D\\x09\\\\x\\xFF\n--- expect-errors\nE0001 1\n"
+        plain = conformance.parse_test(body % "")
+        self.assertEqual(conformance.source_bytes(plain), b"a\\x0D\\x09\\\\x\\xFF\n")
+        esc = conformance.parse_test(body % "source-escapes: hex\n")
+        self.assertEqual(conformance.source_bytes(esc), b"a\r\t\\x\xff\n")
 
     def test_rejects_missing_expectation(self):
         with self.assertRaises(ValueError):

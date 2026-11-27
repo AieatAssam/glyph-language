@@ -95,13 +95,13 @@ def stage_sources(tree):
     names = []
     for path in conformance.discover(tree):
         try:
-            test = conformance.parse_test(path.read_text(encoding="utf-8"))
+            test = conformance.read_test(path)
         except ValueError:
             continue  # the conformance rule reports malformed tests
         rel = "gate/conformance/%s.gl" % path.relative_to(tree / "conformance").with_suffix("").as_posix()
         dst = tree / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_text(test["sections"]["source"] + "\n", encoding="utf-8")
+        dst.write_bytes(conformance.source_bytes(test))
         names.append(rel)
     for sub in ("examples", "stdlib"):
         names += [f.relative_to(tree).as_posix() for f in sorted((tree / sub).rglob("*.gl"))]

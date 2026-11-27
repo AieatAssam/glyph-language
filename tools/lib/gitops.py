@@ -1,4 +1,5 @@
 """git helpers used by the merge bot. Remote operations are skipped when GLYPH_DRY=1."""
+import re
 import os
 import subprocess
 import time
@@ -75,7 +76,35 @@ def changed_files(root, base_sha: str, head_sha: str) -> list:
     return [f for f in out.splitlines() if f]
 
 
-def removed_test_lines(root, base_sha: str, head_sha: str) -> bool:
-    """True when an existing conformance test line was removed or changed."""
+def removed_test_lines(root, base_sha: str, head_sha: str, retired=()) -> bool:
+    """True when an existing conformance test line was removed or changed.
+
+    A test whose `rfc:` meta line (as on the base) names an RFC in `retired` does not count: the
+    RFC it tested is superseded, so the test describes a language that no longer exists.
+    """
     out = git(root, "diff", "-U0", f"{base_sha}...{head_sha}", "--", "conformance/")
-    return any(line.startswith("-") and not line.startswith("---") for line in out.splitlines())
+    retired = {str(n).zfill(4) for n in retired}
+    path, exempt = None, {}
+    for line in out.splitlines():
+        if line.startswith("diff --git "):
+            path = None
+        elif line.startswith("--- "):
+            path = line[6:] if line.startswith("--- a/") else None
+        elif line.startswith("-") and not line.startswith("---"):
+            if path is None:
+                return True
+            if path not in exempt:
+                exempt[path] = _test_rfc(root, base_sha, head_sha, path) in retired
+            if not exempt[path]:
+                return True
+    return False
+
+
+def _test_rfc(root, base_sha, head_sha, path):
+    try:
+        base = git(root, "merge-base", base_sha, head_sha).strip()
+        text = git(root, "show", f"{base}:{path}")
+    except Exception:
+        return None
+    m = re.search(r"^rfc:\s*(\d+)\s*$", text, re.M)
+    return m.group(1).zfill(4) if m else None

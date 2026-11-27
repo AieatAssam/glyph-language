@@ -95,6 +95,27 @@ def parse_test(text):
     return {"meta": meta, "kind": kind, "sections": sections}
 
 
+def read_test(path):
+    """Parse a .test file read as bytes: text mode would turn CR LF into LF and lose the CR."""
+    return parse_test(Path(path).read_bytes().decode("utf-8"))
+
+
+_ESC = re.compile(rb"\\(x[0-9A-Fa-f]{2}|\\)")
+
+
+def source_bytes(test) -> bytes:
+    """The bytes written to main.gl: the source section plus one LF.
+
+    With `source-escapes: hex` in the meta block, `\\xHH` in the source stands for the byte HH and
+    `\\\\` for one backslash, so a test can hold a CR (`\\x0D`), a tab, a BOM or invalid UTF-8
+    that an agent cannot type into a file. Without the key the source is taken as written.
+    """
+    raw = (test["sections"]["source"] + "\n").encode("utf-8")
+    if test["meta"].get("source-escapes") == "hex":
+        raw = _ESC.sub(lambda m: b"\\" if m.group(1) == b"\\" else bytes([int(m.group(1)[1:], 16)]), raw)
+    return raw
+
+
 def discover(repo):
     root = Path(repo) / "conformance"
     if not root.is_dir():
@@ -200,17 +221,17 @@ def run_one(repo, path, work, caps, host):
            "src": None, "stdin": "", "wasm_stdout": None, "wasm_exit": None,
            "wasm_trap": None}
     try:
-        test = parse_test(path.read_bytes().decode("utf-8"))  # keep CR bytes: no universal newlines
+        test = read_test(path)
     except (ValueError, OSError) as e:
         rec["detail"] = "malformed: %s" % e
         return rec
     kind, sec = test["kind"], test["sections"]
     rec["id"], rec["kind"] = test["meta"]["id"], kind
-    body = sec["source"]
-    rec["source"] = body + "\n"
+    raw = source_bytes(test)
+    rec["source"] = raw.decode("utf-8", errors="replace")
     work.mkdir(parents=True, exist_ok=True)
     src = work / "main.gl"
-    src.write_bytes(rec["source"].encode("utf-8"))
+    src.write_bytes(raw)
     wasm, wasm2 = work / "out.wasm", work / "out2.wasm"
 
     try:
@@ -276,7 +297,7 @@ def run_one(repo, path, work, caps, host):
             if not fixable:
                 rec["detail"] = "no error with a fix"
                 return rec
-            fixed = apply_fix(rec["source"].encode("utf-8"), fixable[0]["fix"])
+            fixed = apply_fix(raw, fixable[0]["fix"])
             fixed_path = work / "fixed.gl"
             fixed_path.write_bytes(fixed)
             rc2, _, _ = _glyphc(repo, ["check", str(fixed_path)], work)

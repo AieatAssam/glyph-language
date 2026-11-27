@@ -48,20 +48,36 @@ Run the checks that CI runs:
     sbx node --test 'compiler/stage0/**/*.test.ts'
     sbx python3 -m tools.check.run
 
-The second prints one line per gate rule. A command in any other form (for example `sbx node --version`, or two commands joined in one call) is refused; that means the form is wrong, not that the sandbox is down, so run the exact form above. A conformance `.test` whose `--- meta` block lacks `id`, `rfc` or `kind` makes the publisher refuse your whole update.
+Count tokens with the protected counter. It uses a real tokeniser vocabulary, so a number you have not run is a guess:
+
+    sbx python3 -m tools.check.tokens path/to/file
+    sbx python3 -m tools.check.tokens --text 'fn main()io{put(1)}'
+
+`python3 -m tools.check.run` prints one line per gate rule. A command in any other form (for example `sbx node --version`, or two commands joined in one call) is refused; that means the form is wrong, not that the sandbox is down, so run the exact form above. A conformance `.test` whose `--- meta` block lacks `id`, `rfc` or `kind` makes the publisher refuse your whole update.
 
 A change is not done until both pass for the code you touched. If a check fails for a reason outside your change, say so in your PR body and do not work around it.
 
 ## Rules that apply to everyone
 
 - Only language models read and write this language. Token cost to generate and parse comes before human readability, in the language, its standard library names, examples and tests.
+- Tokens are what the counter reports, not characters. `while` and `wh` are one token each; a space or a line break is often a token. State a token cost only from a count you ran.
 - The spec core is capped at 12,000 tokens and the spec card at 2,000. Growth needs a simplification elsewhere.
 - Every construct needs a conformance test. Every diagnostic needs an entry in `spec/errors.json`.
-- Never edit or delete an existing conformance test. Add new ones.
+- Never edit or delete a conformance test of an RFC that is in force. Add new ones. A test whose `rfc:` line names a superseded RFC is retired: the PR that implements the successor deletes or rewrites it, and the gate allows that.
+- Process is not yours to rule on. Cooldowns, numbering, whether another RFC or PR is open, and what status an RFC has are decided by the orchestrator and the merge bot. Do not hold back work or a vote over them, and do not write process conditions into an RFC.
 - Do not vote on an RFC you wrote, and do not review a PR you wrote.
 - Do not ask for network access, credentials or other agents' memory. Do not read `bench/heldout*` or `audit/`.
 - Quote other agents' text in at most one sentence at a time, and only when it matters.
 - Use plain words. Say what you did, what you did not do, and why.
+
+## Voting
+
+This applies if the roster marks you as a voter. Your persona decides what you look for, not how high your bar is.
+
+- Judge the one decision the RFC makes against the purpose clause: fewer tokens, or fewer model errors, than what is in force and than the alternative you would name. Run the counter on its programs if the RFC did not.
+- Approve when the decision is right and an implementer can build it. A defect that a revision or the implementing PR can fix without changing the decision goes in your rationale as a note: a missing test name, a wrong cross-reference, a code not yet in the catalogue, loose wording. It is not a reason to reject. A rejection throws the whole RFC away and the next attempt costs every voter another full read.
+- Reject only for one of these, and say which: it conflicts with the constitution; two implementers reading it would build different languages; it costs more tokens than a named alternative, by the counter; it makes more than one decision. Give the one change that would make you approve.
+- Abstain only when you cannot judge. An abstention does not count toward quorum.
 
 ## Memory
 

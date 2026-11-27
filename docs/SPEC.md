@@ -47,12 +47,12 @@ The language exists to be written, repaired, and read by language models with as
 
 1. **One way to do each thing.** No synonyms, no optional syntax, no style choices. A canonical formatter defines the only valid layout, and that layout is the one with the fewest tokens: no newline, indentation or spacing that exists only to please a human eye.
 2. **Local reasoning.** The meaning of a function is determinable from its text and the signatures it references. No implicit global state, no implicit conversions, no operator overloading surprises.
-3. **Explicit effects.** Whether a function can do I/O, allocate, or fail is visible in its signature.
-4. **Errors are data.** Every compiler diagnostic is structured, has a stable code, points at an exact span, and where possible carries a machine-applicable fix.
+3. **Explicit effects.** Whether a function can do I/O, allocate, or fail is visible in its signature. A mark that the compiler can work out from the body, or that nearly every function would carry, tells the reader nothing and costs a token: make the common case the unmarked one.
+4. **Errors are data.** Every compiler diagnostic is structured, has a stable code, points at an exact span, and where possible carries a machine-applicable fix. A diagnostic carries nothing a model does not need to repair the code.
 5. **Examples are part of the contract.** Functions may carry input and output examples in their declaration. The compiler runs them and fails the build if they do not hold.
-6. **Small spec.** The complete core spec must fit in a model's context with room to work. The spec card must be far smaller.
+6. **Small spec.** The complete core spec must fit in a model's context with room to work. The spec card must be far smaller. Both are read by models on every use, so they are written as tersely as the language itself.
 7. **No undefined behaviour.** Every program either fails to compile with a diagnostic or has exactly one defined result, including on overflow, out-of-bounds access, and exhaustion.
-8. **Token economy first.** Choose the form that costs the fewest tokens to generate and to parse, as counted by the protected tokeniser, never at the cost of ambiguity. This covers syntax, layout, keywords and every name in the language and its standard library: a short name beats a full word, and no delimiter, keyword or line break is kept for looks. A longer or more familiar form is allowed only when measurement shows models make fewer errors with it.
+8. **Token economy first.** Choose the form that costs the fewest tokens to generate and to parse, as counted by the protected tokeniser, never at the cost of ambiguity. This covers syntax, layout, keywords and every name in the language and its standard library: no delimiter, keyword, space or line break is kept for looks. Count tokens, never characters: a shorter spelling that the tokeniser counts the same saves nothing. Among forms of equal cost, take the one models already write without error. A form that costs more tokens is allowed only when measurement shows models make fewer errors with it.
 9. **Stable addresses.** Every declaration has a stable, unique path so that tools and models can refer to and edit code by address.
 
 **Hard constraints (enforced mechanically)**
@@ -181,13 +181,13 @@ Ten Haiku 5.5 agents in five roles work as a team, guided by two non-voting arch
 | `designer-min` | Designer | Minimalist. Removes features, defends the token caps | Yes |
 | `designer-prag` | Designer | Pragmatist. Optimises for what the benchmark shows models get right | Yes |
 | `designer-safe` | Designer | Correctness advocate. Types, effects, no undefined behaviour | Yes |
-| `impl-1`, `impl-2` | Implementer | Write the compiler and standard library | `impl-1` only |
+| `impl-1`, `impl-2` | Implementer | Write the compiler and standard library | Yes |
 | `tester` | Test writer | Conformance tests, tries to find spec and compiler disagreements | Yes |
 | `reviewer` | Reviewer | Reviews implementation PRs for correctness and scope | No |
-| `user-1`, `user-2` | User | Write programs using only the spec card and CLI. File issues | Yes |
+| `user-1`, `user-2` | User | Write programs using only the spec card and CLI. File issues | No |
 | `scribe` | Scribe | Changelog, nightly digest, decision records in plain language | No |
 
-Seven voters.
+Six voters: the agents who can read a whole RFC. Until 2026-11-26 the two users voted and `impl-2` did not. The users see only the card, so 118 of their 194 votes were abstentions and the rest were cast on a summary; they now speak through issues.
 
 **Architects (non-voting)**
 
@@ -298,17 +298,20 @@ Agents decide what the language should be. A deterministic merge bot decides whe
 **Voting rules**
 
 - Voters are listed in the roster. An author cannot vote on their own RFC.
-- Quorum: at least 5 votes cast.
+- Quorum: at least 3 votes that approve or reject. An abstention does not count toward quorum (until 2026-11-26 it did, and RFC 0085 was accepted on one approval and four abstentions).
 - Acceptance: approvals are at least two thirds of non-abstaining votes.
 - Supermajority of three quarters is required for breaking changes after self-hosting, and for any RFC that removes or alters an existing conformance test.
 - A rejected RFC cannot be resubmitted in substance for 10 nights.
+- A conformance test belongs to the RFC named in its `rfc:` line. When that RFC is superseded the test is retired: the PR implementing the successor deletes or rewrites it, and gate rule 6 does not count it.
 
 **Flow control**
 
 - At most 5 RFCs in `discussion` or `voting` at once, and at most 2 per designer.
 - At most 3 RFCs in `implementing` at once.
 - A stability window: after self-hosting, no more than one breaking change per 7 nights.
-- If no RFC is open, the orchestrator assigns designers to analyse the latest benchmark failures and user issues and propose from those.
+- If no RFC is open, the orchestrator assigns designers to analyse the latest benchmark failures and user issues and propose from those, unless `max_unbuilt_rfcs` or more accepted RFCs are still waiting to be built.
+- Owner briefs (`governance/BRIEFS.yml`): the owner may ask for an RFC by name, with evidence and a question but no design. The orchestrator opens it, at most `brief_max_open` at a time, and drops it after `brief_max_attempts` rejections. It is voted like any other RFC.
+- An RFC makes one decision and is at most `rfc_max_chars` characters (the four founding RFCs: `rfc_max_chars_founding`).
 
 **Merge gate for an implementation PR**
 
@@ -344,6 +347,7 @@ The language is defined by five artefacts that must always agree. An implementat
 - Numbered chapter files: lexical structure, grammar notes, types, expressions, statements, functions and effects, modules, errors, memory and limits, standard library surface, diagnostics.
 - Normative language only. Rationale belongs in RFCs.
 - Total size capped at 12,000 tokens by the protected tokeniser script. Growth has to be paid for by simplification elsewhere.
+- The tokeniser script (`tools/check/tokens.py`) counts with a real byte-pair vocabulary (`o200k_base`, vendored, no network). It stands in for the benchmark model's tokeniser, which has no offline form; the benchmark's measured output tokens are the final judge. Agents run it with `sbx python3 -m tools.check.tokens FILE` or `--text '...'`. Until 2026-11-26 it charged one token per four letters and nothing for whitespace, which made short spellings look cheap and layout look free.
 - `spec/VERSION` is semver. Before 1.0, a minor bump may break programs. `spec/CHANGELOG.md` gets one entry per merged RFC with the RFC number.
 
 **Grammar** (`spec/grammar.peg`)
@@ -395,6 +399,7 @@ kind: run
 Rules:
 
 - Every RFC adds tests of at least the kinds `run` and `compile-error`.
+- A meta line `source-escapes: hex` makes `\xHH` in the source section stand for the byte HH (and `\\` for one backslash), so a test can hold a CR, a tab, a byte order mark or invalid UTF-8.
 - Tests are append-only in practice. Changing or deleting one needs the supermajority route in section 6.
 - The tester agent is rewarded in its prompt for tests that expose a disagreement between spec and compiler. Each such finding becomes a `bugfix` item.
 
@@ -575,12 +580,12 @@ Three samples per task. Generation runs in the bench generate job. Compilation a
 
 | Metric | Definition | Weight |
 | --- | --- | --- |
-| `pass@1` | Hidden tests pass on the first attempt | 0.35 |
-| `pass@3` | Hidden tests pass within three attempts | 0.15 |
+| `pass@1` | Hidden tests pass on the first attempt | 0.30 |
+| `pass@3` | Hidden tests pass within three attempts | 0.10 |
 | `repair` | First-attempt compile failures fixed on attempt two | 0.15 |
 | `read` | Output predictions exactly right | 0.15 |
 | `edit@1` | Variant tests pass on the first attempt | 0.10 |
-| `token_efficiency` | Python output tokens divided by Glyph output tokens on tasks solved in both, capped at 1 | 0.10 |
+| `token_efficiency` | Half of (Python output tokens divided by Glyph output tokens) on tasks solved in both, capped at 1. Parity with Python scores 0.5; half of Python's tokens scores 1 | 0.20 |
 
 Fitness is the weighted sum times 100. Also recorded but not weighted: `compile@1`, the most frequent diagnostic codes, spec card size.
 
