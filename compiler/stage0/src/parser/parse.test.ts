@@ -31,10 +31,12 @@ test('the walking-skeleton program parses to one function with one call', () => 
   });
 });
 
-test('a trailing LF changes no tree, and a trailing CR LF is E0001 at the CR (RFC 0048 rule 3)', () => {
-  const plain = parseText(PROGRAM);
-  assert.deepEqual(parseText(PROGRAM + '\n'), plain);
-  assert.deepEqual(lex(Buffer.from(PROGRAM + '\r\n', 'utf8')).error, { code: 'E0001', start: 25, end: 26 });
+test('a trailing LF is E0002 at the LF (RFC 0104 rule 4), and a trailing CR LF is E0001 at the CR', () => {
+  const canonical = 'main io{put 1}';
+  assert.deepEqual(lex(Buffer.from(canonical + '\n', 'utf8')).error, {
+    code: 'E0002', start: 14, end: 15, fix: { start: 14, end: 15, replacement: '' },
+  });
+  assert.deepEqual(lex(Buffer.from(canonical + '\r\n', 'utf8')).error, { code: 'E0001', start: 14, end: 15 });
 });
 
 test('an empty block parses to a function with no call, with any spacing between the braces (RFC 0048)', () => {

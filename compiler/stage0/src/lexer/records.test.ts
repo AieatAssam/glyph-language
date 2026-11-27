@@ -42,13 +42,14 @@ test('an error on line 3 gives line 3 and the byte column on that line', () => {
 });
 
 test('a lexer error found by lex() gives the same record, with its line and column', () => {
-  const bytes = Buffer.from('let a = 1\nlet b = 2\nlet c = 007\n', 'utf8');
+  // A line feed outside text is E0002 (RFC 0104 rule 4), so the first one ends the lex.
+  const bytes = Buffer.from('let a=1\nlet b=2\n', 'utf8');
   const { tokens, error } = lex(bytes);
   assert.deepEqual(tokens, []);
   assert.ok(error !== null);
   const record = lexErrorRecord(error, bytes, 'prog.gl');
-  assert.equal(record.code, 'E0006');
-  assert.deepEqual(record.span, { file: 'prog.gl', start: 28, end: 31, line: 3, column: 9 });
+  assert.equal(record.code, 'E0002');
+  assert.deepEqual(record.span, { file: 'prog.gl', start: 7, end: 8, line: 1, column: 8 });
 });
 
 test('each lexer code has a message that passes the message rules', () => {

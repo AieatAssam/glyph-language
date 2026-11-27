@@ -52,7 +52,8 @@ test('a literal above the Int range is refused, not wrapped', () => {
 });
 
 test('a lexical error gives a reason with its code and byte offset', () => {
-  assert.equal(reasonOf('fn main() io { print(1) }\t'), 'lexical error E0001 at byte 25');
+  // Canonical layout (RFC 0104 rule 4), so the tab at byte 21 is the first error.
+  assert.equal(reasonOf('fn main()io{print(1)}\t'), 'lexical error E0001 at byte 21');
 });
 
 test('a syntax error gives a reason with E0100 and the byte offset', () => {

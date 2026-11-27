@@ -13,6 +13,7 @@ import type { LexError } from './source.ts';
 // The catalogue message for each lexical code. These are the same strings as spec/errors.json.
 const MESSAGES = new Map<string, string>([
   ['E0001', 'invalid byte or character in source'],
+  ['E0002', 'non-canonical layout'],
   ['E0005', 'malformed text literal'],
   ['E0006', 'integer literal has a leading zero'],
 ]);
