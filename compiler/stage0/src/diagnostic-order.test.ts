@@ -1,15 +1,10 @@
-// Tests for the ordering helpers in diagnostic.ts (RFC 0004 section 3).
+// Tests for the ordering helpers in diagnostic.ts (RFC 0004 section 3, RFC 0112 D5).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { firstLexicalOnly, isLexical, sortRecords, type Diagnostic } from './diagnostic.ts';
 
-function rec(code: string, start: number, message = 'm'): Diagnostic {
-  return {
-    code,
-    severity: 'error',
-    message,
-    span: { file: 'a.toy', start, end: start + 1, line: 1, column: start + 1 },
-  };
+function rec(code: string, start: number): Diagnostic {
+  return { code, span: { start, end: start + 1 } };
 }
 
 const keys = (records: Diagnostic[]): string[] =>
@@ -27,8 +22,11 @@ test('equal starts are ordered by code, whichever order they arrive in', () => {
 });
 
 test('equal start and equal code keep their input order', () => {
-  const out = sortRecords([rec('E0100', 4, 'first'), rec('E0100', 4, 'second')]);
-  assert.deepEqual(out.map((r) => r.message), ['first', 'second']);
+  const first = rec('E0100', 4);
+  const second = rec('E0100', 4);
+  const out = sortRecords([first, second]);
+  assert.equal(out[0], first);
+  assert.equal(out[1], second);
 });
 
 test('sorting twice gives the same result', () => {
@@ -47,9 +45,10 @@ test('isLexical covers E0001 to E0099 only', () => {
 });
 
 test('firstLexicalOnly keeps a lexical error and drops the syntax error after it', () => {
-  const out = firstLexicalOnly([rec('E0003', 10, 'lexical'), rec('E0100', 20, 'syntax')]);
+  const lexical = rec('E0003', 10);
+  const out = firstLexicalOnly([lexical, rec('E0100', 20)]);
   assert.deepEqual(keys(out), ['E0003@10']);
-  assert.equal(out[0].message, 'lexical');
+  assert.equal(out[0], lexical);
 });
 
 test('firstLexicalOnly keeps only the first of two lexical errors', () => {

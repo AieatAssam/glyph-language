@@ -1,14 +1,11 @@
-// Diagnostic record and JSON Lines writer (RFC 0004 sections 2 and 3).
-// The field order of the output is fixed here, whatever order the caller builds the object in.
+// Diagnostic record and JSON Lines writer (RFC 0112 D1 to D5).
+// A record has the keys code, span and, when one edit repairs the code, fix. Nothing else is
+// written. The key order of the output is fixed here, whatever order the caller builds the object in.
 
-export type Severity = 'error' | 'warning';
-
+// Byte offsets into the one file on the command line. end is exclusive.
 export interface Span {
-  file: string;
   start: number;
   end: number;
-  line: number;
-  column: number;
 }
 
 export interface Fix {
@@ -18,30 +15,20 @@ export interface Fix {
 
 export interface Diagnostic {
   code: string;
-  severity: Severity;
-  message: string;
   span: Span;
   fix?: Fix;
 }
 
 function spanJson(span: Span): Span {
-  return {
-    file: span.file,
-    start: span.start,
-    end: span.end,
-    line: span.line,
-    column: span.column,
-  };
+  return { start: span.start, end: span.end };
 }
 
-// Returns one JSON object as text, with no line feed and no trailing comma.
+// Returns one JSON object as text, with no line feed, no spaces and no trailing comma.
 // The caller adds the line feed when it writes the record to standard error.
 // The `fix` key is written only when the record has a fix.
 export function toJsonLine(record: Diagnostic): string {
   const out: Record<string, unknown> = {
     code: record.code,
-    severity: record.severity,
-    message: record.message,
     span: spanJson(record.span),
   };
   if (record.fix !== undefined) {
