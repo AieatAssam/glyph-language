@@ -29,7 +29,7 @@ export function run(argv: readonly string[], io: Io): number {
   // The source-file rule comes first. The path is not read, so a missing file gives the same record.
   const [sub, path] = argv;
   if (isFileCommand(sub) && path !== undefined && !isSourceFile(path)) {
-    io.stderr.write(`${toJsonLine(notSourceFile(path))}\n`);
+    io.stderr.write(`${toJsonLine(notSourceFile())}\n`);
     return 1;
   }
   if (isCompileCommand(argv)) {
@@ -42,14 +42,9 @@ export function run(argv: readonly string[], io: Io): number {
 }
 
 // The one record for a path that does not end in .gl (RFC 0011 section 5). The file is not read,
-// so the span is the start of the file.
-function notSourceFile(path: string): Diagnostic {
-  return {
-    code: 'E0010',
-    severity: 'error',
-    message: 'source file does not end in .gl',
-    span: { file: path, start: 0, end: 0, line: 1, column: 1 },
-  };
+// so the span is the start of the file. The words of E0010 are in spec/errors.json (RFC 0112 D7).
+function notSourceFile(): Diagnostic {
+  return { code: 'E0010', span: { start: 0, end: 0 } };
 }
 
 function isFileCommand(sub: string | undefined): boolean {
