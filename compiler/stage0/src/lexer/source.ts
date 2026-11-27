@@ -7,7 +7,13 @@
 // the lead byte, so a byte that starts an ill-formed sequence is always the reported byte, even
 // when the sequence is cut short by the end of the file.
 
-export type LexError = { code: string; start: number; end: number };
+// `fix` is present only for an error that has a machine-applicable fix (E0002, RFC 0104 rule 4).
+export type LexError = {
+  code: string;
+  start: number;
+  end: number;
+  fix?: { start: number; end: number; replacement: string };
+};
 
 const LF = 0x0a;
 

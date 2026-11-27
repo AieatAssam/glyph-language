@@ -3,8 +3,9 @@
 // underscore. The lexer records the digits as written.
 //
 // A digit sequence with a leading zero and more than one digit, such as `007` or `00`, is E0006
-// over the whole sequence. The range check (at most 9223372036854775807) belongs to the checker
-// (E0500), so this file does no value arithmetic.
+// over the whole sequence, with a fix that replaces it by its digits without leading zeros, keeping
+// one digit (`007` gives `7`, `00` gives `0`; RFC 0104 rule 8). The range check (at most
+// 9223372036854775807) belongs to the checker (E0500), so this file does no value arithmetic.
 import type { Buffer } from 'node:buffer';
 import type { LexError } from './source.ts';
 import { Kind, type Token } from './token.ts';
@@ -26,9 +27,12 @@ export function lexInt(buf: Buffer, pos: number): IntResult {
   }
   let end = pos + 1;
   while (end < buf.length && isDigit(buf[end])) end += 1;
-  if (buf[pos] === 0x30 && end - pos > 1) {
-    return { error: { code: 'E0006', start: pos, end } };
-  }
   // Only ASCII digits were read, so latin1 decodes them exactly.
-  return { token: { kind: Kind.INT, start: pos, end, text: buf.toString('latin1', pos, end) } };
+  const text = buf.toString('latin1', pos, end);
+  if (buf[pos] === 0x30 && end - pos > 1) {
+    // The fix replaces the literal with its digits without leading zeros, keeping one digit (rule 8).
+    const replacement = text.replace(/^0+/, '') || '0';
+    return { error: { code: 'E0006', start: pos, end, fix: { start: pos, end, replacement } } };
+  }
+  return { token: { kind: Kind.INT, start: pos, end, text } };
 }

@@ -1,12 +1,12 @@
-// Punctuation and operator tokens (RFC 0014 rules 10 and 11).
-// lexPunct takes the longest of the eighteen tokens that starts at pos, reading at most one byte
+// Punctuation and operator tokens (RFC 0104 rules 10 and 11).
+// lexPunct takes the longest of the seventeen tokens that starts at pos, reading at most one byte
 // ahead. Only `==`, `!=`, `<=` and `>=` are two bytes long, so `=>` lexes as `=` then `>`, and `->`
-// lexes as `-` then `>`. A byte that starts no token is error E0001 at that byte (rule 11). That
-// covers `!` not followed by `=`, `;`, `[`, `]`, `.`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`,
-// backtick, and `\` outside a text literal.
+// lexes as `-` then `>`. `//` is two `/` tokens: there are no comments. A byte that starts no token
+// is error E0001 at that byte (rule 11). That covers `!` not followed by `=`, `:`, `;`, `[`, `]`,
+// `.`, `#`, `'`, `?`, `@`, `$`, `^`, `&`, `|`, `~`, backtick, and `\` outside a text literal.
 //
-// The caller skips trivia first, so `//` never reaches this file. Words, integers and text literals
-// are lexed by their own files, so a letter, digit, `_` or `"` here is a caller error.
+// Words, integers and text literals are lexed by their own files, so a letter, digit, `_` or `"`
+// here is a caller error.
 import type { Buffer } from 'node:buffer';
 import type { LexError } from './source.ts';
 import { PUNCTUATION_KIND, type Punctuation, type Token } from './token.ts';

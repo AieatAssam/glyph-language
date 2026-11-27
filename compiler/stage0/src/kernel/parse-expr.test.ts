@@ -1,5 +1,6 @@
 // Tests for the expression parser (RFC 0020, precedence list, G6, T1, E6). Each case lexes a source
 // text, parses one expression from its first token, and checks the tree shape or the error.
+// Sources are in canonical layout (RFC 0104 rule 4): no space around an operator or a comma.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
@@ -57,43 +58,43 @@ function errorOf(text: string): ExprError {
   return r;
 }
 
-test('not a == b parses as (not a) == b', () => {
-  assert.equal(treeOf('not a == b'), '(== (not a) b)');
+test('not a==b parses as (not a) == b', () => {
+  assert.equal(treeOf('not a==b'), '(== (not a) b)');
 });
 
-test('-a * b parses as (-a) * b', () => {
-  assert.equal(treeOf('-a * b'), '(* (- a) b)');
+test('-a*b parses as (-a) * b', () => {
+  assert.equal(treeOf('-a*b'), '(* (- a) b)');
 });
 
 test('* binds tighter than +, and - and + are left-associative', () => {
-  assert.equal(treeOf('1 + 2 * 3'), '(+ 1 (* 2 3))');
-  assert.equal(treeOf('a - b - c'), '(- (- a b) c)');
-  assert.equal(treeOf('a / b % c'), '(% (/ a b) c)');
+  assert.equal(treeOf('1+2*3'), '(+ 1 (* 2 3))');
+  assert.equal(treeOf('a-b-c'), '(- (- a b) c)');
+  assert.equal(treeOf('a/b%c'), '(% (/ a b) c)');
 });
 
 test('and binds tighter than or, and parentheses override the order', () => {
   assert.equal(treeOf('a or b and c'), '(or a (and b c))');
-  assert.equal(treeOf('(1 + 2) * 3'), '(* (+ 1 2) 3)');
+  assert.equal(treeOf('(1+2)*3'), '(* (+ 1 2) 3)');
 });
 
 test('a single comparison parses, and a call with arguments is a call node', () => {
-  assert.equal(treeOf('a >= b'), '(>= a b)');
-  assert.equal(treeOf('f(1, g(2)) + 3'), '(+ f(1, g(2)) 3)');
+  assert.equal(treeOf('a>=b'), '(>= a b)');
+  assert.equal(treeOf('f(1,g(2))+3'), '(+ f(1, g(2)) 3)');
   assert.equal(treeOf('f()'), 'f()');
 });
 
 test('a boolean literal, a name and nested unary operators parse', () => {
   assert.equal(treeOf('not not true'), '(not (not true))');
-  assert.equal(treeOf('- -x'), '(- (- x))');
+  assert.equal(treeOf('--x'), '(- (- x))');
 });
 
 test('a second comparison operator is E0100 at that operator (G6)', () => {
-  const text = 'a < b < c';
+  const text = 'a<b<c';
   assert.deepEqual(errorOf(text), { code: 'E0100', start: text.lastIndexOf('<'), end: text.lastIndexOf('<') + 1 });
 });
 
-test('a == b >= c is E0100 at >= (G6)', () => {
-  const text = 'a == b >= c';
+test('a==b>=c is E0100 at >= (G6)', () => {
+  const text = 'a==b>=c';
   assert.deepEqual(errorOf(text), { code: 'E0100', start: text.indexOf('>='), end: text.indexOf('>=') + 2 });
 });
 
@@ -113,7 +114,7 @@ test('+1 is E0100 at the plus, since + is not unary (E6)', () => {
 });
 
 test('a keyword that cannot start an expression is E0100 at that token', () => {
-  const text = 'a + else';
+  const text = 'a+else';
   assert.deepEqual(errorOf(text), { code: 'E0100', start: text.indexOf('else'), end: text.indexOf('else') + 4 });
 });
 
@@ -129,7 +130,7 @@ test('a text token parses to a text node with its span', () => {
 });
 
 test('the result has spans as byte offsets and no types', () => {
-  const { tokens } = lex(Buffer.from('a * (b + 1)', 'utf8'));
+  const { tokens } = lex(Buffer.from('a*(b+1)', 'utf8'));
   const r = parseExpr(tokens, 0);
   assert.ok(!('error' in r));
   assert.deepEqual(r.expr, {
@@ -139,12 +140,12 @@ test('the result has spans as byte offsets and no types', () => {
     right: {
       kind: 'binary',
       op: '+',
-      left: { kind: 'name', text: 'b', start: 5, end: 6 },
-      right: { kind: 'int', text: '1', start: 9, end: 10 },
-      start: 5,
-      end: 10,
+      left: { kind: 'name', text: 'b', start: 3, end: 4 },
+      right: { kind: 'int', text: '1', start: 5, end: 6 },
+      start: 3,
+      end: 6,
     },
     start: 0,
-    end: 11,
+    end: 7,
   });
 });

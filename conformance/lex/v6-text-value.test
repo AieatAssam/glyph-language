@@ -1,0 +1,10 @@
+--- meta
+id: lex/v6-text-value
+rfc: 0104
+kind: run
+--- source
+main io{put"x"}
+--- expect-stdout
+x
+--- expect-exit
+0

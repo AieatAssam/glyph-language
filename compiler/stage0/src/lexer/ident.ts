@@ -1,6 +1,6 @@
 // Words: identifiers and keywords (RFC 0014 rules 6, 7 and 16).
 // A word is one ASCII letter or `_`, then ASCII letters, digits or `_`. A word whose spelling is one
-// of the fourteen lowercase keywords gets that keyword's kind. Any other word is IDENT, and keeps
+// of the fifteen lowercase keywords gets that keyword's kind. Any other word is IDENT, and keeps
 // its spelling in `text`. Keywords carry no text.
 //
 // A byte of 0x80 or more where a token starts is not a word. It is error E0001 at that character,

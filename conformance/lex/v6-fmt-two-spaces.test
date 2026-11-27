@@ -1,0 +1,8 @@
+--- meta
+id: lex/v6-fmt-two-spaces
+rfc: 0104
+kind: compile-error
+--- source
+main io{put  1}
+--- expect-errors
+{"code":"E0002","span":{"start":11,"end":13},"fix":{"span":{"start":11,"end":13},"replacement":" "}}

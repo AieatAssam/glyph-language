@@ -1,14 +1,16 @@
-// Text literals (RFC 0014 rule 9).
+// Text literals (RFC 0104 rule 9).
 // A text literal starts at `"` and ends at the next `"`. Between the quotes are valid UTF-8
-// characters other than `"` and `\`, and the escapes `\n`, `\"` and `\\`. The value is the decoded
-// bytes, held as a string in `text`.
+// characters other than `"`, `\` and the characters rule 2 forbids. A raw LF is content (byte
+// 0x0A). The only escapes are `\"` and `\\`. The value is the decoded bytes, held as a string in
+// `text`.
 //
 // Errors:
 //   E0005 at the backslash and the next character, for any other backslash sequence. E0005 also
-//         covers a literal that is not closed: the span runs from the opening quote to the line end
-//         (not including it), or to the end of the file.
-//   E0001 at a forbidden control character (rule 2), a lone CR (rule 3) or a byte order mark (rule
-//         1) inside the literal. These are caught here, before the scan reaches the closing quote.
+//         covers a literal that is not closed: the span runs from the opening quote to the end of
+//         the file. A line feed does not close it.
+//   E0001 at a forbidden control character (rule 2, which includes every CR) or a byte order mark
+//         (rule 1) inside the literal. These are caught here, before the scan reaches the closing
+//         quote.
 // checkBytes has already checked the UTF-8 form of the whole file, so this file copies the bytes of
 // a non-ASCII character without checking them again.
 import { Buffer } from 'node:buffer';
@@ -19,12 +21,10 @@ export type TextResult = { token: Token } | { error: LexError };
 
 const DOUBLE_QUOTE = 0x22;
 const BACKSLASH = 0x5c;
-const LF = 0x0a;
 const CR = 0x0d;
 
-// The byte each escape letter decodes to: `n` gives LF, `"` gives a quote, `\` gives a backslash.
+// The byte each escape character decodes to: `"` gives a quote, `\` gives a backslash (rule 9).
 const ESCAPES: ReadonlyMap<number, number> = new Map([
-  [0x6e, LF],
   [0x22, DOUBLE_QUOTE],
   [0x5c, BACKSLASH],
 ]);
@@ -63,10 +63,7 @@ export function lexText(buf: Buffer, pos: number): TextResult {
     if (b === DOUBLE_QUOTE) {
       return { token: { kind: Kind.TEXT, start: pos, end: i + 1, text: Buffer.from(out).toString('utf8') } };
     }
-    if (b === LF || (b === CR && i + 1 < buf.length && buf[i + 1] === LF)) {
-      // The span stops before the line end, so it covers the literal's own characters.
-      return fail('E0005', pos, i);
-    }
+    // A raw LF is content (rule 9). Every CR is a control character (rule 2), so it is E0001 here.
     if (b === CR) return fail('E0001', i, i + 1);
     if (b === BACKSLASH) {
       const decoded = i + 1 < buf.length ? ESCAPES.get(buf[i + 1]) : undefined;
@@ -90,5 +87,6 @@ export function lexText(buf: Buffer, pos: number): TextResult {
     for (let k = i; k < end; k++) out.push(buf[k]);
     i = end;
   }
+  // No closing quote before the end of the file: the span runs from the opening quote to the end.
   return fail('E0005', pos, buf.length);
 }

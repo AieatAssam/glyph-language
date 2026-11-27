@@ -11,8 +11,8 @@ const tok = (kind: number, start: number, end: number) => ({ token: { kind, star
 
 const err = (start: number) => ({ error: { code: 'E0001', start, end: start + 1 } });
 
-test('each of the eighteen punctuation tokens is one token of its own kind', () => {
-  assert.equal(PUNCTUATION.length, 18);
+test('each of the seventeen punctuation tokens is one token of its own kind', () => {
+  assert.equal(PUNCTUATION.length, 17);
   for (const spelling of PUNCTUATION) {
     assert.deepEqual(at(spelling), tok(PUNCTUATION_KIND[spelling], 0, spelling.length), spelling);
   }
@@ -56,9 +56,21 @@ test('a ! followed by something other than = is E0001 at the !', () => {
 });
 
 test('each listed character outside the set is E0001 at that character', () => {
-  for (const ch of [';', '[', ']', '.', '#', "'", '?', '@', '$', '^', '&', '|', '~', '`', '\\']) {
+  for (const ch of [';', ':', '[', ']', '.', '#', "'", '?', '@', '$', '^', '&', '|', '~', '`', '\\']) {
     assert.deepEqual(at(ch), err(0), ch);
   }
+});
+
+test(':, ; and # are E0001 where they stand, as in let a:Int=1', () => {
+  assert.deepEqual(at('let a:Int=1', 5), err(5));
+  assert.deepEqual(at('put 1;put 2', 5), err(5));
+  assert.deepEqual(at('#', 0), err(0));
+});
+
+test('a // is two / tokens, not a comment (RFC 0104 rule 5)', () => {
+  assert.deepEqual(at('a//b', 1), tok(Kind.SLASH, 1, 2));
+  assert.deepEqual(at('a//b', 2), tok(Kind.SLASH, 2, 3));
+  assert.deepEqual(at('//', 0), tok(Kind.SLASH, 0, 1));
 });
 
 test('a listed character in the middle of a line is E0001 at that character', () => {

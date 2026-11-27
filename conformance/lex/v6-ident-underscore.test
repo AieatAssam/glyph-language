@@ -1,0 +1,10 @@
+--- meta
+id: lex/v6-ident-underscore
+rfc: 0104
+kind: run
+--- source
+main io{let _a9=2 put _a9}
+--- expect-stdout
+2
+--- expect-exit
+0

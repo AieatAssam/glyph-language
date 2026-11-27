@@ -1,0 +1,10 @@
+--- meta
+id: lex/v6-text-escapes
+rfc: 0104
+kind: run
+--- source
+main io{put"a\"b\\c"}
+--- expect-stdout
+a"b\c
+--- expect-exit
+0

@@ -33,6 +33,22 @@ Each code is listed once in `spec/errors.json` with a message template and a one
 
 A message template may change wording in a later RFC without changing its code.
 
+## Lexical and syntax codes
+
+Which token or span each code reports, and the fix where one exists. The lexical rules and the grammar say when each applies.
+
+| Code | Block | Meaning | Span | Fix | Rules |
+| --- | --- | --- | --- | --- | --- |
+| E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character other than LF outside a text literal, non-ASCII outside text, or printable ASCII outside the token set | The character | none | lexical 1, 2, 4a, 6, 11 |
+| E0002 | lexical | Non-canonical layout: a gap that is not the canonical gap (extra space, line end where none belongs, missing space between word tokens, leading or trailing whitespace) | The gap; zero-length where a space is missing | Replace the gap with the canonical gap | lexical 3, 4b |
+| E0003 | lexical | Keyword where an `IDENT` is required. Reported by the parser | The keyword | none | lexical 7, G3 |
+| E0005 | lexical | Malformed text literal | See lexical rule 9 | none | lexical 9 |
+| E0006 | lexical | Integer literal with a leading zero | The literal | Replace the literal with its digits without leading zeros | lexical 8 |
+| E0100 | syntax | Unexpected token: the grammar does not accept this token at this position | The token; at end of file, the `EOF` token | none | lexical 5, 10, G1 to G13 |
+| E0500 | limits | Integer literal above 9223372036854775807. Reported by the checker | The literal | none | lexical 8 |
+
+Codes not in this table are not used by the lexical rules or the grammar.
+
 ## Tests
 
 A compile-error test states its expected records as JSON. The runner compares `code`, `span` and `fix`, not `message`.

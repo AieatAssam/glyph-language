@@ -33,16 +33,36 @@ test('the digits are recorded as written', () => {
   assert.equal(r.token.text, '1200');
 });
 
-test('007 is E0006 over all three digits', () => {
-  assert.deepEqual(at('007'), { error: { code: 'E0006', start: 0, end: 3 } });
+test('0 and 10 are integer literals with no error (RFC 0104 rule 8)', () => {
+  assert.deepEqual(at('0'), int('0'));
+  assert.deepEqual(at('10'), int('10'));
 });
 
-test('00 is E0006 over both digits', () => {
-  assert.deepEqual(at('00'), { error: { code: 'E0006', start: 0, end: 2 } });
+test('007 is E0006 over all three digits, with the fix 7 (RFC 0104 rule 8)', () => {
+  assert.deepEqual(at('007'), {
+    error: { code: 'E0006', start: 0, end: 3, fix: { start: 0, end: 3, replacement: '7' } },
+  });
+});
+
+test('00 is E0006 over both digits, with the fix 0 (one digit is kept)', () => {
+  assert.deepEqual(at('00'), {
+    error: { code: 'E0006', start: 0, end: 2, fix: { start: 0, end: 2, replacement: '0' } },
+  });
+});
+
+test('0000 is E0006 with the fix 0, and 0012 with the fix 12', () => {
+  assert.deepEqual(at('0000'), {
+    error: { code: 'E0006', start: 0, end: 4, fix: { start: 0, end: 4, replacement: '0' } },
+  });
+  assert.deepEqual(at('0012'), {
+    error: { code: 'E0006', start: 0, end: 4, fix: { start: 0, end: 4, replacement: '12' } },
+  });
 });
 
 test('a leading zero then more digits and a letter is E0006 over the digits only', () => {
-  assert.deepEqual(at('0012x'), { error: { code: 'E0006', start: 0, end: 4 } });
+  assert.deepEqual(at('0012x'), {
+    error: { code: 'E0006', start: 0, end: 4, fix: { start: 0, end: 4, replacement: '12' } },
+  });
 });
 
 test('a literal ends at the first character that is not a digit', () => {
@@ -54,7 +74,9 @@ test('a single 0 followed by a letter is the integer 0 and the letter is left fo
 });
 
 test('a literal read at a later position gives offsets from the start of the file', () => {
-  assert.deepEqual(at('let 007', 4), { error: { code: 'E0006', start: 4, end: 7 } });
+  assert.deepEqual(at('let 007', 4), {
+    error: { code: 'E0006', start: 4, end: 7, fix: { start: 4, end: 7, replacement: '7' } },
+  });
   assert.deepEqual(at('let 42', 4), int('42', 4));
 });
 

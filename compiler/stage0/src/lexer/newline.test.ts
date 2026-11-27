@@ -2,6 +2,8 @@
 // order: a token kind, or 'eol' for a line end. Event i occupies bytes i to i+1.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
+import { lex } from './index.ts';
 import { NewlineStage } from './newline.ts';
 import { Kind, type Token } from './token.ts';
 
@@ -94,4 +96,46 @@ test('the driver may not feed NEWLINE or EOF tokens', () => {
   const stage = new NewlineStage();
   assert.throws(() => stage.token({ kind: Kind.NEWLINE, start: 0, end: 0 }), /made by this stage/);
   assert.throws(() => stage.token({ kind: Kind.EOF, start: 0, end: 0 }), /made by this stage/);
+});
+
+// RFC 0104 rule 4 and rule 3: a line feed outside text is part of a gap, and a gap that is not the
+// canonical gap is E0002 with a fix. These cases run the whole lexer on one program each.
+const e0002 = (start: number, end: number, replacement: string) => ({
+  tokens: [],
+  error: { code: 'E0002', start, end, fix: { start, end, replacement } },
+});
+
+test('a line feed inside a block is E0002 at the line feed, with empty replacement', () => {
+  assert.deepEqual(lex(Buffer.from('main io{\nput 1}')), e0002(8, 9, ''));
+});
+
+test('two spaces before an int are E0002 over both spaces, replaced by one space', () => {
+  assert.deepEqual(lex(Buffer.from('main io{put  1}')), e0002(11, 13, ' '));
+});
+
+test('a missing space between put and 1put is a zero-length E0002 at the point, replaced by one space', () => {
+  assert.deepEqual(lex(Buffer.from('main io{put 1put 2}')), e0002(13, 13, ' '));
+});
+
+test('a space before a parenthesis is E0002 at that space, with empty replacement', () => {
+  assert.deepEqual(lex(Buffer.from('main io{put (1)}')), e0002(11, 12, ''));
+});
+
+test('a space before the first token is E0002 at byte 0', () => {
+  assert.deepEqual(lex(Buffer.from(' main io{}')), e0002(0, 1, ''));
+});
+
+test('a line feed after the last token is E0002 at that line feed', () => {
+  assert.deepEqual(lex(Buffer.from('main io{}\n')), e0002(9, 10, ''));
+});
+
+test('a tab in a gap is E0001 at the tab, and no E0002 is reported', () => {
+  assert.deepEqual(lex(Buffer.from('main io{put\t1}')), {
+    tokens: [],
+    error: { code: 'E0001', start: 11, end: 12 },
+  });
+});
+
+test('canonical layout gives tokens and no error', () => {
+  assert.equal(lex(Buffer.from('main io{put 1}')).error, null);
 });

@@ -11,12 +11,12 @@
 // error the result has no tokens (rule 16).
 import type { Buffer } from 'node:buffer';
 import { lexInt } from './int.ts';
+import { checkGap, scanGap } from './gap.ts';
 import { lexWord } from './ident.ts';
 import { NewlineStage } from './newline.ts';
 import { lexPunct } from './punct.ts';
 import { checkBytes, type LexError } from './source.ts';
 import { lexText } from './text.ts';
-import { skipTrivia } from './trivia.ts';
 import type { Token } from './token.ts';
 
 export interface LexResult {
@@ -63,9 +63,15 @@ export function lex(buf: Buffer): LexResult {
   let scanError: LexError | null = null;
   let pos = 0;
   for (;;) {
-    const trivia = skipTrivia(buf, pos);
-    for (const span of trivia.lineEnds) newline.lineEnd(span);
-    pos = trivia.pos;
+    // The gap before the next token is checked first (RFC 0104 rule 4). A gap with a line feed is
+    // E0002, so no line end is passed to the NEWLINE stage.
+    const gapEnd = scanGap(buf, pos);
+    const gapError = checkGap(buf, pos, gapEnd);
+    if (gapError !== null) {
+      scanError = gapError;
+      break;
+    }
+    pos = gapEnd;
     if (pos >= limit) break;
     const step = scanOne(buf, pos);
     if ('error' in step) {

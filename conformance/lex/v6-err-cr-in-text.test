@@ -1,0 +1,9 @@
+--- meta
+id: lex/v6-err-cr-in-text
+rfc: 0104
+kind: compile-error
+--- source
+main io{put"a
+b"}
+--- expect-errors
+{"code":"E0001","span":{"start":13,"end":14}}

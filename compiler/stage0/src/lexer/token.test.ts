@@ -11,34 +11,41 @@ import {
 } from './token.ts';
 
 const RFC_KEYWORDS = [
-  'fn', 'let', 'var', 'if', 'else', 'while', 'return',
-  'true', 'false', 'and', 'or', 'not', 'example', 'io',
+  'let', 'var', 'if', 'else', 'wh', 'ret', 'true', 'false', 'and', 'or', 'not', 'ex', 'io', 'put', 'fail',
 ];
 
 const RFC_PUNCTUATION = [
-  '(', ')', '{', '}', ',', ':', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
+  '(', ')', '{', '}', ',', '=', '==', '!=', '<', '<=', '>', '>=', '+', '-', '*', '/', '%',
 ];
 
-test('the keywords equal the RFC 0014 list, in order', () => {
+test('the keywords equal the RFC 0104 list, in order', () => {
   assert.deepEqual([...KEYWORDS], RFC_KEYWORDS);
   assert.deepEqual(Object.keys(KEYWORD_KIND), RFC_KEYWORDS);
 });
 
-test('there are fourteen keyword kinds, one per keyword', () => {
+test('there are fifteen keyword kinds, one per keyword', () => {
   const kinds = RFC_KEYWORDS.map((word) => KEYWORD_KIND[word as keyof typeof KEYWORD_KIND]);
-  assert.equal(kinds.length, 14);
-  assert.equal(new Set(kinds).size, 14);
+  assert.equal(kinds.length, 15);
+  assert.equal(new Set(kinds).size, 15);
 });
 
-test('the punctuation spellings equal the eighteen RFC 0014 tokens, in order', () => {
+test('put, fail, wh, ret and ex have their own kinds', () => {
+  assert.equal(Kind.KW_PUT, KEYWORD_KIND.put);
+  assert.equal(Kind.KW_FAIL, KEYWORD_KIND.fail);
+  assert.equal(Kind.KW_WH, KEYWORD_KIND.wh);
+  assert.equal(Kind.KW_RET, KEYWORD_KIND.ret);
+  assert.equal(Kind.KW_EX, KEYWORD_KIND.ex);
+});
+
+test('the punctuation spellings equal the seventeen RFC 0104 tokens, in order', () => {
   assert.deepEqual([...PUNCTUATION], RFC_PUNCTUATION);
   assert.deepEqual(Object.keys(PUNCTUATION_KIND), RFC_PUNCTUATION);
 });
 
-test('there are eighteen punctuation kinds, one per token', () => {
+test('there are seventeen punctuation kinds, one per token', () => {
   const kinds = RFC_PUNCTUATION.map((p) => PUNCTUATION_KIND[p as keyof typeof PUNCTUATION_KIND]);
-  assert.equal(kinds.length, 18);
-  assert.equal(new Set(kinds).size, 18);
+  assert.equal(kinds.length, 17);
+  assert.equal(new Set(kinds).size, 17);
 });
 
 test('every kind value is unique (rule 12): 37 kinds, no two equal', () => {
@@ -69,6 +76,12 @@ test('the five other kinds are IDENT, INT, TEXT, NEWLINE and EOF', () => {
 test('keywordKind maps each lowercase keyword to its own kind', () => {
   for (const word of RFC_KEYWORDS) {
     assert.equal(keywordKind(word), KEYWORD_KIND[word as keyof typeof KEYWORD_KIND], word);
+  }
+});
+
+test('keywordKind is null for the words RFC 0104 removed, which are identifiers', () => {
+  for (const word of ['fn', 'while', 'return', 'example', 'print']) {
+    assert.equal(keywordKind(word), null, word);
   }
 });
 

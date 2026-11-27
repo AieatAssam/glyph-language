@@ -1,0 +1,8 @@
+--- meta
+id: lex/v6-err-colon
+rfc: 0104
+kind: compile-error
+--- source
+main io{let a:Int=1}
+--- expect-errors
+{"code":"E0001","span":{"start":13,"end":14}}

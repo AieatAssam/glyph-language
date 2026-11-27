@@ -15,8 +15,20 @@ test('the empty literal "" is a text token with an empty value', () => {
   assert.deepEqual(at('""'), str(''));
 });
 
-test('\\n decodes to a line feed byte', () => {
-  assert.deepEqual(at('"a\\nb"'), str('a\nb', 0, 6));
+test('"x" has the value x (RFC 0104 rule 9)', () => {
+  assert.deepEqual(at('"x"'), str('x', 0, 3));
+});
+
+test('a raw LF inside the literal is content, byte 0x0A (RFC 0104 rule 9)', () => {
+  assert.deepEqual(at('"a\nb"'), str('a\nb', 0, 5));
+});
+
+test('"a\\"b\\\\c" has the value a"b\\c: \\" and \\\\ are the only escapes that decode', () => {
+  assert.deepEqual(at('"a\\"b\\\\c"'), str('a"b\\c', 0, 9));
+});
+
+test('\\n is not an escape: it is E0005 at the backslash and the n', () => {
+  assert.deepEqual(at('"\\n"'), { error: { code: 'E0005', start: 1, end: 3 } });
 });
 
 test('\\" decodes to a quote, and the quote does not end the literal', () => {
@@ -44,20 +56,24 @@ test('a bad escape before a non-ASCII character spans the whole character after 
   assert.deepEqual(at('"\\é"'), { error: { code: 'E0005', start: 1, end: 4 } });
 });
 
-test('a literal unterminated at LF is E0005 from the quote to the LF', () => {
-  assert.deepEqual(at('"ab\nc"'), { error: { code: 'E0005', start: 0, end: 3 } });
+test('a LF does not end a literal: "ab LF c" is one text token', () => {
+  assert.deepEqual(at('"ab\nc"'), str('ab\nc', 0, 6));
 });
 
-test('a literal unterminated at CR LF is E0005 from the quote to the CR', () => {
-  assert.deepEqual(at('"ab\r\nc"'), { error: { code: 'E0005', start: 0, end: 3 } });
+test('a CR LF inside a literal is E0001 at the CR, since every CR is E0001 (rule 2)', () => {
+  assert.deepEqual(at('"ab\r\nc"'), { error: { code: 'E0001', start: 3, end: 4 } });
 });
 
 test('a literal unterminated at end of file is E0005 from the quote to the end of the file', () => {
   assert.deepEqual(at('"ab'), { error: { code: 'E0005', start: 0, end: 3 } });
 });
 
-test('a literal that ends after an escape, at end of file, is E0005 to the end of the file', () => {
-  assert.deepEqual(at('"\\n'), { error: { code: 'E0005', start: 0, end: 3 } });
+test('a literal unterminated after a raw LF runs to the end of the file', () => {
+  assert.deepEqual(at('"ab\nc'), { error: { code: 'E0005', start: 0, end: 5 } });
+});
+
+test('a literal that ends after a backslash-n, at end of file, is E0005 at the backslash and n, not to EOF', () => {
+  assert.deepEqual(at('"\\n'), { error: { code: 'E0005', start: 1, end: 3 } });
 });
 
 test('a backslash as the last byte of the file is E0005 at the backslash only', () => {
