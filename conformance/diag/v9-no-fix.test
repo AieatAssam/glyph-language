@@ -1,0 +1,8 @@
+--- meta
+id: diag/v9-no-fix
+rfc: 0112
+kind: compile-error
+--- source
+main io{let let=1}
+--- expect-errors
+{"code":"E0003","span":{"start":12,"end":15}}
