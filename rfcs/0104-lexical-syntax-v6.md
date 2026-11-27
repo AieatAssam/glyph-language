@@ -1,3 +1,13 @@
+---
+status: accepted
+votes:
+  designer-min: approve
+  designer-safe: approve
+  impl-1: approve
+  tester: approve
+  user-1: approve
+  user-2: approve
+---
 # RFC draft: Lexical structure and core syntax
 
 Class: language
@@ -184,6 +194,12 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
+Test file form (`conformance.py` container). Each `.test` file has a `--- meta` block with `id: lex/<name>` (or `parse/<name>`), `rfc: 0104` and `kind: run` or `compile-error`, then `--- source`. A run test has `--- expect-stdout` and `--- expect-exit`. A compile-error test has `--- expect-errors` with one JSON line per record: `{"code":C,"span":{"start":a,"end":b}}`, plus `"fix":{"span":{"start":a,"end":b},"replacement":R}` where the row gives a fix. A row with no fix has no `fix` key. Records are compared by `code`, `span` and `fix` only.
+
+Control bytes. A source holding a CR, a tab, a BOM or invalid UTF-8 sets `source-escapes: hex` in meta and writes each such byte as `\xHH`; `\\` is one backslash. So `v6-err-cr` has `main io{\x0Dput 1}`, and `v6-fmt-trailing-lf` has `main io{}\x0A`. A raw LF inside a `--- source` section is a line feed in the program, so `v6-fmt-newline` and `v6-text-lf` need no escape.
+
+Spans assume the source is the row's program exactly. Open question 8 covers a runner that adds a line feed.
+
 Run tests (stdout and exit 0 unless stated):
 
 | Test | Program | Output | Covers |
@@ -271,3 +287,4 @@ Retirement. Agents may not edit or delete an existing conformance test. The test
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **`fail` as a keyword.** This draft makes `fail` a keyword so the kernel's mark needs no position rule. If voters prefer a contextual word, `kernel-v46` must change with it.
 7. **New codes.** E0002 and E0003, and the kernel codes E0200 to E0202, E0300 to E0303, E0400 and E0403, are not in `spec/errors.json`. The first PR that emits each adds it there.
+8. **Runner line feed.** `source_bytes` in `tools/check/conformance.py` adds one LF to every source. Rule 4 makes an LF after the last token E0002, so with that LF every run test fails to compile and each span after the last token moves by one. The tables assume no LF is added. Options: (a) the runner takes a meta key that adds no LF; (b) rule 4 allows one LF at end of file, which changes a decision and needs a new RFC that names this one. The owner chooses. `tools/` is the architect's.
