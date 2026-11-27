@@ -154,10 +154,29 @@ test('case 3: an empty file gives EOF at 0..0 only', () => {
   assert.deepEqual(src(''), { tokens: [{ kind: Kind.EOF, start: 0, end: 0 }], error: null });
 });
 
-test('case 4: E0005 at byte 8 is reported, not the tab at byte 20 that comes later', () => {
-  // Still the old text rule (a line end ends the literal). RFC 0104 rule 9 (subtask 4) changes it.
+test('case 4: a raw LF is text content (rule 9), so the literal runs on to the tab at byte 20, which is E0001', () => {
   const text = 'let a=12"abc\nlet c=4\tx\n';
-  assert.deepEqual(src(text), { tokens: [], error: { code: 'E0005', start: 8, end: 12 } });
+  assert.deepEqual(src(text), { tokens: [], error: { code: 'E0001', start: 20, end: 21 } });
+});
+
+test('RFC 0104 rule 9 examples: "x" is x, a raw LF is content, and \\" and \\\\ decode', () => {
+  assert.deepEqual(kinds('main io{put"x"}'), [
+    Kind.IDENT, Kind.KW_IO, Kind.LBRACE, Kind.KW_PUT, Kind.TEXT, Kind.RBRACE, Kind.NEWLINE, Kind.EOF,
+  ]);
+  assert.deepEqual(src('put"a\nb"').tokens[1], { kind: Kind.TEXT, start: 3, end: 8, text: 'a\nb' });
+  assert.deepEqual(src('put"a\\"b\\\\c"').tokens[1], { kind: Kind.TEXT, start: 3, end: 12, text: 'a"b\\c' });
+});
+
+test('"\\n" is E0005 at 12 to 14 of main io{put"\\n"}: the backslash and the n', () => {
+  assert.deepEqual(src('main io{put"\\n"}'), { tokens: [], error: { code: 'E0005', start: 12, end: 14 } });
+});
+
+test('put"ab at end of file is E0005 at 11 to 14, from the quote to the end of the file', () => {
+  assert.deepEqual(src('main io{put"ab'), { tokens: [], error: { code: 'E0005', start: 11, end: 14 } });
+});
+
+test('a byte order mark at byte 0 is E0001 over its three bytes', () => {
+  assert.deepEqual(src('\u{feff}main io{}'), { tokens: [], error: { code: 'E0001', start: 0, end: 3 } });
 });
 
 test('case 5: a tab at byte 5 is reported, and the E0005 at byte 10 is not reached', () => {

@@ -67,6 +67,16 @@ test('fn, while, return and example are identifiers now (RFC 0104 rule 7)', () =
   assert.deepEqual(at('example'), ident('example'));
 });
 
+test('an identifier is an ASCII letter or _, then ASCII letters, digits or _ (RFC 0104 rule 6)', () => {
+  assert.deepEqual(at('_x9_Y'), ident('_x9_Y'));
+  assert.deepEqual(at('Int'), ident('Int'));
+});
+
+test('a non-ASCII character outside text is E0001 at that character', () => {
+  assert.deepEqual(at('aé', 0), { token: { kind: Kind.IDENT, start: 0, end: 1, text: 'a' } });
+  assert.deepEqual(at('é', 0), { error: { code: 'E0001', start: 0, end: 2 } });
+});
+
 test('a keyword followed by a space stops at the space', () => {
   assert.deepEqual(at('if x', 0), { token: { kind: Kind.KW_IF, start: 0, end: 2 } });
 });
