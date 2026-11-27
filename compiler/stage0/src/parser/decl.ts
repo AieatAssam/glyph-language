@@ -1,0 +1,181 @@
+// Declarations (RFC 0104 grammar: decl, param, ptype, rtype, block; G2, G4, G5, G9, G10, G12, G13).
+// parseDecl reads one declaration that starts at tokens[at]. It does not read statements (subtask 8)
+// or expressions: each expression is handed to the ExprParser that the caller passes in.
+//
+//   decl = IDENT [ "(" param { "," param } ")" ] [ rtype ] [ "io" ] [ "fail" ] block { "ex" expr }
+//
+// The marks come in that order (G10). A block is `{ [ ret [expr] ] }` for now.
+import { Kind, type Token } from '../lexer/token.ts';
+
+export interface Span {
+  start: number;
+  end: number;
+}
+
+// Every syntax error is E0100 (RFC 0104 Diagnostics). Keyword-as-name errors (E0003) come in subtask 10.
+export interface ParseError {
+  code: 'E0100';
+  start: number;
+  end: number;
+}
+
+export interface Ident extends Span {
+  text: string;
+}
+
+export interface Param extends Span {
+  name: Ident;
+  type: Ident;
+}
+
+// params is null for a declaration with no parentheses (G9). result, io and fail are null when
+// absent. ex has one span per `ex` clause, from the keyword to the end of its expression.
+export interface Decl extends Span {
+  name: Ident;
+  params: Param[] | null;
+  result: Ident | null;
+  io: Span | null;
+  fail: Span | null;
+  body: Span;
+  ex: Span[];
+}
+
+export type ExprStep = { span: Span; next: number } | ParseError;
+
+// Reads the expression that starts at tokens[at]. Returns its span and the index of the token
+// after it, or an error.
+export type ExprParser = (tokens: readonly Token[], at: number) => ExprStep;
+
+export type DeclStep = { decl: Decl; next: number } | ParseError;
+
+function errAt(t: Token): ParseError {
+  return { code: 'E0100', start: t.start, end: t.end };
+}
+
+function spanOf(t: Token): Span {
+  return { start: t.start, end: t.end };
+}
+
+function identOf(t: Token): Ident {
+  return { text: t.text ?? '', start: t.start, end: t.end };
+}
+
+// `Int` and `Bool` are IDENT tokens with that text (RFC 0104 grammar: "Int" and "Bool").
+function isType(t: Token): boolean {
+  return t.kind === Kind.IDENT && (t.text === 'Int' || t.text === 'Bool');
+}
+
+export function parseDecl(tokens: readonly Token[], at: number, expr: ExprParser): DeclStep {
+  const nameTok = tokens[at];
+  if (nameTok.kind !== Kind.IDENT) return errAt(nameTok);
+  let i = at + 1;
+
+  let params: Param[] | null = null;
+  if (tokens[i].kind === Kind.LPAREN) {
+    const list = parseParams(tokens, i);
+    if ('code' in list) return list;
+    params = list.params;
+    i = list.next;
+  }
+
+  let result: Ident | null = null;
+  if (isType(tokens[i])) {
+    result = identOf(tokens[i]);
+    i += 1;
+  }
+
+  let io: Span | null = null;
+  if (tokens[i].kind === Kind.KW_IO) {
+    io = spanOf(tokens[i]);
+    i += 1;
+  }
+
+  let fail: Span | null = null;
+  if (tokens[i].kind === Kind.KW_FAIL) {
+    fail = spanOf(tokens[i]);
+    i += 1;
+  }
+
+  const block = parseBlock(tokens, i, expr);
+  if ('code' in block) return block;
+  i = block.next;
+
+  const ex: Span[] = [];
+  while (tokens[i].kind === Kind.KW_EX) {
+    const clause = expr(tokens, i + 1);
+    if ('code' in clause) return clause;
+    ex.push({ start: tokens[i].start, end: clause.span.end });
+    i = clause.next;
+  }
+
+  const decl: Decl = {
+    name: identOf(nameTok),
+    params,
+    result,
+    io,
+    fail,
+    body: block.span,
+    ex,
+    start: nameTok.start,
+    end: tokens[i - 1].end,
+  };
+  return { decl, next: i };
+}
+
+// Reads "(" param { "," param } ")" starting at the "(" at index at.
+function parseParams(tokens: readonly Token[], at: number): { params: Param[]; next: number } | ParseError {
+  let i = at + 1;
+  // G9: a parameter list that is present is not empty.
+  if (tokens[i].kind === Kind.RPAREN) return errAt(tokens[i]);
+  const params: Param[] = [];
+  for (;;) {
+    const p = parseParam(tokens, i);
+    if ('code' in p) return p;
+    params.push(p.param);
+    i = p.next;
+    if (tokens[i].kind === Kind.COMMA) {
+      i += 1;
+      continue;
+    }
+    if (tokens[i].kind === Kind.RPAREN) return { params, next: i + 1 };
+    return errAt(tokens[i]);
+  }
+}
+
+// Reads one param, `IDENT ptype`. A name that is a keyword is E0100 here; E0003 comes in subtask 10.
+function parseParam(tokens: readonly Token[], at: number): { param: Param; next: number } | ParseError {
+  const nameTok = tokens[at];
+  if (nameTok.kind !== Kind.IDENT) return errAt(nameTok);
+  const typeTok = tokens[at + 1];
+  // G4: the type is Int or Bool, and any other token is E0100 at that token.
+  if (!isType(typeTok)) return errAt(typeTok);
+  const param: Param = {
+    name: identOf(nameTok),
+    type: identOf(typeTok),
+    start: nameTok.start,
+    end: typeTok.end,
+  };
+  return { param, next: at + 2 };
+}
+
+// Reads "{" [ "ret" [ expr ] ] "}" starting at the "{" at index at. G2: nothing but "}" may follow ret.
+function parseBlock(
+  tokens: readonly Token[],
+  at: number,
+  expr: ExprParser,
+): { span: Span; next: number } | ParseError {
+  if (tokens[at].kind !== Kind.LBRACE) return errAt(tokens[at]);
+  let i = at + 1;
+  if (tokens[i].kind === Kind.KW_RET) {
+    i += 1;
+    if (tokens[i].kind !== Kind.RBRACE) {
+      const value = expr(tokens, i);
+      if ('code' in value) return value;
+      i = value.next;
+    }
+  }
+  // ponytail: statements are subtask 8 (parser/stmt.ts). Until then any token before "}" other than
+  // ret is E0100 at that token, so `main io{put 1}` is refused. Upgrade path: read stmt here.
+  if (tokens[i].kind !== Kind.RBRACE) return errAt(tokens[i]);
+  return { span: { start: tokens[at].start, end: tokens[i].end }, next: i + 1 };
+}
