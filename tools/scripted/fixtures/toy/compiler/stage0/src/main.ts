@@ -33,6 +33,8 @@ function report(ds: Diagnostic[], json: boolean): void {
   for (const d of ds) {
     console.log(json ? JSON.stringify(envelope(d))
       : `${d.file}:${d.span.line}:${d.span.col}: error ${d.code}: ${d.message}`);
+    // The gate reads JSON Lines diagnostics on stderr (RFC 0004).
+    process.stderr.write(JSON.stringify({ code: d.code, span: { line: d.span.line, column: d.span.col } }) + '\n');
   }
 }
 

@@ -815,3 +815,22 @@ class Superseded(unittest.TestCase):
         body = "\n".join(a.body for a in asgs)
         self.assertIn("lexical-syntax-v2", body)
         self.assertIn("fewest tokens", body)
+
+    def test_superseded_rfc_brief_carries_owner_premise_findings(self):
+        st = {"rfcs": {"0001": rfc("0001", DESIGNERS[0], status="accepted", slug="name"),
+                       "0002": rfc("0002", DESIGNERS[1], status="superseded", slug="lexical-syntax"),
+                       "0003": rfc("0003", DESIGNERS[2], status="accepted", slug="kernel"),
+                       "0004": rfc("0004", DESIGNERS[0], status="accepted", slug="diagnostic-style")}}
+        repo = FakeRepo({"governance/premise/0002.md": "Drop `;`."})
+        body = "\n".join(a.body for a in run("design", state=st, repo=repo))
+        self.assertIn("Drop `;`.", body)
+
+    def test_superseded_non_founding_findings_reach_proposals_until_replaced(self):
+        rfcs = {"0001": rfc("0001", DESIGNERS[0], status="superseded", slug="byte-type-v2"),
+                "0002": rfc("0002", DESIGNERS[0], status="rejected", slug="byte-type")}
+        repo = FakeRepo({"governance/premise/0001.md": "Use `byte-range`."})
+        text = o.superseded_on_premise(repo, rfcs)
+        self.assertIn("Use `byte-range`.", text)
+        self.assertIn("byte-type-v3", text)
+        rfcs["0003"] = rfc("0003", DESIGNERS[1], status="discussion", slug="byte-type-v3")
+        self.assertEqual(o.superseded_on_premise(repo, rfcs), "")

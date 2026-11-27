@@ -776,3 +776,11 @@ class IssueSweep(unittest.TestCase):
                 mock.patch.object(MB, "_emit", side_effect=lambda root, t, subj, *a, **k: emitted.append(subj["issue"])):
             self.assertEqual(MB.issue_sweep("."), 40)
         self.assertEqual(sorted(emitted), list(range(1, 41)))
+
+
+class FrontMatterTests(unittest.TestCase):
+    def test_invalid_yaml_front_matter_is_kept_as_lines(self):
+        out = MB._front_matter_file("---\nslug: x\nsupersedes: none. Differs: a, b\n---\nbody\n", "accepted", {})
+        self.assertIn("status: accepted", out)
+        self.assertIn("slug: x", out)
+        self.assertTrue(out.endswith("---\nbody\n"))

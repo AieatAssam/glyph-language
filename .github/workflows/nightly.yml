@@ -1,7 +1,9 @@
 name: nightly
 
 # The nightly run. Order: open (merge bot), architect, cycles 1 to 6 (each guarded by
-# cycles_per_night from RULES.md, capped at 6), then bench-nightly, scribe, close, release, site.
+# cycles_per_night from RULES.md, capped at 6), then bench-nightly, scribe, close, release. site.yml deploys
+# the site after the run, in a run of its own: deploy-pages cannot find its artifact among
+# the >100 session artifacts a nightly run uploads.
 # Secrets reach cycle.yml and below only through `secrets: inherit`. Every call job sets the
 # permission ceiling for its callee. Nothing here sets `environment` on a call job.
 
@@ -358,34 +360,3 @@ jobs:
       base_branch: ${{ needs.setup.outputs.base_branch }}
       run_date: ${{ needs.setup.outputs.run_date }}
     secrets: inherit
-
-  site:
-    needs: [setup, close]
-    if: always() && needs.setup.outputs.base_branch == 'main' && needs.close.result != 'skipped'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.setup.outputs.base_branch }}
-          persist-credentials: false
-      - uses: ./.github/actions/setup-tools
-      - name: Build site data
-        run: python site/build_data.py
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site/public
-      - name: Deploy to Pages
-        id: deploy
-        uses: actions/deploy-pages@v4

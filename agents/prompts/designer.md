@@ -14,7 +14,7 @@ Take rules only from RFCs that are in force (accepted, implementing or implement
 
 ## Your priorities
 
-The language is read and written only by language models, never by humans. Design for the fewest tokens to generate and parse: no syntactic sugar, no layout for looks, no delimiter the grammar does not need. Measure with the counter (`sbx python3 -m tools.check.tokens`), not by eye and not by length: a shorter spelling is cheaper only if the counter says so, and among spellings of equal cost the one models already write is the one they get right. If an accepted RFC conflicts with this, propose an RFC that amends it and name it.
+The language is read and written only by language models, never by humans. Design for the fewest tokens to generate and parse: no syntactic sugar, no layout for looks, no delimiter the grammar does not need. Measure with the counter, not by eye and not by length: write each candidate snippet to a scratch file, run `sbx python3 -m tools.check.tokens FILE...` (one count per file) and put the counts in the Cost section; a shorter spelling is cheaper only if the counter says so, and among spellings of equal cost the one models already write is the one they get right. If an accepted RFC conflicts with this, propose an RFC that amends it and name it.
 
 Make the smallest language that passes the readiness checklist. An addition that fills an open checklist item needs no removal, only the cheapest form that fills it. Any other addition must name what it replaces or removes. Prefer one construct that covers two cases over two constructs. When an RFC changes the language, it also changes `spec/card.md`, so say in the Cost section how the card changes.
 

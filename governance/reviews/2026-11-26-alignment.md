@@ -1,5 +1,7 @@
 # Owner review, 2026-11-26: is the language being built for its purpose?
 
+> **Update, 2026-11-27.** This review was written against `main` as of the end of 2026-11-26. Before it merged, the owner superseded RFCs 0037, 0048, 0050, 0085, 0086, 0093, 0099 and 0100 (`governance/premise/`), and a new syntax (RFC 0104) and kernel (RFC 0105) were accepted. The body below describes the earlier state. What that changes is in the last section, "After the supersession".
+
 Purpose (constitution): a language written, repaired and read only by language models, with as few tokens and errors as possible. Human readability is not a goal.
 
 Scope: the seven nights from 2026-11-20 to 2026-11-26. 98 RFCs decided, 578 votes, 7,898 audit events, the RFCs in force, the process tools and the prompts. Token figures are from `python3 -m tools.check.tokens` as changed by this review.
@@ -115,3 +117,42 @@ Owner briefs
 - Does the share of rationales that argue process fall, and the approve share of designer-min and tester rise above one in ten?
 - Does the founding implementation PR merge now that the CR tests can run and the `print(1)` test can be retired?
 - Is anything still proposed while four accepted RFCs are unbuilt?
+
+## After the supersession (2026-11-27)
+
+What happened on `main` between this review and its merge:
+
+- The owner measured each accepted RFC with the old counter and superseded the six that conflicted with the purpose clause, with findings in `governance/premise/`. The runner's CR bug and the agents' access to the counter were fixed there too; this change keeps both and adds the `source-escapes` form.
+- RFC 0104 (lexical syntax v6) was accepted 6 to 0. It decides the layout: one line, a space only between two word tokens, anything else is E0002 with a fix. The `canonical-layout` brief is therefore dropped.
+- RFC 0105 (kernel v46) was accepted with two approvals, both from users, and four abstentions from every voter who had read it. Its text again says "Status: draft" and "No vote before" a prerequisite that is not open. This is the RFC 0085 failure a second time, one night later. Under this change's quorum it would not have passed.
+
+The new syntax, measured with the real vocabulary:
+
+| Program printing 1, 4, 9 through a `sq` function | Tokens |
+| --- | --- |
+| RFC 0085 as written | 54 |
+| RFC 0085 with unneeded spaces removed | 44 |
+| RFC 0105: `sq(n Int)Int fail{ret n*n}ex sq(3)==9 main io fail{var i=1 wh i<=3{put sq(i)i=i+1}}` | 38 |
+| Python, same structure, tight | 25 |
+
+So the supersession bought 16 tokens of 54 on this program, and the language is still about half again the cost of Python for it. Most of the gap is the example clause (`ex sq(3)==9`, a feature Python lacks), the type annotations and the two effect marks.
+
+Findings in `governance/premise/` that the real vocabulary does not support (they were measured with letters divided by four and one token per punctuation mark):
+
+| Premise finding | Old counter | Real vocabulary |
+| --- | --- | --- |
+| Short keywords cost one token, long ones two (0048 "fine as is") | `wh` 1, `while` 2 | Both 1 alone; in canonical layout the long words are cheaper: 22 tokens fewer across RFC 0105's 91 programs (1,108 tokens) |
+| Dropping `;` saves a token per statement (0048 finding 2) | `x=1;y=2` beats nothing | `x=1;y=2` and `x=1 y=2` are both 6. The saving is nil, and it cost the rule that `ret` must end its block |
+| `\n` costs one more token than a raw line feed in text (0048 finding 7) | 2 against 0 | Both 3 in `a\nb` |
+| `"E6"` saves a token over `"E0006"` (0050 finding 1) | holds | Holds: 3 against 4 |
+| `put x`, `n Int`, `main io`, no `fn` | hold | Hold: one token each |
+
+None of these makes RFC 0104 or 0105 wrong enough to supersede again. They are inputs to the `word-spelling` brief and to later amendments.
+
+Briefs now filed (`governance/BRIEFS.yml`), all amending RFCs 0104 and 0105, and all waiting until the fourth founding RFC (diagnostic style, RFC 0108 in discussion) is decided:
+
+- `word-spelling`: the four short words cost 22 tokens more than the long ones, not fewer.
+- `fail-mark`: 39 of 1,108 tokens in RFC 0105's programs, derivable by the compiler. RFC 0105 kept it; the constitution wording in this change now addresses it directly.
+- `input`: still nothing reads standard input.
+
+Read "RFC 0085 stays accepted" above as moot: it is superseded. The equivalent decision now is that RFC 0105 stays accepted despite its vote, for the same reason, and the same trailer supersedes it if you prefer.

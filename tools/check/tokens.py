@@ -14,7 +14,7 @@ Text is cut into pieces by the vocabulary's split rule and each piece is merged 
 The count is the number of tokens left, times RULES caps.tokeniser_scale, rounded up.
 
 CLI:
-  python -m tools.check.tokens FILE [FILE...]     one line per file: COUNT PATH
+  python -m tools.check.tokens FILE [FILE...]     one line per file: COUNT PATH (`-` reads stdin)
   python -m tools.check.tokens --text 'fn f(){}'  count of the given text
   python -m tools.check.tokens --repo DIR         core spec and card totals
 """
@@ -159,6 +159,7 @@ def spec_counts(repo, scale=1.0):
 
 
 def _main(argv):
+    import sys
     ap = argparse.ArgumentParser(prog="tools.check.tokens")
     ap.add_argument("files", nargs="*")
     ap.add_argument("--repo")
@@ -170,7 +171,8 @@ def _main(argv):
     if a.text is not None:
         print(count(a.text, a.scale))
     for f in a.files:
-        print(count(Path(f).read_bytes().decode("utf-8"), a.scale), f)
+        text = sys.stdin.read() if f == "-" else Path(f).read_bytes().decode("utf-8")
+        print(count(text, a.scale), f)
     if not (a.repo or a.files or a.text is not None):
         ap.error("give FILE, --text or --repo")
     return 0

@@ -16,7 +16,7 @@ Milestones follow the build spec (`docs/SPEC.md`, section 13). The orchestrator 
 - All four founding RFCs are built on one shared implementation PR. Nothing merges until one program works end to end, because the gate needs `spec/grammar.peg`, a passing `run` conformance test for every production, and a passing example.
 - So the order is vertical, not horizontal: first the thinnest slice that lexes, parses, compiles and runs one program, merged early; then the remaining plan lines, each widening the grammar with its own tests.
 - No new RFCs are proposed until that first merge puts a compiler on `main`. A feature debated with no compiler to try it on is a guess. The orchestrator now enforces this: no proposals while four or more accepted RFCs are unbuilt (`max_unbuilt_rfcs`).
-- Owner review of 2026-11-26 (`governance/reviews/2026-11-26-alignment.md`): the token counter is now a real tokeniser, and four owner briefs (`governance/BRIEFS.yml`) ask for amendments to the accepted syntax and kernel before they are built: canonical layout, the fail mark, word spellings, and reading standard input.
+- Owner review of 2026-11-26 (`governance/reviews/2026-11-26-alignment.md`): the token counter is now a real tokeniser, and three owner briefs (`governance/BRIEFS.yml`) ask for amendments to the accepted syntax and kernel before they are built: word spellings, the fail mark, and reading standard input. They open once all four founding RFCs are decided.
 - The `print(1)` test and example belong to superseded RFC 0020. The PR that implements the kernel retires them.
 - Done when stage 0 runs kernel programs in CI and the playground, at least 40 conformance tests pass, grammar coverage is complete, and the spec card exists within its cap.
 
