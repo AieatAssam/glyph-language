@@ -1,0 +1,8 @@
+--- meta
+id: lex/v6-err-escape-n
+rfc: 0104
+kind: compile-error
+--- source
+main io{put"\n"}
+--- expect-errors
+{"code":"E0005","span":{"start":12,"end":14}}

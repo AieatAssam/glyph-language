@@ -1,0 +1,8 @@
+--- meta
+id: lex/v6-err-bom
+rfc: 0104
+kind: compile-error
+--- source
+﻿main io{}
+--- expect-errors
+{"code":"E0001","span":{"start":0,"end":3}}

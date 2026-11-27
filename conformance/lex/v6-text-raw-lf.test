@@ -1,0 +1,12 @@
+--- meta
+id: lex/v6-text-raw-lf
+rfc: 0104
+kind: run
+--- source
+main io{put"a
+b"}
+--- expect-stdout
+a
+b
+--- expect-exit
+0
