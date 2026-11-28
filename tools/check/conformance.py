@@ -2,7 +2,8 @@
 
 Container format: a header line `--- NAME` starts each section. `meta` holds `key: value` lines
 (id, kind). Section bodies are the lines between headers joined with newlines; the source is
-written to main.gl with one trailing newline.
+written to main.gl as is, with no newline added after its last line (RFC 0104 rule 4 makes a
+trailing LF an error; a test that wants one ends its source with `\\x0A` under `source-escapes: hex`).
 
 Kinds and pass conditions:
   run            compiles, runs under the execution caps, stdout and exit match expect-stdout, expect-exit
@@ -104,13 +105,13 @@ _ESC = re.compile(rb"\\(x[0-9A-Fa-f]{2}|\\)")
 
 
 def source_bytes(test) -> bytes:
-    """The bytes written to main.gl: the source section plus one LF.
+    """The bytes written to main.gl: the source section, with no LF added at the end.
 
     With `source-escapes: hex` in the meta block, `\\xHH` in the source stands for the byte HH and
     `\\\\` for one backslash, so a test can hold a CR (`\\x0D`), a tab, a BOM or invalid UTF-8
     that an agent cannot type into a file. Without the key the source is taken as written.
     """
-    raw = (test["sections"]["source"] + "\n").encode("utf-8")
+    raw = test["sections"]["source"].encode("utf-8")
     if test["meta"].get("source-escapes") == "hex":
         raw = _ESC.sub(lambda m: b"\\" if m.group(1) == b"\\" else bytes([int(m.group(1)[1:], 16)]), raw)
     return raw

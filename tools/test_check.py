@@ -120,14 +120,17 @@ class ConformanceParseTests(unittest.TestCase):
             p.write_bytes(b"--- meta\nid: a/cr\nkind: compile-error\n--- source\nfn main() io {\r\n}\n"
                           b"--- expect-errors\nE0001 1\n")
             t = conformance.read_test(p)
-            self.assertEqual(conformance.source_bytes(t), b"fn main() io {\r\n}\n")
+            self.assertEqual(conformance.source_bytes(t), b"fn main() io {\r\n}")
 
     def test_hex_escapes_only_when_asked(self):
         body = "--- meta\nid: a/b\nkind: compile-error\n%s--- source\na\\x0D\\x09\\\\x\\xFF\n--- expect-errors\nE0001 1\n"
         plain = conformance.parse_test(body % "")
-        self.assertEqual(conformance.source_bytes(plain), b"a\\x0D\\x09\\\\x\\xFF\n")
+        self.assertEqual(conformance.source_bytes(plain), b"a\\x0D\\x09\\\\x\\xFF")
         esc = conformance.parse_test(body % "source-escapes: hex\n")
-        self.assertEqual(conformance.source_bytes(esc), b"a\r\t\\x\xff\n")
+        self.assertEqual(conformance.source_bytes(esc), b"a\r\t\\x\xff")
+        # No LF is added: RFC 0104 rule 4 rejects a trailing LF, so run 46108968169 got 0/36 (issue 628).
+        self.assertEqual(conformance.source_bytes(conformance.parse_test(
+            "--- meta\nid: a/c\nkind: run\n--- source\nmain io{put 1}\n--- expect-stdout\n1\n--- expect-exit\n0\n")), b"main io{put 1}")
 
     def test_rejects_missing_expectation(self):
         with self.assertRaises(ValueError):
@@ -192,8 +195,8 @@ class RunnerRobustnessTests(unittest.TestCase):
             t = Path(d) / "crlf.test"
             t.write_bytes(b"--- meta\nid: crlf\nkind: compile-error\n--- source\nx\r\ny\n--- expect-errors\nE1 1\n")
             rec = conformance.run_one(Path(d) / "repo", t, Path(d) / "w", {}, None)
-            self.assertEqual(rec["source"], "x\r\ny\n")
-            self.assertEqual((Path(d) / "w" / "main.gl").read_bytes(), b"x\r\ny\n")
+            self.assertEqual(rec["source"], "x\r\ny")
+            self.assertEqual((Path(d) / "w" / "main.gl").read_bytes(), b"x\r\ny")
 
     def test_missing_repo_reports_failures_without_crashing(self):
         result = run.run_checks(Path(tempfile.mkdtemp()) / "absent")
