@@ -40,8 +40,8 @@ test('a CR LF line end is refused, since CR is not allowed (RFC 0104 rule 2)', (
   assert.equal('wasm' in compile(Buffer.from('main io{put 1}\r\n', 'utf8')), false);
 });
 
-test('a callee other than put is refused by the parser with E0100 at that name', () => {
-  assert.equal(reasonOf('main io{show(1)}'), 'E0100 at byte 8');
+test('a call statement other than put parses (RFC 0104 stmt) and codegen refuses it by name', () => {
+  assert.match(reasonOf('main io{show(1)}'), /only `put INT` or an empty body/);
 });
 
 test('a function other than main is refused', () => {
@@ -57,10 +57,10 @@ test('a lexical error gives a reason with its code and byte offset', () => {
   assert.equal(reasonOf('main io{put 1}\t'), 'lexical error E0001 at byte 14');
 });
 
-test('a syntax error gives a reason with E0100 and the byte offset', () => {
-  assert.equal(reasonOf('main{put 1}'), 'E0100 at byte 4');
+test('a syntax error gives a reason with E0100 and the byte offset (RFC 0104 G2: ret is last)', () => {
+  assert.equal(reasonOf('main io{ret put 1}'), 'E0100 at byte 12');
 });
 
-test('a text literal, which the parser does not accept yet, gives E0100 at its byte and does not throw', () => {
-  assert.equal(reasonOf('main io{put"a"}'), 'E0100 at byte 11');
+test('a text literal after put parses, and codegen refuses it: only put INT is generated', () => {
+  assert.match(reasonOf('main io{put"a"}'), /only `put INT` or an empty body/);
 });

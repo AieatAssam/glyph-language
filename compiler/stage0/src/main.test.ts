@@ -53,11 +53,11 @@ test('two builds of the same source write the same bytes', () => {
 });
 
 test('build of a program outside the skeleton exits 1 with the compile reason and writes nothing', () => {
-  const { dir, file } = source('prog.gl', 'main{put 1}');
+  const { dir, file } = source('prog.gl', 'main io{ret put 1}');
   const out = join(dir, 'prog.wasm');
   const r = glyphc(['build', file, '-o', out]);
   assert.equal(r.status, 1);
-  assert.ok(r.stderr.endsWith('glyphc: E0100 at byte 4\n'), r.stderr);
+  assert.ok(r.stderr.endsWith('glyphc: E0100 at byte 12\n'), r.stderr);
   assert.equal(existsSync(out), false);
 });
 
