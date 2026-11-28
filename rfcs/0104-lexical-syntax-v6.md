@@ -20,7 +20,7 @@ Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things, each answering a recorded objection:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
 
 - **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
@@ -32,14 +32,6 @@ The rest is RFC 0102 as voters accepted it. `;` is removed. `ret` ends its block
 ## Motivation
 
 Models write Glyph and need one way to write each construct. RFC 0048 left choices open: where line breaks counted, whether `;` was needed, and two parameter spellings. Each costs tokens, and each is a place for a model to err. The owner measured the base program at 94 tokens. Dropping `;` takes it to 90, and `put x` takes three calls to 88.
-
-Objections to RFC 0102, and how this draft answers each:
-
-- designer-safe and tester: rule 2 and the last sentence of rule 4 said a line feed in a gap is E0001, while the E0002 row and tests `v5-fmt-newline` and `v5-fmt-trailing-lf` expected E0002. Fixed by rule 2 (line feed excluded) and rules 3 and 4 (line feed is E0002). Control characters other than LF stay E0001 by rule 2.
-- tester: the keyword list omitted `fail`, which the kernel grammar used as a terminal. Fixed by rule 7.
-- tester and designer-min: the grammar and examples disagreed with the kernel. Settled here (Summary, "One syntax"). Kernel-v46 is revised to match.
-- tester: `v5-text` and `v5-text-lf` bound a text value with `let`, which kernel-v46 rejects. Changed to `put`.
-- user-1: no way to leave a note in a program. Comments stay out. The compiler ignores them, and the RFC and the tests carry the meaning (Alternatives).
 
 ## Design
 
@@ -192,11 +184,14 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`, including the parser-level tests in this section. Test ids are `lex/<name>`, where `<name>` is the test's name in the tables.
+Conformance tests live in `conformance/lex/`, lexical and syntactic alike. Test ids are `lex/<name>`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
-Test files. Each test is one file `conformance/lex/<name>.test` with meta lines `id: lex/<name>`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`). A run test has `--- expect-stdout`, which is the output without its final LF (each `put` writes one line, so a two-line output is two lines), and `--- expect-exit`, which is `0` unless the table says otherwise. A compile-error test has `--- expect-errors`, one JSON object on one line per error: `{"code":"E0002","span":{"start":11,"end":13},"fix":{"span":{"start":11,"end":13},"replacement":" "}}`. The fix span equals the record span. A test whose fix is `none` omits the `fix` key, because the runner does not compare a key the test omits. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). A source with a CR, a LF or another control byte (`v6-err-cr`, `v6-text-lf`, `v6-fmt-newline`, `v6-fmt-trailing-lf`) has `source-escapes: hex` in its meta block and writes the byte as `\x0D` or `\x0A`. Such a source contains no other backslash, since in hex mode `\\` stands for one backslash. Every other source is written as the table shows.
-
-Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+File format. Each test is one file `conformance/lex/<name>.test` (no other directory). Its meta block holds `id: lex/<name>`, `rfc: 0104` and the `kind` listed here (`run`, `compile-error` or `fmt`). In the tables below, LF and CR stand for those bytes.
+- `--- source` is the program's bytes exactly; the runner adds no LF. A program with a CR, a raw LF or a trailing LF sets `source-escapes: hex` in meta and writes each such byte as `\x0D` or `\x0A`. Under that key `\\` is one backslash, so a test with such a byte writes a program backslash as `\\\\`.
+- Run tests: each line of `--- expect-stdout` is one line of output. Each `put` writes its LF (RFC 0105, P2), and the runner removes one final LF before comparing. So `put 1` then `put 2` gives the lines `1` and `2`.
+- Compile-error tests: `--- expect-errors` holds one JSON object per record, `{"code":"E0100","span":{"start":a,"end":b}}`. A table row with a fix `{a..b, "r"}` adds `"fix":{"span":{"start":a,"end":b},"replacement":"r"}`, and the fix span equals the record span. A row with fix `none` has no `fix` key.
+- A lexical or syntax error stops the program before the checker (RFC 0064, L2), so a parse-error test lists only that record, even when its program has no `main`.
+- `fmt` tests: `--- expect-stdout` is the program with no LF after it, since a canonical program has none (rule 4).
 
 Run tests (stdout and exit 0 unless stated):
 
@@ -214,7 +209,7 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-logic` | `main io{if not false and true or false{put 1}}` | `1` | `not`, `and`, `or`, `true`, `false` |
 | `v6-cmp-all` | `main io{if 1<=1 and 2>=2 and 1!=2 and 1==1 and 2>1 and 1<2{put 1}}` | `1` | all six `cmp_op` |
 | `v6-text` | `main io{put"x"}` | `x` | `TEXT` as the argument of `put` |
-| `v6-text-lf` | `main io{put"a` LF `b"}` (LF is raw inside the text) | `a` LF `b` | raw LF is content (rule 9) |
+| `v6-text-lf` | `main io{put"a` LF `b"}` (LF is raw inside the text) | `a`, `b` | raw LF is content (rule 9) |
 | `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
