@@ -140,8 +140,6 @@ G12. `fn` is an identifier, so `fn main io{}` is E0100 at `main`. A declaration 
 
 G13. At end of file, if the grammar needs more tokens, the error is E0100 at `EOF`.
 
-G14. The parser reports its first error (E0003 or E0100) and stops; it emits no later record. The checker does not run on a program with a lexical or syntax error, so no E0500 or kernel code is reported with one.
-
 ### Diagnostics
 
 | Code | Block | Meaning | Span | Fix | Rules |
@@ -194,9 +192,15 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Files. Each test is `conformance/lex/<name>.test` with meta `id: lex/<name>`, `rfc: 0104`, and the `kind` its table gives. Sections: `run` has `source`, `expect-stdout`, `expect-exit`; `compile-error` has `source`, `expect-errors`; `fmt` (`lex/v6-fmt-canon` only) has `source`, `expect-stdout`. The source is written as given, with no LF added at its end; a line break inside the section is a raw LF. A CR, or an LF at the end of the source, is written as `\x0D` or `\x0A` on the source's last line, with `source-escapes: hex` in meta (this applies to `v6-err-cr` and `v6-fmt-trailing-lf`; no hex-mode source contains a backslash). `expect-stdout` is the program's stdout with its last LF removed; `v6-min` has an empty section. `expect-errors` holds one JSON object per line, for example `{"code":"E0002","span":{"start":11,"end":13},"fix":{"span":{"start":11,"end":13},"replacement":" "}}`. Span is start a, end b from the row's bytes. Give `fix` only where the row names a replacement. Each compile-error test expects exactly one line: the runner compares records as a set, and the first error stops the compiler (lexer rule 13, Grammar G14).
+Conformance tests live in `conformance/lex/`, all of them, parser tests included. Each test is one file `conformance/lex/<name>.test` with `id: lex/<name>` in its meta block. Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
-Byte offsets count from the first byte of the program. Every row with `v6-fmt-` in its name, and every row of the compile-error table, is kind `compile-error`; only `lex/v6-fmt-canon` is kind `fmt`. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+File format, as read by `tools/check/conformance.py`:
+
+- `--- meta` holds `id`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`). It also holds `source-escapes: hex` when the source has a control character (LF, CR, tab), a BOM or an invalid UTF-8 byte. Four tests need it: `v6-text-lf`, `v6-err-cr`, `v6-fmt-newline` and `v6-fmt-trailing-lf`.
+- `--- source` is the program. Its lines are joined with LF, and no LF is added after the last line. In hex mode, `\xHH` is the byte HH (`\x0A` is LF, `\x0D` is CR), and `\\` is one backslash. Write the program in the table with LF and CR meaning those bytes.
+- `run`: `--- expect-stdout` holds the output lines, and is empty where the table says `none`. `--- expect-exit` holds `0` unless the table says otherwise.
+- `compile-error`: `--- expect-errors` holds one JSON line per record: `{"code":"C","span":{"start":a,"end":b}}`. A row with a fix adds `,"fix":{"span":{"start":c,"end":d},"replacement":"r"}`. In a row, `{c..d, "r"}` gives that fix. A row with no `{...}` has a fix whose span is the record's span. A row with fix `none` has no `fix` key. The runner does not check that the key is absent; a node test does.
+- `fmt`: `--- expect-stdout` is the program text, unchanged.
 
 Run tests (stdout and exit 0 unless stated):
 
@@ -218,11 +222,11 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
-Compile-error tests (kind `compile-error`, one expected record each; fix `none` unless stated):
+Compile-error tests (one record each; fix `none` unless stated):
 
 | Test | Program | Record at | Code |
 | --- | --- | --- | --- |
-| `v6-err-cr` | `main io{\x0Dput 1}` (hex source) | bytes 8 to 9 (the CR) | E0001 |
+| `v6-err-cr` | `main io{` CR `put 1}` | bytes 8 to 9 (the CR) | E0001 |
 | `v6-err-semi` | `main io{put 1;put 2}` | bytes 13 to 14 (the `;`) | E0001 |
 | `v6-err-colon` | `main io{let a:Int=1}` | bytes 13 to 14 (the `:`) | E0001 |
 | `v6-err-comment` | `main io{put 1//2}` | bytes 14 to 15 (the second `/`) | E0100 |
@@ -230,10 +234,10 @@ Compile-error tests (kind `compile-error`, one expected record each; fix `none` 
 | `v6-fmt-missing-space` | `main io{put 1put 2}` | bytes 13 to 13, fix replacement ` ` | E0002 |
 | `v6-fmt-space-punct` | `main io{put (1)}` | bytes 11 to 12, fix replacement empty | E0002 |
 | `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
-| `v6-fmt-trailing-lf` | `main io{}\x0A` (hex source) | bytes 9 to 10, fix replacement empty | E0002 |
+| `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
 | `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
-| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix span 12 to 15, replacement `7` | E0006 |
-| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix span 12 to 14, replacement `0` | E0006 |
+| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
+| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
 | `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
 | `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
 | `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
@@ -256,7 +260,7 @@ Compile-error tests (kind `compile-error`, one expected record each; fix `none` 
 | `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
 | `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
 
-Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; `expect-stdout` is the same text, with no trailing LF.
+Format: `lex/v6-fmt-canon` (kind `fmt`): source `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; `expect-stdout` is the same text, since the formatter prints it unchanged.
 
 Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
