@@ -192,12 +192,18 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`, one file per test: `conformance/lex/<name>.test`, with id `lex/<name>`, where `<name>` is the test name in the tables below. The format is the one `tools/check/conformance.py` reads (RFC 0004 section 7):
+Conformance tests live in `conformance/lex/`, one file per test, named `<name>.test` (`v6-min` is `conformance/lex/v6-min.test`). Test ids are `lex/<name>`. Parser tests are in the same directory; this RFC uses no other directory. Each file uses the container read by `tools/check/conformance.py`: a `--- meta` block with `id: lex/<name>`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`); then `--- source`; then `--- expect-stdout` and `--- expect-exit` for a run test (exit 0 unless stated), or `--- expect-errors` for a compile-error test. The source section is written as given, with no LF added after its last line. A test whose source needs a CR, a trailing LF, a leading space or a BOM adds `source-escapes: hex` to its meta block. Then `\xHH` in the source is the byte HH, and `\\` is one backslash. These tests use it: `v6-err-cr`, `v6-fmt-leading-space`, `v6-fmt-trailing-lf`. Each line of `expect-errors` is one JSON object with `code`, and `span` with byte `start` and `end` (end exclusive). Where the table gives a fix, the object also has `fix` with `span` and `replacement`. Where the table says Fix `none`, the object has no `fix` key. The runner compares only the keys an object gives. Example:
 
-- **Meta block.** `id: lex/<name>`, `rfc: 0104`, and `kind: run`, `compile-error` or `fmt`. A test without all three is refused.
-- **Source section.** The program, with no LF added after its last line. If the program holds a control byte (CR, LF or TAB) or ends in LF, the meta block also has `source-escapes: hex`. Each such byte is written `\x0D`, `\x0A` or `\x09`. In hex mode each backslash the Glyph program needs is written twice, because `\\` in the file is one backslash, so Glyph `\"` is written `\\"`. Other tests give the program as written. In the tables, `LF` and `CR` name those bytes.
-- **Run tests.** `expect-stdout` holds the output. Each `put` writes its value and one LF; the runner strips one trailing LF. `expect-exit` is `0` unless the row says otherwise.
-- **Compile-error tests.** `expect-errors` holds one JSON line per error, `{"code":C,"span":{"start":a,"end":b}}`, for the row's `bytes a to b`. A row that gives a fix adds `"fix":{"span":{"start":a,"end":b},"replacement":R}`, with the same span and R as a JSON string (`" "`, `""` or `"7"`). A row with fix `none` has no fix key.
+```
+--- meta
+id: lex/v6-err-zero-fix
+rfc: 0104
+kind: compile-error
+--- source
+main io{put 007}
+--- expect-errors
+{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}
+```
 
 Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
@@ -235,8 +241,8 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
 | `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
 | `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
-| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix replacement `7` | E0006 |
-| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix replacement `0` | E0006 |
+| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
+| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
 | `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
 | `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
 | `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
@@ -263,7 +269,7 @@ Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fi
 
 Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
-Every grammar production is reached by a `v6-` run test or compile-error test. `ptype` is reached by `v6-params` and `v6-err-ptype`; `rtype` by `v6-rtype-ex`.
+Every grammar production is reached by a `v6-` run test or compile-error test, except `ptype` and `rtype`, which are reached by `v6-err-ptype` and `v6-params`.
 
 Retirement. Agents may not edit or delete an existing conformance test. The tests below fail under this RFC. The owner removes each file, or lists it as retired, in a `rules_changed` commit, and the implementing PR reports them red until then. In this checkout only `lex/v4-lf-only` and `kernel/print-one` exist.
 
