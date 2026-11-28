@@ -511,6 +511,21 @@ class RealGitTests(unittest.TestCase):
         self.assertEqual(self.git(self.bare, "show", f"{tip}:stdlib/b.glyph"), "b")
         self.git(self.bare, "merge-base", "--is-ancestor", "refs/heads/main", tip)
 
+    def test_update_keeps_branch_plan_copy_on_plan_add_add_conflict(self):
+        pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
+        pub._commit("agent/y", "main", [("rfcs/0109.plan.md", b"branch ticks\n")], "open", "impl-1")
+        (self.root / "rfcs" / "0109.plan.md").parent.mkdir(exist_ok=True)
+        (self.root / "rfcs" / "0109.plan.md").write_text("main copy\n", encoding="utf-8")
+        (self.root / "new.txt").write_text("from main\n", encoding="utf-8")
+        self.git(self.root, "add", "rfcs/0109.plan.md", "new.txt")
+        self.git(self.root, "commit", "-q", "-m", "plan merged to main")
+        self.git(self.root, "push", "-q", "origin", "HEAD:main")
+        pub._commit("agent/y", "agent/y", [("stdlib/c.glyph", b"c\n")], "update", "impl-1")
+        tip = "refs/heads/agent/y"
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:rfcs/0109.plan.md"), "branch ticks")
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:stdlib/c.glyph"), "c")
+        self.assertEqual(self.git(self.bare, "show", f"{tip}:new.txt"), "from main")
+
     def test_live_mode_reads_branch_only_on_origin(self):
         pub = P.Publisher(root=self.root, base="main", dry=True, repo="local/dryrun", git_real=True)
         pub._commit("agent/x", "main", [("stdlib/a.glyph", b"a\n")], "open", "impl-1")

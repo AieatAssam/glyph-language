@@ -373,8 +373,13 @@ class Publisher:
                 # else a stale branch misses files its new code uses. On a conflict keep the old parent.
                 self._git(["fetch", "--quiet", "origin", f"refs/heads/{self.base}"])
                 base_tip = self._git(["rev-parse", "FETCH_HEAD"])
-                res = subprocess.run(["git", "merge-tree", "--write-tree", parent, base_tip], cwd=self.root,
-                                     env=gitops.git_env(), capture_output=True)
+                res = subprocess.run(["git", "merge-tree", "--write-tree", "--name-only", parent, base_tip],
+                                     cwd=self.root, env=gitops.git_env(), capture_output=True)
+                clash = res.stdout.decode().split("\n\n")[0].splitlines()[1:]
+                if clash and all(PLAN.fullmatch(f) for f in clash):
+                    # Plan files that the base merged after the branch was cut: the branch's copy keeps its ticks.
+                    res = subprocess.run(["git", "merge-tree", "--write-tree", "-X", "ours", parent, base_tip],
+                                         cwd=self.root, env=gitops.git_env(), capture_output=True)
                 merged = res.stdout.decode().split("\n")[0].strip()
                 if res.returncode == 0 and merged != self._git(["rev-parse", f"{parent}^{{tree}}"]):
                     parent = self._git(["commit-tree", merged, "-p", parent, "-p", base_tip,
