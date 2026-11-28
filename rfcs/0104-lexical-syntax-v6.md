@@ -20,7 +20,7 @@ Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things, each answering a recorded objection:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
 
 - **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
@@ -32,8 +32,6 @@ The rest is RFC 0102 as voters accepted it. `;` is removed. `ret` ends its block
 ## Motivation
 
 Models write Glyph and need one way to write each construct. RFC 0048 left choices open: where line breaks counted, whether `;` was needed, and two parameter spellings. Each costs tokens, and each is a place for a model to err. The owner measured the base program at 94 tokens. Dropping `;` takes it to 90, and `put x` takes three calls to 88.
-
-The changes from RFC 0102 are the four listed in Summary, and nothing else. Each is stated as a rule in Design.
 
 ## Design
 
@@ -134,8 +132,6 @@ G12. `fn` is an identifier, so `fn main io{}` is E0100 at `main`. A declaration 
 
 G13. At end of file, if the grammar needs more tokens, the error is E0100 at `EOF`.
 
-G14. The parser reports the first syntax error (E0003 or E0100) and emits no later error, as rule 13 does for the lexer. Each compile-error test expects exactly one record.
-
 ### Diagnostics
 
 | Code | Block | Meaning | Span | Fix | Rules |
@@ -188,16 +184,15 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`, one file per test, named `v6-<name>.test`. Each file's `--- meta` block has `id: lex/v6-<name>`, `kind: run`, `compile-error` or `fmt`, and `rfc: 0104`. Its sections are `--- source` and the expect sections below. Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Test files. Every test in the tables below is one file `conformance/lex/v6-<name>.test`, parser tests included. Its id is `lex/v6-<name>`. Meta block: `id: lex/v6-<name>`, `rfc: 0104`, and `kind: run`, `compile-error` or `fmt`. A run test has sections `--- source`, `--- expect-stdout` and `--- expect-exit`. A compile-error test has `--- source` and `--- expect-errors`. A fmt test has `--- source` and `--- expect-stdout`.
 
-Expect sections (format of `tools/check/conformance.py`):
+Expected records. Each line of `--- expect-errors` is one JSON object holding the table's code and span, with `fix` where the table gives one, for example `{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}`. The runner compares only the keys it is given, so a row with no fix gives no `fix` key.
 
-- `run`: `--- expect-stdout` holds stdout without its final LF. `put` writes an LF after each value, so output `1`, `2` is the body `1` LF `2`. A test with no output has an empty section. `--- expect-exit` is `0` unless stated.
-- `compile-error`: `check` exits 1 when it reports an error. `--- expect-errors` has one JSON line per expected record, for example `{"code":"E0100","span":{"start":13,"end":14}}`. Where the table gives a fix, add `"fix":{"span":{"start":12,"end":12},"replacement":" "}`. The runner compares only the keys a line gives, so omit `fix` where the table says none.
-- `fmt`: `--- expect-stdout` holds the formatted program.
-- Meta key `source-escapes: hex` is set only on `v6-err-cr` (the CR is `\x0D`) and `v6-fmt-trailing-lf` (the trailing LF is `\x0A`). In hex mode `\\` is one backslash, so no other test sets it.
+Source bytes. The source section is the program as written. Where a program holds a CR or a trailing LF, set `source-escapes: hex` in meta and write `\x0D` or `\x0A` for the byte. With that key, `\\` in the source stands for one backslash, so a program with a two-character `\\` writes four backslashes. The tests that need the key are `v6-err-cr` (`main io{\x0Dput 1}`) and `v6-fmt-trailing-lf` (`main io{}\x0A`). Raw LF inside a section is written as a line break.
 
-Run tests (stdout and exit 0 unless stated):
+Run tests (stdout and exit 0 unless stated). Expected stdout lists the output lines in the table, each ending in a newline.
+
+Byte spans. "Bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
 | Test | Program | Output | Covers |
 | --- | --- | --- | --- |
@@ -255,7 +250,7 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
 | `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
 
-Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; the formatter prints it unchanged.
+Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; the formatter prints it unchanged, so `--- expect-stdout` holds the same text.
 
 Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
