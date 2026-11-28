@@ -12,21 +12,21 @@ votes:
 
 Class: language
 Slug: lexical-syntax-v6
-Status: draft (attempt 6)
 Replaces: RFC 0048 (lexical-syntax-v4, superseded by the owner).
-Revises: RFC 0102 (lexical-syntax-v5, rejected on attempt 5). It keeps what voters accepted there and changes only what Summary lists.
+Revises: RFC 0102 (lexical-syntax-v5). It keeps what voters accepted there and changes only what Summary lists.
 Amends: RFC 0004 (expected results of `diag/fix-present` and `diag/record-shape`, Design section "Expected results"); RFC 0014 (its rules 3, 5, 7, 8, 13 to 15, as restated here); RFC 0050 (its `diag/record-shape` line, E0100 at bytes 4 to 7, is replaced).
 Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `spec/core/diagnostic.md`. Codes are listed in `spec/errors.json`.
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Its rules:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
 
-- **Line feeds.** A line feed outside a text literal is E0002. Tab, CR and other control characters are E0001.
+- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
-- **One syntax.** The forms in this RFC are the only forms. `kernel-v46` uses them.
+- **One syntax.** RFC 0103's forms (`n:Int`, `):Int`, `main()`, a two-line sample) are not adopted. `kernel-v46` uses the forms in this RFC.
+- **Text tests.** Tests that bind a text literal with `let` now use `put`. `kernel-v46` rule T3 makes a text literal valid only as the argument of `put`.
 
-`;` is removed. `ret` ends its block. `put` is a keyword and takes its argument without parentheses: `put x`. The top level holds only declarations. A parameter is `n Int`, a result follows the `)` as `)Int`, and a declaration with no parameters has no parentheses: `main io{...}`. Comments are removed. A raw LF inside a text literal is content, and the `\n` escape is removed.
+The rest is RFC 0102 as voters accepted it. `;` is removed. `ret` ends its block. `put` is a keyword and takes its argument without parentheses: `put x`. The top level holds only declarations. A parameter is `n Int`, a result follows the `)` as `)Int`, and a declaration with no parameters has no parentheses: `main io{...}`. Comments are removed. A raw LF inside a text literal is content, and the `\n` escape is removed.
 
 ## Motivation
 
@@ -183,21 +183,19 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-All tests in this plan live in `conformance/lex/`, whatever block they exercise. Each meta block gives `id: lex/<name>`, `rfc: 0104` and `kind`.
+Conformance tests live in `conformance/lex/` and are read by `tools/check/conformance.py`. Test ids are `lex/<name>`. Each test is the file `conformance/lex/<name>.test`, with meta lines `id: lex/<name>`, `rfc: 0104` and `kind: run`, `compile-error` or `fmt`.
 
-Container form. Each `source` is the program as written, with no LF after its last character. A line break inside a program is an LF byte. Two rows need control bytes that cannot be typed: `v6-err-cr` and `v6-fmt-trailing-lf` set `source-escapes: hex` in meta and write CR as `\x0D` and LF as `\x0A`. In hex mode the container writes one backslash as two; these two rows contain no backslash.
+Source sections. The source section is the program with no newline after its last byte. A plain line break inside a source section is a LF in the program. Where a test needs a CR, a final LF or a BOM, it sets `source-escapes: hex` in meta and writes `\x0D`, `\x0A` or `\xEF\xBB\xBF`. In hex mode a source backslash is written `\\`. Only tests that need one of those bytes use hex. In the program column of the tables below, LF is a plain line break.
 
-Run tests. The meta block has `kind: run`, an `expect-stdout` section (the table's Output, one `put` per line; the runner removes one final LF) and `expect-exit: 0` unless stated. Each `put` ends with LF (`kernel-v46` P2). A run test needs `glyphc build` and the WASI host.
+Sections. A run test has an `expect-stdout` section (empty for no output) and `expect-exit` `0`. A compile-error test has `expect-errors` only, with one JSON line per record, for example `{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}`. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). In `span`, `start` and `end` are the bytes given in the tables, with `end` exclusive. A row that gives a fix replacement adds a `fix` object; other rows omit `fix`. A fmt test's `expect-stdout` is the program itself.
 
-Compile-error tests. The meta block has `kind: compile-error`. `expect-errors` holds one JSON object per error, for example `{"code":"E0100","span":{"start":12,"end":15}}`. "bytes a to b" means `start` a and `end` b, exclusive; byte offsets count from the first byte of the program. A row that names a fix adds `"fix":{"span":{...},"replacement":"..."}` with the same span as the record unless the row gives another, and an empty replacement is `""`. A row with no fix has no `fix` key. The runner compares `code`, `span` and `fix` (RFC 0004 section 7) and the multiset must match. `v6-err-int-big` is a compile-error test whose record comes from the checker (rule 8), not from the lexer.
-
-Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
 Run tests (stdout and exit 0 unless stated):
 
 | Test | Program | Output | Covers |
 | --- | --- | --- | --- |
-| `v6-min` | `main io{}` | none | declaration with no parentheses, empty block |
+| `v6-min` | `main io{}` | empty | declaration with no parentheses, empty block |
 | `v6-put` | `main io{put 1 put 2}` | `1`, `2` | `put`, `INT`, statements with no separator |
 | `v6-ret-last` | `f(n Int)Int fail{ret n+1}main io fail{put f(1)}` | `2` | parameter, result type, `ret expr` |
 | `v6-ret-bare` | `g(n Int)io{if n==0{ret}put n}main io fail{g(0)g(1)}` | `1` | bare `ret`, `if` without `else`, `args` |
@@ -210,46 +208,46 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-cmp-all` | `main io{if 1<=1 and 2>=2 and 1!=2 and 1==1 and 2>1 and 1<2{put 1}}` | `1` | all six `cmp_op` |
 | `v6-text` | `main io{put"x"}` | `x` | `TEXT` as the argument of `put` |
 | `v6-text-lf` | `main io{put"a` LF `b"}` (LF is raw inside the text) | `a` LF `b` | raw LF is content (rule 9) |
-| `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
+| `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes (no hex) |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
-Compile-error tests (one record each; fix `none` unless stated):
+Compile-error tests (one JSON record each; `fix` only where stated):
 
-| Test | Program | Record at | Code |
+| Test | Program | Span (bytes) | Code |
 | --- | --- | --- | --- |
-| `v6-err-cr` | `main io{` CR `put 1}` | bytes 8 to 9 (the CR) | E0001 |
-| `v6-err-semi` | `main io{put 1;put 2}` | bytes 13 to 14 (the `;`) | E0001 |
-| `v6-err-colon` | `main io{let a:Int=1}` | bytes 13 to 14 (the `:`) | E0001 |
-| `v6-err-comment` | `main io{put 1//2}` | bytes 14 to 15 (the second `/`) | E0100 |
-| `v6-fmt-two-spaces` | `main io{put  1}` | bytes 11 to 13, fix replacement ` ` | E0002 |
-| `v6-fmt-missing-space` | `main io{put 1put 2}` | bytes 13 to 13, fix replacement ` ` | E0002 |
-| `v6-fmt-space-punct` | `main io{put (1)}` | bytes 11 to 12, fix replacement empty | E0002 |
-| `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
-| `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
-| `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
-| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
-| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
-| `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
-| `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
-| `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
-| `v6-err-keyword-let` | `let let=1` | bytes 0 to 3 (first `let`) | E0003 |
-| `v6-err-keyword-let-block` | `main io{let let=1}` | bytes 12 to 15 (second `let`) | E0003 |
-| `v6-err-keyword-io-name` | `io io{}` | bytes 0 to 2 | E0003 |
-| `v6-err-keyword-fail-name` | `fail io{}` | bytes 0 to 4 | E0003 |
-| `v6-err-keyword-param` | `f(ret Int)io{}` | bytes 2 to 5 | E0003 |
-| `v6-err-ptype` | `f(t Text)io{}` | bytes 4 to 8 | E0100 |
-| `v6-err-empty-params` | `f()Int{}` | bytes 2 to 3 | E0100 |
-| `v6-err-result-order` | `f io Int{}` | bytes 5 to 8 | E0100 |
-| `v6-err-fail-order` | `f fail io{}` | bytes 7 to 9 | E0100 |
-| `v6-err-let-type` | `main io{let a Int=1}` | bytes 14 to 17 | E0100 |
-| `v6-err-fn-old` | `fn main io{}` | bytes 3 to 7 | E0100 |
-| `v6-err-ret-mid` | `main io{ret put 1}` | bytes 12 to 15 | E0100 |
-| `v6-err-expr-stmt` | `main io{1+2}` | bytes 8 to 9 | E0100 |
-| `v6-err-ex-block` | `main io{ex 1}` | bytes 8 to 10 | E0100 |
-| `v6-err-cmp-chain` | `main io{put 1<2<3}` | bytes 15 to 16 | E0100 |
-| `v6-err-else-if` | `main io{if true{}else if true{}}` | bytes 22 to 24 | E0100 |
-| `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
-| `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
+| `v6-err-cr` | `main io{\x0Dput 1}` (hex) | 8 to 9 (the CR) | E0001 |
+| `v6-err-semi` | `main io{put 1;put 2}` | 13 to 14 (the `;`) | E0001 |
+| `v6-err-colon` | `main io{let a:Int=1}` | 13 to 14 (the `:`) | E0001 |
+| `v6-err-comment` | `main io{put 1//2}` | 14 to 15 (the second `/`) | E0100 |
+| `v6-fmt-two-spaces` | `main io{put  1}` | 11 to 13, fix replacement ` ` | E0002 |
+| `v6-fmt-missing-space` | `main io{put 1put 2}` | 13 to 13, fix replacement ` ` | E0002 |
+| `v6-fmt-space-punct` | `main io{put (1)}` | 11 to 12, fix replacement `""` | E0002 |
+| `v6-fmt-newline` | `main io{` LF `put 1}` | 8 to 9, fix replacement `""` | E0002 |
+| `v6-fmt-trailing-lf` | `main io{}\x0A` (hex) | 9 to 10, fix replacement `""` | E0002 |
+| `v6-fmt-leading-space` | ` main io{}` | 0 to 1, fix replacement `""` | E0002 |
+| `v6-err-zero-fix` | `main io{put 007}` | 12 to 15, fix replacement `"7"` | E0006 |
+| `v6-err-zero-00` | `main io{put 00}` | 12 to 14, fix replacement `"0"` | E0006 |
+| `v6-err-int-big` | `main io{put 9223372036854775808}` | 12 to 31 | E0500 |
+| `v6-err-escape` | `main io{put"\n"}` | 12 to 14 | E0005 |
+| `v6-err-unterminated` | `main io{put"ab` (file ends) | 11 to 14 | E0005 |
+| `v6-err-keyword-let` | `let let=1` | 0 to 3 (first `let`) | E0003 |
+| `v6-err-keyword-let-block` | `main io{let let=1}` | 12 to 15 (second `let`) | E0003 |
+| `v6-err-keyword-io-name` | `io io{}` | 0 to 2 | E0003 |
+| `v6-err-keyword-fail-name` | `fail io{}` | 0 to 4 | E0003 |
+| `v6-err-keyword-param` | `f(ret Int)io{}` | 2 to 5 | E0003 |
+| `v6-err-ptype` | `f(t Text)io{}` | 4 to 8 | E0100 |
+| `v6-err-empty-params` | `f()Int{}` | 2 to 3 | E0100 |
+| `v6-err-result-order` | `f io Int{}` | 5 to 8 | E0100 |
+| `v6-err-fail-order` | `f fail io{}` | 7 to 9 | E0100 |
+| `v6-err-let-type` | `main io{let a Int=1}` | 14 to 17 | E0100 |
+| `v6-err-fn-old` | `fn main io{}` | 3 to 7 | E0100 |
+| `v6-err-ret-mid` | `main io{ret put 1}` | 12 to 15 | E0100 |
+| `v6-err-expr-stmt` | `main io{1+2}` | 8 to 9 | E0100 |
+| `v6-err-ex-block` | `main io{ex 1}` | 8 to 10 | E0100 |
+| `v6-err-cmp-chain` | `main io{put 1<2<3}` | 15 to 16 | E0100 |
+| `v6-err-else-if` | `main io{if true{}else if true{}}` | 22 to 24 | E0100 |
+| `v6-err-if-expr` | `main io{let x=if true{}}` | 14 to 16 | E0100 |
+| `v6-err-eof` | `main io{put 1` (file ends) | 13 to 13 (EOF) | E0100 |
 
 Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; the formatter prints it unchanged.
 
@@ -259,7 +257,7 @@ Every grammar production is reached by a `v6-` run test or compile-error test, e
 
 Retirement. Agents may not edit or delete an existing conformance test. The tests below fail under this RFC. The owner removes each file, or lists it as retired, in a `rules_changed` commit, and the implementing PR reports them red until then. In this checkout only `lex/v4-lf-only` and `kernel/print-one` exist.
 
-- `lex/v4-lf-only` (present): its program is `fn main() io {`, a line feed, and `}`. A line feed is E0002 (rule 4). Replaced by `v6-fmt-newline`.
+- `lex/v4-lf-only`: its program is `fn main() io {`, a line feed, and `}`. A line feed is E0002 (rule 4). Replaced by `v6-fmt-newline`.
 - `lex/punct-semicolon`: `;` is E0001 now.
 - `lex/comment-line`: comments are removed.
 - `lex/kw-fn`, `lex/kw-while`, `lex/kw-return`, `lex/kw-example`: `fn` is an identifier; `while`, `return` and `example` are identifiers; `wh`, `ret` and `ex` are the keywords. Replaced by the `v6-` tests above.
