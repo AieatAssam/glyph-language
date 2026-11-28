@@ -45,12 +45,9 @@ sq(n Int)Int{ret n*n}ex sq(3)==9 main io{var i=1 wh i<=3{put sq(i)i=i+1}}
 
 ## Motivation
 
-Attempt 47. RFC 0105 (kernel-v46) was superseded. Each finding of the owner's measurement is answered here.
-
-- **`fail` (finding 1).** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body (F7 checked it, and E0403 rejected a wrong mark). Principle 3 exempts such a mark, and also a mark that nearly every function would carry: a function that adds, loops or calls another function is the common case. The mark tells a reader nothing the body does not. The rare case, a function that cannot trap, is left unmarked too, because a second mark for it would be one more token on a few functions and one more rule to check. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
-- **`io` (finding 1, same test).** `io` stays. It is not carried by most functions: a function that writes no output is the unmarked case. More importantly, rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). If `io` were derived from the body, a caller would have to read the callee's body. Trapping changes no rule that a caller or an example follows, so the `fail` mark had no reader. Its only checker was F7, which polices the mark itself.
-- **Standard input (finding 3).** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
-- **Superseded rules (finding 4).** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5) and the codes (Diagnostics) are restated. The trap line (TR1) is stated once, here: no diagnostic RFC in force defines one. RFC 0050 is superseded, and RFCs 0101, 0106 and 0107 are rejected.
+- **`fail` is removed.** The counter gives one token per `fail` mark, and the owner measured 39 of RFC 0105's 1108 tokens on its 91 programs (Cost). The mark is a fact the compiler derives from the body, and most functions would carry it: a function that adds, loops or calls another is the common case. The rare function that cannot trap is left unmarked too, because a second mark would cost a token and a rule. A trap is still a defined outcome (TR1), so principle 7 holds.
+- **`io` stays.** Most functions do not carry it. Rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). Deriving `io` from the body would make every caller read the callee's body.
+- **Forms.** The spellings are those of RFC 0104: `wh`, `ret`, `ex`, `put`.
 
 ## Design
 
@@ -62,7 +59,7 @@ L1. Syntax is the grammar of RFC 0104, with one change. A declaration is:
 
 The `fail` alternative is removed from `decl`, and rule G10 of RFC 0104 reads "the marks come in this order: result type, then `io`". `fail` is still a keyword (RFC 0104 rule 7). So a `fail` where a mark or a block is expected is E0100 at it (RFC 0104 G3). No other rule of RFC 0104 changes.
 
-L2. A statement starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary.
+L2. A statement or block item starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary. `ret` is the last item of its block (RFC 0104 G2).
 
 L3. At top level a declaration starts with a name. `fn main io{}` is E0100 at `main` (RFC 0104 G12).
 
@@ -84,12 +81,32 @@ T6. A type position accepts `Int` and `Bool` only. `Int` and `Bool` used as valu
 
 Precedence, loosest first: `or`; `and`; `==` `!=` `<` `<=` `>` `>=`; `+` `-`; `*` `/` `%`; unary `-` `not`; then call, literal, name, and `( expr )`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6).
 
-The parser uses the `expr`, `cmp_expr`, `add_expr`, `mul_expr`, `unary`, `primary` and `args` productions of RFC 0104, with this precedence. In particular:
+The parser implements these productions of RFC 0104, unchanged:
 
-- A name followed by `(` is a call, `IDENT "(" [ args ] ")"`, and `f()` calls with no arguments. A name not followed by `(` is a name.
-- `( expr )` is a group. So `put("a")` is `put` followed by a group that holds a text literal, which T3 rejects.
-- `TEXT` is a primary wherever an expression may stand. The parser accepts it everywhere, and T3 decides where it is valid.
-- An expression ends at the first token that is not a binary operator, a comparison or `(` after a name. The next token then starts a statement or a declaration. So `put a-1 put b` is two statements, and `ex f(1)main io{}` is an example followed by a declaration.
+```
+expr     = and_expr { "or" and_expr }
+and_expr = cmp_expr { "and" cmp_expr }
+cmp_expr = add_expr [ cmp_op add_expr ]
+add_expr = mul_expr { ( "+" | "-" ) mul_expr }
+mul_expr = unary { ( "*" | "/" | "%" ) unary }
+unary    = ( "-" | "not" ) unary | primary
+primary  = INT | TEXT | "true" | "false" | IDENT [ "(" [ args ] ")" ] | "(" expr ")"
+args     = expr { "," expr }
+```
+
+X1. The parser reports its first syntax error (E0100 or E0003) and emits nothing after it.
+
+X2. `TEXT` is a primary wherever an expression may stand. The parser accepts it; T3 is the checker's rule. So `let t="a"` parses, and the checker reports E0200 at the literal.
+
+X3. A second comparison operator after one `cmp_expr` is E0100 at it (G6).
+
+X4. A keyword the grammar does not accept at a position is E0100 at it. In an expression position, `if`, `wh`, `ret`, `let`, `var`, `put`, `ex`, `io` and `fail` are such keywords (G8).
+
+X5. A token the grammar does not accept is E0100 at that token. At end of file it is E0100 at `EOF` (G13). So `put(1,2)` is E0100 at `,`, and `f(1` is E0100 at `EOF`.
+
+X6. A statement that starts with a literal, `(` or an operator is E0100 at that token (L2). So `1+2` as a statement is E0100 at `1`.
+
+X7. `put(e)` parses as `put` followed by a parenthesised primary (RFC 0104, open question 2, option (a)). So `put("a")` parses, and the checker reports E0200 at the literal.
 
 E1. `+`, `-` and `*` on `Int` give the exact result if it fits in 64 bits, else they trap `overflow`. Unary `-` on the minimum traps `overflow`.
 
