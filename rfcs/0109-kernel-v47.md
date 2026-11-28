@@ -45,16 +45,11 @@ sq(n Int)Int{ret n*n}ex sq(3)==9 main io{var i=1 wh i<=3{put sq(i)i=i+1}}
 
 ## Motivation
 
-Attempt 47. RFC 0105 (kernel-v46) was superseded. Each finding of the owner's measurement is answered here.
-
-- **Process text.** This RFC writes no gate, prerequisite or status line. Retiring `conformance/kernel/print-one.test` is a step of the implementing PR (Test plan).
-- **`fail` (finding 1).** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body (F7 checked it, and E0403 rejected a wrong mark). Principle 3 exempts such a mark, and also a mark that nearly every function would carry: a function that adds, loops or calls another function is the common case. The mark tells a reader nothing the body does not. The rare case, a function that cannot trap, is left unmarked too, because a second mark for it would be one more token on a few functions and one more rule to check. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
-- **`io` (finding 1, same test).** `io` stays. It is not carried by most functions: a function that writes no output is the unmarked case. More importantly, rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). If `io` were derived from the body, a caller would have to read the callee's body. Trapping changes no rule that a caller or an example follows, so the `fail` mark had no reader. Its only checker was F7, which polices the mark itself.
-- **Spellings (finding 2).** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`. No spelling is decided here.
-- **Standard input (finding 3).** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
-- **Superseded rules (finding 4).** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5) and the codes (Diagnostics) are restated. The trap line (TR1) is stated once, here: no diagnostic RFC in force defines one. RFC 0050 is superseded, and RFCs 0101, 0106 and 0107 are rejected.
-- **Length (finding 5).** The RFC is under 25,000 characters. The test plan is kept whole.
-- **Expressions (build finding).** The expression grammar was given only by reference to RFC 0104. It is now restated under Expressions, with the parse-level rules X1 to X5 and their test rows.
+- **Fail mark.** The counter gives one token per `fail` mark. RFC 0105's 91 programs spend 39 of 1108 tokens on it (Cost). The compiler derives the mark from the body, and most functions would carry it, so it tells a reader nothing the body does not. Principle 7 still holds: a trap is a defined outcome (TR1).
+- **`io`.** `io` stays. Rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). Deriving `io` from the body would make every caller read the callee's body. Trapping changes no rule that a caller or an example follows.
+- **Spellings.** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`.
+- **Standard input.** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
+- **Superseded rules.** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5), the codes (Diagnostics) and the trap line (TR1) are stated in full here.
 
 ## Design
 
@@ -66,7 +61,7 @@ L1. Syntax is the grammar of RFC 0104, with one change. A declaration is:
 
 The `fail` alternative is removed from `decl`, and rule G10 of RFC 0104 reads "the marks come in this order: result type, then `io`". `fail` is still a keyword (RFC 0104 rule 7). So a `fail` where a mark or a block is expected is E0100 at it (RFC 0104 G3). No other rule of RFC 0104 changes.
 
-L2. A statement starts with `let`, `var`, `put`, `if`, `wh` or a name, never with an operator, `(` or a literal. `ret` is not a statement: it is the last item of a block (RFC 0104 G2). So `put a put b` is two statements, and in `put a-1` the `-` is binary.
+L2. A statement starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary. (`ret` is listed here as RFC 0104 G2 and rule C2 require; this is a wording fix.)
 
 L3. At top level a declaration starts with a name. `fn main io{}` is E0100 at `main` (RFC 0104 G12).
 
@@ -86,9 +81,7 @@ T6. A type position accepts `Int` and `Bool` only. `Int` and `Bool` used as valu
 
 ### Expressions
 
-Precedence, loosest first: `or`; `and`; `==` `!=` `<` `<=` `>` `>=`; `+` `-`; `*` `/` `%`; unary `-` `not`; then call, literal, name, and `( expr )`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6).
-
-The expression grammar is RFC 0104's, restated so that the parser can be built from this RFC alone:
+Grammar (normative; the productions of RFC 0104 from `expr` to `primary`, restated so that each precedence level is one production):
 
 ```
 expr     = and_expr { "or" and_expr }
@@ -102,15 +95,9 @@ primary  = INT | TEXT | "true" | "false" | IDENT [ "(" [ args ] ")" ] | "(" expr
 args     = expr { "," expr }
 ```
 
-X1. Unary binds tighter than `*`, so `-a*b` is `(-a)*b`, `-7%3` is `(-7)%3`, and `not a==b` is `(not a)==b`.
+The tree is the grammar's: `1+2*3` is `1+(2*3)`; `7-2-1` is `(7-2)-1`; `-(1+2)*3` is `(-(1+2))*3`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6).
 
-X2. The parser accepts `TEXT` as a primary wherever an expression stands, so `put("a")` and `1=="a"` parse. Their errors are the checker's (T3). The parser never reports E0100 for a text literal.
-
-X3. A second comparison operator after one `cmp_expr` is E0100 at it (G6). So `1<2<3` is E0100 at the second `<`.
-
-X4. In an expression position, `if`, `wh`, `ret`, `let`, `var`, `put`, `ex`, `io` and `fail` are E0100 at the keyword (G8). `true`, `false` and `not` are expression keywords.
-
-X5. `put` takes one expression (P1). An expression ends where the grammar stops. No expression continues with a name, so `put sq(i)i=i+1` is two statements.
+EP1. **Syntax errors in expressions.** Rules G3, G6, G8 and G13 of RFC 0104 give each E0100 or E0003 span. The parser reports the first syntax error and stops, as the lexer does (RFC 0104 rule 13). A token that cannot begin an operand where an operand is needed is E0100 at that token.
 
 E1. `+`, `-` and `*` on `Int` give the exact result if it fits in 64 bits, else they trap `overflow`. Unary `-` on the minimum traps `overflow`.
 
@@ -202,7 +189,7 @@ Records follow `spec/core/diagnostic.md`. The codes below are restated in full; 
 
 | Code | Meaning and rules | Span |
 | --- | --- | --- |
-| E0001, E0002, E0005, E0006, E0100 | lexical and syntax, as RFC 0104 defines them | per RFC 0104 |
+| E0001, E0002, E0005, E0006, E0100 | lexical and syntax, as RFC 0104 defines them (EP1 for expressions) | per RFC 0104 |
 | E0003 | keyword where a name is required (`put` and `fail` as a binding or function name; RFC 0104 G3) | the keyword |
 | E0200 | type mismatch (E3 to E6, B2, F4, EX2, M1, P1, T3, T5) | per E9, or the literal |
 | E0201 | result clause, body does not return (F3) | the closing `}` |
@@ -239,8 +226,8 @@ Measured with `sbx python3 -m tools.check.tokens` on scratch files in `out/scrat
 - Each trapping function saves one token: the `fail` mark. The owner's measure on RFC 0105's 91 programs was 39 of 1108 tokens.
 - The card loses the `fail` line and the `[fail]` of the declaration line. It gains "Any function may trap. No mark says so." The card is far below the 2,000-token cap.
 - The core spec is capped at 12,000 tokens, checked by the merge bot. Its total is not measured here. The change to it is the removal of the `fail` production and of F7, and the addition of TR1's trap line and F7's sentence.
-- The Expressions grammar restates RFC 0104's `expr` productions. It adds no token to the language and no change to the core spec.
 - Removed relative to RFC 0105: the `fail` mark, rule F7, code E0403.
+- The expression grammar in Expressions restates RFC 0104 and adds no token to the language.
 
 ## Test plan
 
@@ -259,7 +246,8 @@ Run tests (status 0; stdout as stated):
 | `short-circuit` | `side Bool io{put 9 ret true}` and `main io{if false and side(){put 1}if true or side(){put 2}}` | `2` |
 | `cmp-ordering` | `main io{if 2>1{put 1}if 2>=2{put 2}if 1<=2{put 3}if 1>=2{put 9}}` | `1`, `2`, `3` |
 | `arith` | `main io{put 7/-2 put-7%3 put 2*3+4*5 put-3+1 put 3*(1+2)}` | `-3`, `-1`, `26`, `-2`, `9` |
-| `prec` | `main io{put 1+2*3 put-7%3 put 2-3-4}` | `7`, `-1`, `-5` |
+| `prec` | `main io{put 1+2*3 put 7-2-1 put-(1+2)*3 put 2*3%4}` | `7`, `4`, `-9`, `2` |
+| `prec-bool` | `main io{if 1<2 or 1>2 and false{put 1}else{put 2}}` | `1` |
 | `min-mod` | `main io{let m=-9223372036854775807-1 put m%-1}` | `0` |
 | `digit-sum` | `main io{var n=1204 var s=0 wh 0<n{s=s+n%10 n=n/10}put s}` | `7` |
 | `fn-call` | `add(a Int,b Int)Int{ret a+b}` and `main io{put add(2,3)}` | `5` |
@@ -290,14 +278,14 @@ Compile-error tests (one error each; the record is the code and the span named):
 
 | Test | Program | Error at | Code |
 | --- | --- | --- | --- |
+| `kc-expr-op` | `main io{put*2}` | the `*` | E0100 |
+| `kc-expr-end` | `main io{put 1+}` | the `}` | E0100 |
+| `kc-expr-keyword` | `main io{put wh}` | the `wh` | E0100 |
 | `kc-text-let` | `main io{let t="x"}` | the `"x"` | E0200 |
 | `kc-text-cmp` | `main io{if 1==true{}}` | the `==` | E0200 |
 | `kc-put-paren` | `main io{put("a")}` | the `"a"` | E0200 |
 | `kc-put-bool` | `main io{put true}` | the `true` | E0200 |
 | `kc-put-comma` | `main io{put(1,2)}` | the `,` | E0100 |
-| `kc-cmp-chain` | `main io{put 1<2<3}` | the second `<` | E0100 |
-| `kc-expr-keyword` | `main io{put if}` | the `if` | E0100 |
-| `kc-expr-stmt` | `main io{1+2}` | the `1` | E0100 |
 | `kc-type` | `main io{if 1{}}` | the `1` | E0200 |
 | `kc-bool-op` | `main io{let a=1 and true}` | the `and` | E0200 |
 | `kc-arity` | `add(a Int,b Int)Int{ret a+b}` and `main io{put add(1)}` | the `add` of the call | E0200 |
@@ -339,7 +327,7 @@ Compile-error tests (one error each; the record is the code and the span named):
 | `kc-effect-call` | `g io{}f{g()}` and `main io{f()}` | the `g` | E0400 |
 | `kc-effect-example` | `say Int io{ret 1}ex say()==1 main io{put say()}` | the `say` in the example | E0400 |
 
-Every grammar production of RFC 0104 as amended, and each expression production restated under Expressions, is reached by a `kernel` test or by an RFC 0104 test. The `decl` production without `fail` is reached by `kc-fail-after-io` and `kc-fail-after-name`. The `expr` productions are reached by `arith`, `prec`, `kc-cmp-chain`, `kc-expr-keyword` and `kc-expr-stmt`.
+Every grammar production of RFC 0104 as amended is reached by a `kernel` test or by an RFC 0104 test. The `decl` production without `fail` is reached by `kc-fail-after-io` and `kc-fail-after-name`. The expression productions are reached by `prec`, `prec-bool`, `arith`, `kc-expr-op`, `kc-expr-end` and `kc-expr-keyword`.
 
 Retirement and changes to other tests:
 
