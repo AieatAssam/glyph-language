@@ -20,26 +20,18 @@ Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things, each answering a recorded objection:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program:
 
-- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
-- **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
-- **One syntax.** RFC 0103's forms (`n:Int`, `):Int`, `main()`, a two-line sample) are not adopted. `kernel-v46` uses the forms in this RFC.
-- **Text tests.** Tests that bind a text literal with `let` now use `put`. `kernel-v46` rule T3 makes a text literal valid only as the argument of `put`.
+- A line feed outside a text literal is E0002. Tab, CR and other control characters are E0001.
+- The declaration mark `fail` is a keyword, as `io` is.
+- One syntax: a parameter is `n Int`, a result follows the `)` as `)Int`, and a declaration with no parameters has no parentheses: `main io{...}`. `kernel-v46` uses these forms.
+- A text literal is valid only as the argument of `put` (`kernel-v46` rule T3).
 
-The rest is RFC 0102 as voters accepted it. `;` is removed. `ret` ends its block. `put` is a keyword and takes its argument without parentheses: `put x`. The top level holds only declarations. A parameter is `n Int`, a result follows the `)` as `)Int`, and a declaration with no parameters has no parentheses: `main io{...}`. Comments are removed. A raw LF inside a text literal is content, and the `\n` escape is removed.
+Also: `;` is removed. `ret` ends its block. `put` is a keyword and takes its argument without parentheses: `put x`. The top level holds only declarations. Comments are removed. A raw LF inside a text literal is content, and the `\n` escape is removed.
 
 ## Motivation
 
-Models write Glyph and need one way to write each construct. RFC 0048 left choices open: where line breaks counted, whether `;` was needed, and two parameter spellings. Each costs tokens, and each is a place for a model to err. The owner measured the base program at 94 tokens. Dropping `;` takes it to 90, and `put x` takes three calls to 88.
-
-Objections to RFC 0102, and how this draft answers each:
-
-- designer-safe and tester: rule 2 and the last sentence of rule 4 said a line feed in a gap is E0001, while the E0002 row and tests `v5-fmt-newline` and `v5-fmt-trailing-lf` expected E0002. Fixed by rule 2 (line feed excluded) and rules 3 and 4 (line feed is E0002). Control characters other than LF stay E0001 by rule 2.
-- tester: the keyword list omitted `fail`, which the kernel grammar used as a terminal. Fixed by rule 7.
-- tester and designer-min: the grammar and examples disagreed with the kernel. Settled here (Summary, "One syntax"). Kernel-v46 is revised to match.
-- tester: `v5-text` and `v5-text-lf` bound a text value with `let`, which kernel-v46 rejects. Changed to `put`.
-- user-1: no way to leave a note in a program. Comments stay out. The compiler ignores them, and the RFC and the tests carry the meaning (Alternatives).
+Models write Glyph and need one way to write each construct. Each optional spelling costs tokens, and each is a place for a model to err. The owner measured the base program at 94 tokens. Dropping `;` takes it to 90, and `put x` takes it to 88.
 
 ## Design
 
@@ -140,21 +132,23 @@ G12. `fn` is an identifier, so `fn main io{}` is E0100 at `main`. A declaration 
 
 G13. At end of file, if the grammar needs more tokens, the error is E0100 at `EOF`.
 
+G14. The parser reports the first syntax error (E0003 or E0100) and emits nothing after it. The checker does not run on a program that has a lexical or syntax error. So each program with one such error gives exactly one record.
+
 ### Diagnostics
 
 | Code | Block | Meaning | Span | Fix | Rules |
 | --- | --- | --- | --- | --- | --- |
 | E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character other than LF outside a text literal, non-ASCII outside text, or printable ASCII outside the token set | The character | none | 1, 2, 4a, 6, 11 |
 | E0002 | lexical | Non-canonical layout: a gap that is not the canonical gap (extra space, line end where none belongs, missing space between word tokens, leading or trailing whitespace) | The gap; zero-length where a space is missing | Replace the gap with the canonical gap | 3, 4b |
-| E0003 | lexical | Keyword where an `IDENT` is required. Reported by the parser | The keyword | none | 7, G3 |
+| E0003 | lexical | Keyword where an `IDENT` is required. Reported by the parser | The keyword | none | 7, G3, G14 |
 | E0005 | lexical | Malformed text literal | See rule 9 | none | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | Replace the literal with its digits without leading zeros | 8 |
-| E0100 | syntax | Unexpected token: the grammar does not accept this token at this position | The token; at end of file, the `EOF` token | none | 5, 10, G1 to G13 |
+| E0100 | syntax | Unexpected token: the grammar does not accept this token at this position | The token; at end of file, the `EOF` token | none | 5, 10, G1 to G14 |
 | E0500 | limits | Integer literal above 9223372036854775807. Reported by the checker | The literal | none | 8 |
 
 Codes not in this table are not used by this RFC. E0002 and E0003 are not yet in `spec/errors.json`. The PR that first emits each adds it there, with a message and a meaning.
 
-Expected results. Per RFC 0004's test format, the following replace the expectations named in the Amends line. `007` gives E0006 at bytes 0 to 3, with fix `{"span":{"start":0,"end":3},"replacement":"7"}`. This amends RFC 0004's `diag/fix-present` (E0001). For `let let=1` as a whole program, the first `let` is in the declaration-name position, so E0003 is at bytes 0 to 3. This matches RFC 0014's `lex/ident-keyword` and RFC 0004's `diag/record-shape`. It replaces the E0100 at bytes 4 to 7 in RFC 0050's `diag/record-shape` line, which this grammar does not produce.
+Expected results. Per RFC 0004's test format, the following replace the expectations named in the Amends line. `007` gives E0006 at bytes 0 to 3, with fix `{"span":{"start":0,"end":3},"replacement":"7"}`. For `let let=1` as a whole program, the first `let` is in the declaration-name position, so E0003 is at bytes 0 to 3. This matches RFC 0014's `lex/ident-keyword` and RFC 0004's `diag/record-shape`. It replaces the E0100 at bytes 4 to 7 in RFC 0050's `diag/record-shape` line, which this grammar does not produce.
 
 ## Alternatives
 
@@ -173,7 +167,7 @@ Expected results. Per RFC 0004's test format, the following replace the expectat
 
 ## Cost
 
-Measured with `sbx python3 -m tools.check.tokens` on scratch files in `out/scratch/` (not repo files):
+Measured with `tools/check/tokens.py` on scratch files:
 
 | Snippet | RFC 0103 form | This RFC |
 | --- | --- | --- |
@@ -182,28 +176,48 @@ Measured with `sbx python3 -m tools.check.tokens` on scratch files in `out/scrat
 | parameter `n` with type | `n:Int` 3 | `n Int` 2 |
 | parameter list and result | `(n:Int):Int` 7 | `(n Int)Int` 5 |
 
-The base program's counts (94, 90, 88) are the owner's and are carried over from RFC 0102. They were not re-measured.
+The base counts (94, 90, 88) are the owner's and were not re-measured.
 
 Counter facts from `tools/check/tokens.py`: `wh`, `ret`, `ex`, `put` and `fail` cost 1; `while`, `return`, `example` and `print` cost 2; `false` costs 2 and `true` costs 1. Each punctuation character costs 1, so `==`, `!=`, `<=` and `>=` cost 2 each. The counter ignores whitespace, so layout does not change the counted cost.
 
-Removed relative to RFC 0048: the `;` token, the `fn` keyword, the `:` token, the `//` comments, the `\n` escape, the `()` of zero-parameter declarations, and the annotation syntax on `let` and `var`. Added: the `put` and `fail` keywords, rule 4, the codes E0002 and E0003, and rules G2 to G13.
+Removed relative to RFC 0048: the `;` token, the `fn` keyword, the `:` token, the `//` comments, the `\n` escape, the `()` of zero-parameter declarations, and the annotation syntax on `let` and `var`. Added: the `put` and `fail` keywords, rule 4, the codes E0002 and E0003, and rules G2 to G14.
 
-Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add.txt`, is 224 tokens, well under the 2,000-token card cap. The core cap of 12,000 is checked by the merge bot; the total was not measured here.
+Spec card. The lexical section is 224 tokens (`out/scratch/card-v6-add.txt`), under the 2,000 cap. The core total was not measured here.
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`. Each test is the file `conformance/lex/<name>.test`. Its `--- meta` section holds `id: lex/<name>`, `rfc: 0104` and `kind`, which is `run`, `compile-error` or `fmt`. Its `--- source` section is the program as written in the table, with no LF added after its last line. A run test has `--- expect-stdout` and `--- expect-exit`. A compile-error test has `--- expect-errors`. The fmt test has `--- expect-stdout`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Each test is one file, `conformance/lex/<name>.test`, with `<name>` from the Name column below (`v6-min` is `conformance/lex/v6-min.test`). The id is `lex/<name>`. No file of this RFC goes elsewhere.
 
-Escapes. Two tests hold bytes that cannot be typed into a source section: `v6-err-cr` (a CR) and `v6-fmt-trailing-lf` (a final LF). Each sets `source-escapes: hex` in its `--- meta` section and writes the byte as `\x0D` or `\x0A`. Under that key a backslash in the source is written `\\`. No other test sets the key, so in every other source a backslash is written once.
+Test file format (the container read by `tools/check/conformance.py`). Each section starts with a line `--- NAME`. A file has:
 
-Expected records. Each line of `--- expect-errors` is one JSON object `{"code":C,"span":{"start":A,"end":B}}`, for the row's code and bytes A to B. A row whose Fix column gives a replacement adds `,"fix":{"span":{"start":A,"end":B},"replacement":R}` to the object. The fix span is the row's span, and R is the row's replacement, which is `""` when it is empty. A row with fix `none` has no `fix` key. Example: `v6-err-zero-fix` expects `{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}`.
+```
+--- meta
+id: lex/<name>
+rfc: 0104
+kind: run
+--- source
+<the program>
+--- expect-stdout
+<stdout, without its last LF>
+--- expect-exit
+0
+```
+
+- `kind` is `run` for the run table, `compile-error` for every row of the compile-error table, and `fmt` for `lex/v6-fmt-canon`. A `run` file has `expect-stdout` and `expect-exit`. A `compile-error` file has `expect-errors`. A `fmt` file has `expect-stdout`.
+- The `source` section is the program exactly. No LF is added after its last line.
+- A program that holds a CR, a LF or a trailing LF (`v6-err-cr`, `v6-fmt-newline`, `v6-fmt-trailing-lf`, `v6-text-lf`) adds `source-escapes: hex` to `meta`. In that mode `\x0D` is CR, `\x0A` is LF, and `\\` is one backslash. Such a file must not contain `\\`. Other files omit the key.
+- `expect-stdout` is the stdout without its last LF, since the runner strips one. `put` writes an LF after each value, so `1` then `2` is two lines.
+- `expect-errors` has one line per record, as JSON: `{"code":"E0100","span":{"start":13,"end":14}}`. A record with a fix adds `"fix":{"span":{"start":11,"end":13},"replacement":" "}`. A row whose fix is `none` has no `fix` key. Each compile-error file has exactly one line.
+- "bytes a to b" means `span` with `start` a and `end` b. Byte offsets count from the first byte of the program. A fix written `{12..15, "7"}` is `fix` with span `start` 12, `end` 15, and `replacement` `"7"`.
+- Every program is in canonical layout except where the test is about layout. Run programs must also pass `kernel-v46`'s checks, including its F7 `fail` rule.
 
 Run tests (stdout and exit 0 unless stated):
 
-| Test | Program | Output | Covers |
+| Name | Program | Output | Covers |
 | --- | --- | --- | --- |
 | `v6-min` | `main io{}` | none | declaration with no parentheses, empty block |
 | `v6-put` | `main io{put 1 put 2}` | `1`, `2` | `put`, `INT`, statements with no separator |
+| `v6-let` | `main io{let a=2 put a}` | `2` | `let` statement |
 | `v6-ret-last` | `f(n Int)Int fail{ret n+1}main io fail{put f(1)}` | `2` | parameter, result type, `ret expr` |
 | `v6-ret-bare` | `g(n Int)io{if n==0{ret}put n}main io fail{g(0)g(1)}` | `1` | bare `ret`, `if` without `else`, `args` |
 | `v6-if-else` | `main io{if false{put 1}else{put 2}}` | `2` | `else` |
@@ -211,26 +225,27 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-params` | `two(a Int,b Int)io{put a put b}main io fail{two(1,2)}` | `1`, `2` | two parameters, call statement |
 | `v6-rtype-ex` | `h Int{ret 1}ex h()==1 main io fail{put h()}` | `1` | declaration with a result and no parentheses, `ex`, call primary |
 | `v6-unary` | `main io fail{put-((4))}` | `-4` | `unary`, nested parentheses |
+| `v6-arith` | `main io fail{put 2*3 put 7/2 put 7%2}` | `6`, `3`, `1` | `*`, `/`, `%` |
 | `v6-logic` | `main io{if not false and true or false{put 1}}` | `1` | `not`, `and`, `or`, `true`, `false` |
 | `v6-cmp-all` | `main io{if 1<=1 and 2>=2 and 1!=2 and 1==1 and 2>1 and 1<2{put 1}}` | `1` | all six `cmp_op` |
 | `v6-text` | `main io{put"x"}` | `x` | `TEXT` as the argument of `put` |
-| `v6-text-lf` | `main io{put"a` LF `b"}` (LF is raw inside the text) | `a` LF `b` | raw LF is content (rule 9) |
+| `v6-text-lf` | `main io{put"a` LF `b"}` (hex mode: `\x0A`) | `a` LF `b` | raw LF is content (rule 9) |
 | `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
-Compile-error tests (one record each; fix `none` unless stated):
+Compile-error tests (one record each, so exactly one line in `expect-errors`; fix `none` unless stated; kind `compile-error`):
 
-| Test | Program | Record at | Code |
+| Name | Program | Record at | Code |
 | --- | --- | --- | --- |
-| `v6-err-cr` | `main io{` CR `put 1}` | bytes 8 to 9 (the CR) | E0001 |
+| `v6-err-cr` | `main io{` CR `put 1}` (hex mode: `\x0D`) | bytes 8 to 9 (the CR) | E0001 |
 | `v6-err-semi` | `main io{put 1;put 2}` | bytes 13 to 14 (the `;`) | E0001 |
 | `v6-err-colon` | `main io{let a:Int=1}` | bytes 13 to 14 (the `:`) | E0001 |
 | `v6-err-comment` | `main io{put 1//2}` | bytes 14 to 15 (the second `/`) | E0100 |
 | `v6-fmt-two-spaces` | `main io{put  1}` | bytes 11 to 13, fix replacement ` ` | E0002 |
 | `v6-fmt-missing-space` | `main io{put 1put 2}` | bytes 13 to 13, fix replacement ` ` | E0002 |
 | `v6-fmt-space-punct` | `main io{put (1)}` | bytes 11 to 12, fix replacement empty | E0002 |
-| `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
-| `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
+| `v6-fmt-newline` | `main io{` LF `put 1}` (hex mode: `\x0A`) | bytes 8 to 9, fix replacement empty | E0002 |
+| `v6-fmt-trailing-lf` | `main io{}` LF (hex mode: `\x0A`) | bytes 9 to 10, fix replacement empty | E0002 |
 | `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
 | `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
 | `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
@@ -256,11 +271,11 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
 | `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
 
-Format: `lex/v6-fmt-canon` (kind `fmt`). Its source is `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`, and its expect-stdout is the same text; the formatter prints it unchanged.
+Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`. Its `expect-stdout` is that program.
 
-Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
+Retained tests. These RFC 0014 lexical tests keep their names and expected results: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
-Every grammar production is reached by a `v6-` run test or compile-error test, except `ptype` and `rtype`, which are reached by `v6-err-ptype` and `v6-params`.
+Every grammar production is reached by a run row or compile-error row. `ptype` is reached by `v6-params`, `rtype` by `v6-ret-last`, and `let` by `v6-let`.
 
 Retirement. Agents may not edit or delete an existing conformance test. The tests below fail under this RFC. The owner removes each file, or lists it as retired, in a `rules_changed` commit, and the implementing PR reports them red until then. In this checkout only `lex/v4-lf-only` and `kernel/print-one` exist.
 
@@ -282,6 +297,6 @@ Retirement. Agents may not edit or delete an existing conformance test. The test
 2. **`put(e)` still parses.** It reads as `put` followed by the grouped expression `(e)`, so `put(e)` and `put e` are two spellings of one statement. Options: (a) accept the grouping (this draft); (b) reject a `put` argument that is one parenthesised group, with a new code; (c) leave it to the formatter, which then prints `put e` but gives no compile error. The owner should choose. `kernel-v46` does not depend on the choice.
 3. **Retirement of the tests listed above.** The owner decides the mechanism. The RFC does not edit or delete them.
 4. **References in kernel RFCs.** RFCs 0052, 0053, 0056, 0059, 0067, 0079 and 0081 cite RFC 0048 for tokens and syntax errors. Their references move to this RFC, and the owner should check them.
-5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
-6. **`fail` as a keyword.** This draft makes `fail` a keyword so the kernel's mark needs no position rule. If voters prefer a contextual word, `kernel-v46` must change with it.
+5. **E0003 block.** E0003 sits in the lexical range but the parser reports it. Moving it needs a new code, chosen before any PR emits it.
+6. **`fail` as a keyword.** If voters prefer a contextual word, `kernel-v46` must change with it.
 7. **New codes.** E0002 and E0003, and the kernel codes E0200 to E0202, E0300 to E0303, E0400 and E0403, are not in `spec/errors.json`. The first PR that emits each adds it there.
