@@ -45,11 +45,15 @@ sq(n Int)Int{ret n*n}ex sq(3)==9 main io{var i=1 wh i<=3{put sq(i)i=i+1}}
 
 ## Motivation
 
-The `fail` mark costs one token on each trapping function, and no rule a reader or caller follows depends on it: F7 checks only the mark itself. A trap is a defined outcome (TR1), so principle 7 holds without a mark. A function that cannot trap is unmarked too.
+Attempt 47. RFC 0105 (kernel-v46) was superseded. Each finding of the owner's measurement is answered here.
 
-`io` stays. Rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). Deriving `io` from the body would make a caller read the callee's body.
-
-The forms are those of RFC 0104 (`wh`, `ret`, `ex`, `put`). The kernel has no input form; a later RFC adds one. The reserved names (B5), the codes (Diagnostics) and the trap line (TR1) are stated in this RFC in full, and no rule is cited from a superseded or rejected RFC.
+- **Process text.** This RFC writes no gate, prerequisite or status line. Retiring `conformance/kernel/print-one.test` is a step of the implementing PR (Test plan).
+- **`fail` (finding 1).** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body (F7 checked it, and E0403 rejected a wrong mark). Principle 3 exempts such a mark, and also a mark that nearly every function would carry: a function that adds, loops or calls another function is the common case. The mark tells a reader nothing the body does not. The rare case, a function that cannot trap, is left unmarked too, because a second mark for it would be one more token on a few functions and one more rule to check. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
+- **`io` (finding 1, same test).** `io` stays. It is not carried by most functions: a function that writes no output is the unmarked case. More importantly, rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). If `io` were derived from the body, a caller would have to read the callee's body. Trapping changes no rule that a caller or an example follows, so the `fail` mark had no reader. Its only checker was F7, which polices the mark itself.
+- **Spellings (finding 2).** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`. No spelling is decided here.
+- **Standard input (finding 3).** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
+- **Superseded rules (finding 4).** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5) and the codes (Diagnostics) are restated. The trap line (TR1) is stated once, here: no diagnostic RFC in force defines one. RFC 0050 is superseded, and RFCs 0101, 0106 and 0107 are rejected.
+- **Length (finding 5).** The RFC is under 25,000 characters. The test plan is kept whole.
 
 ## Design
 
@@ -61,7 +65,7 @@ L1. Syntax is the grammar of RFC 0104, with one change. A declaration is:
 
 The `fail` alternative is removed from `decl`, and rule G10 of RFC 0104 reads "the marks come in this order: result type, then `io`". `fail` is still a keyword (RFC 0104 rule 7). So a `fail` where a mark or a block is expected is E0100 at it (RFC 0104 G3). No other rule of RFC 0104 changes.
 
-L2. A statement starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. `ret` is the last item of its block (G2). So `put a put b` is two statements, and in `put a-1` the `-` is binary.
+L2. A statement starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary. `ret` ends its block (RFC 0104 G2).
 
 L3. At top level a declaration starts with a name. `fn main io{}` is E0100 at `main` (RFC 0104 G12).
 
@@ -81,21 +85,7 @@ T6. A type position accepts `Int` and `Bool` only. `Int` and `Bool` used as valu
 
 ### Expressions
 
-Precedence, loosest first: `or`; `and`; `==` `!=` `<` `<=` `>` `>=`; `+` `-`; `*` `/` `%`; unary `-` `not`; then call, literal, name, and `( expr )`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6). The parse rule of each level is that of RFC 0104's `expr`, `and_expr`, `cmp_expr`, `add_expr`, `mul_expr`, `unary` and `primary`, restated here:
-
-- `expr` = `and_expr` { `or` `and_expr` }. `and_expr` = `cmp_expr` { `and` `cmp_expr` }.
-- `cmp_expr` = `add_expr` [ cmp_op `add_expr` ], where cmp_op is `==` `!=` `<` `<=` `>` `>=`. A second cmp_op after it is E0100 at that operator (G6).
-- `add_expr` = `mul_expr` { (`+` | `-`) `mul_expr` }. `mul_expr` = `unary` { (`*` | `/` | `%`) `unary` }.
-- `unary` = (`-` | `not`) `unary` | `primary`.
-- `primary` = INT | TEXT | `true` | `false` | IDENT [ `(` [ args ] `)` ] | `(` `expr` `)`. `args` = `expr` { `,` `expr` }.
-
-A TEXT token is a primary wherever an expression may stand. The parser accepts it, and the checker rejects it outside `put` (T3). `if`, `wh`, `ret`, `let`, `var`, `put`, `ex`, `io` and `fail` in an expression position are E0100 at the keyword (G8).
-
-Tree shape. Only parentheses change it:
-
-- `1-2-3` is `(1-2)-3`. `1+2*3` is `1+(2*3)`.
-- `-7%3` is `(-7)%3`. `not a==b` is `(not a)==b`.
-- `not false and true or false` is `((not false) and true) or false`.
+Precedence, loosest first: `or`; `and`; `==` `!=` `<` `<=` `>` `>=`; `+` `-`; `*` `/` `%`; unary `-` `not`; then call, literal, name, and `( expr )`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6).
 
 E1. `+`, `-` and `*` on `Int` give the exact result if it fits in 64 bits, else they trap `overflow`. Unary `-` on the minimum traps `overflow`.
 
@@ -256,7 +246,6 @@ Run tests (status 0; stdout as stated):
 | `shadow` | `main io{let a=1 if true{let a=2 put a}put a}` | `2`, `1` |
 | `example-ok` | `double(x Int)Int{ret x*2}ex double(3)==6 ex not false` and `main io{put double(4)}` | `8` |
 | `sample` | the Summary's sample program | `1`, `4`, `9` |
-| `prec` | `main io{put 1+2*3 put-7%3 put 1-2-3 if not false and true or false{put 1}}` | `7`, `-1`, `-4`, `1` |
 
 Trap tests (exit 1; the stated stdout; the stated stderr line):
 
