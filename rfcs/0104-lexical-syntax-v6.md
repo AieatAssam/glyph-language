@@ -20,9 +20,9 @@ Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `
 
 ## Summary
 
-This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
+This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things, each answering a recorded objection:
 
-- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
+- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001. The file's last byte is one LF, which is canonical (rule 4).
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
 - **One syntax.** RFC 0103's forms (`n:Int`, `):Int`, `main()`, a two-line sample) are not adopted. `kernel-v46` uses the forms in this RFC.
 - **Text tests.** Tests that bind a text literal with `let` now use `put`. `kernel-v46` rule T3 makes a text literal valid only as the argument of `put`.
@@ -43,13 +43,13 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 2. **Control characters.** U+0000 to U+001F and U+007F are E0001 wherever they appear, except LF (U+000A), which rules 3, 4 and 9 govern. This includes the tab (U+0009) and the CR (U+000D).
 
-3. **Line end.** LF is not a token. Outside a text literal it is part of a gap, and rule 4 makes it E0002. Inside a text literal it is content (rule 9). A CR is E0001 (rule 2).
+3. **Line end.** LF is not a token. Outside a text literal it is part of a gap, and rule 4 makes it E0002 unless it is the last byte of the file. Inside a text literal it is content (rule 9). A CR is E0001 (rule 2).
 
-4. **Layout.** A *gap* is the text between two adjacent tokens, outside text literals. The text before the first token and after the last token is also a gap. The *canonical gap* is one space (U+0020) if the last character of the token before the gap and the first character of the token after it are both word characters, and nothing otherwise. The canonical gap before the first token and after the last token is nothing. Each gap is checked in this order:
+4. **Layout.** A *gap* is the text between two adjacent tokens, outside text literals. The text before the first token and after the last token is also a gap. The *canonical gap* is one space (U+0020) if the last character of the token before the gap and the first character of the token after it are both word characters, and nothing otherwise. The canonical gap before the first token is nothing. The canonical gap after the last token is one LF, which is the last byte of the file. Each gap is checked in this order:
    - (a) a control character in it (rule 2) is E0001 at the first such character;
-   - (b) otherwise, a gap that is not the canonical gap is E0002, with the gap as span and the canonical gap as the fix replacement. Where a space is missing between two word tokens, the span is zero-length at the point between them.
+   - (b) otherwise, a gap that is not the canonical gap is E0002, with the gap as span and the canonical gap as the fix replacement. Where a space is missing between two word tokens, or the final LF is missing, the span is zero-length at the point between them (or at the end of the file).
 
-   The canonical form of a program is one line, with no indentation, no trailing LF and no other whitespace. Examples: `ret n` (one space); `if n<2{` (none); `put (1)` is E0002 at the space after `put`; `main io{`, LF, `put 1}` is E0002 at the LF.
+   The canonical form of a program is one line, with no indentation and no other whitespace, then one LF that ends the file. Examples: `ret n` (one space); `if n<2{` (none); `put (1)` is E0002 at the space after `put`; `main io{`, LF, `put 1}` is E0002 at the LF; `main io{}` with no final LF is E0002 at byte 9 (zero-length), with fix replacement LF; `main io{}`, LF, LF is E0002 at bytes 9 to 11, with fix replacement LF.
 
 5. **Comments.** There are none. `/` is always the division token. `//` is two `/` tokens, and the grammar rejects it (E0100).
 
@@ -130,14 +130,14 @@ G11. A binding has no type annotation. `let a Int=1` is E0100 at `Int`.
 
 G12. `fn` is an identifier, so `fn main io{}` is E0100 at `main`. A declaration name must be followed by `(`, a type, `io`, `fail` or `{`.
 
-G13. At end of file, if the grammar needs more tokens, the error is E0100 at `EOF`.
+G13. At end of file, if the grammar needs more tokens, the error is E0100 at `EOF`. The `EOF` token is zero-length at the end of the last token, before the final LF.
 
 ### Diagnostics
 
 | Code | Block | Meaning | Span | Fix | Rules |
 | --- | --- | --- | --- | --- | --- |
 | E0001 | lexical | Invalid byte or character: invalid UTF-8, byte order mark, control character other than LF outside a text literal, non-ASCII outside text, or printable ASCII outside the token set | The character | none | 1, 2, 4a, 6, 11 |
-| E0002 | lexical | Non-canonical layout: a gap that is not the canonical gap (extra space, line end where none belongs, missing space between word tokens, leading or trailing whitespace) | The gap; zero-length where a space is missing | Replace the gap with the canonical gap | 3, 4b |
+| E0002 | lexical | Non-canonical layout: a gap that is not the canonical gap (extra space, line end where none belongs, missing space between word tokens, leading whitespace, missing or extra final LF) | The gap; zero-length where a space is missing | Replace the gap with the canonical gap | 3, 4b |
 | E0003 | lexical | Keyword where an `IDENT` is required. Reported by the parser | The keyword | none | 7, G3 |
 | E0005 | lexical | Malformed text literal | See rule 9 | none | 9 |
 | E0006 | lexical | Integer literal with a leading zero | The literal | Replace the literal with its digits without leading zeros | 8 |
@@ -161,6 +161,7 @@ Expected results. Per RFC 0004's test format, the following replace the expectat
 - **Keep the `\n` escape and reject raw LF.** Rejected. The escape costs one token more than a raw LF inside text, and a raw LF is content, not layout, inside a text literal.
 - **Keep `//` comments, or allow notes in programs.** Rejected. Comments cost tokens, the compiler ignores them, and no program needs a note.
 - **`fail` read as an identifier in declaration position.** Rejected. A word that is a name everywhere except after a declaration's parameters is one more rule to learn, and the keyword costs one token.
+- **Allow a file with or without a final LF.** Rejected. Two spellings of one program (principle 1). Rule 4 requires exactly one final LF, which the conformance runner writes after every test source (`source_bytes`, `tools/check/conformance.py`). Without it every test program would be E0002 at its last byte.
 - **Leading zero as E0001 (RFC 0004 `diag/fix-present`).** Rejected. `007` is made of valid characters, so E0001 is the wrong code. E0006 is what RFC 0014 rule 8 gives and what RFC 0050 uses.
 
 ## Cost
@@ -184,11 +185,11 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Conformance tests live in `conformance/lex/`, including the parser rows: no other directory is added. Test ids are `lex/<name>`, and each test's meta block gives `id`, `rfc: 0104` and `kind`. A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the file. "bytes a to b" means start a, end b, exclusive.
 
-File format. `conformance/lex/<name>.test` has a meta section with `id: lex/<name>`, `rfc: 0104` and `kind: <kind>`. Run tests give `--- expect-stdout` and `--- expect-exit 0`. A compile-error test gives `--- expect-errors` with one JSON object per record, for example `{"code":"E0002","span":{"start":8,"end":9},"fix":{"span":{"start":8,"end":9},"replacement":""}}`. Omit `fix` where the row says `none`; where a row gives a fix, write it in that form. A zero-length span has start equal to end. The `v6-fmt-*` tests are kind `compile-error`; only `lex/v6-fmt-canon` is kind `fmt`. `v6-err-cr` writes its CR as `\x0D` under `source-escapes: hex`. No other test sets that key, since it turns `\\` into one backslash and would change `v6-text-escape`.
+The runner writes every `--- source` body with one LF after it. That LF is the final byte of each program, as rule 4 requires, and every offset here counts it. A program `main io{put 1` therefore has its EOF at byte 13 and an LF at byte 13. A file with no final LF cannot be a conformance test; node tests cover it. Each compile-error row is one JSON line in `expect-errors`, for example `{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}`. A row with no fix omits the `fix` key. The runner does not check that absence, so node tests do. Use `source-escapes: hex` only where a test needs a control character (`v6-err-cr`): in hex mode `\\` becomes one backslash, so no test that holds a backslash uses it.
 
-Final LF. The runner appends one LF to every source (`source_bytes` in `tools/check/conformance.py`). Rule 4 makes a final LF E0002. So every v6 test carries `source-final-lf: no`, except `lex/v6-fmt-trailing-lf`, whose LF is the one the runner adds. The runner must honour that key (open question 8). The spans in the tables assume no final LF.
+Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
 Run tests (stdout and exit 0 unless stated):
 
@@ -214,7 +215,7 @@ Compile-error tests (one record each; fix `none` unless stated):
 
 | Test | Program | Record at | Code |
 | --- | --- | --- | --- |
-| `v6-err-cr` | `main io{` CR `put 1}` | bytes 8 to 9 (the CR) | E0001 |
+| `v6-err-cr` | `main io{\x0Dput 1}` (hex mode) | bytes 8 to 9 (the CR) | E0001 |
 | `v6-err-semi` | `main io{put 1;put 2}` | bytes 13 to 14 (the `;`) | E0001 |
 | `v6-err-colon` | `main io{let a:Int=1}` | bytes 13 to 14 (the `:`) | E0001 |
 | `v6-err-comment` | `main io{put 1//2}` | bytes 14 to 15 (the second `/`) | E0100 |
@@ -222,13 +223,13 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-fmt-missing-space` | `main io{put 1put 2}` | bytes 13 to 13, fix replacement ` ` | E0002 |
 | `v6-fmt-space-punct` | `main io{put (1)}` | bytes 11 to 12, fix replacement empty | E0002 |
 | `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
-| `v6-fmt-trailing-lf` | `main io{}` LF | bytes 9 to 10, fix replacement empty | E0002 |
+| `v6-fmt-extra-lf` | `main io{}`, then an empty source line (file ends LF LF) | bytes 9 to 11, fix replacement LF | E0002 |
 | `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
 | `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
 | `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
 | `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
 | `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
-| `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
+| `v6-err-unterminated` | `main io{put"ab` (file ends; the final LF is inside the literal) | bytes 11 to 15 | E0005 |
 | `v6-err-keyword-let` | `let let=1` | bytes 0 to 3 (first `let`) | E0003 |
 | `v6-err-keyword-let-block` | `main io{let let=1}` | bytes 12 to 15 (second `let`) | E0003 |
 | `v6-err-keyword-io-name` | `io io{}` | bytes 0 to 2 | E0003 |
@@ -277,4 +278,3 @@ Retirement. Agents may not edit or delete an existing conformance test. The test
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **`fail` as a keyword.** This draft makes `fail` a keyword so the kernel's mark needs no position rule. If voters prefer a contextual word, `kernel-v46` must change with it.
 7. **New codes.** E0002 and E0003, and the kernel codes E0200 to E0202, E0300 to E0303, E0400 and E0403, are not in `spec/errors.json`. The first PR that emits each adds it there.
-8. **Final LF in the runner.** `tools/check/conformance.py` (`source_bytes`) appends one LF to every source, and rule 4 makes that LF E0002. The v6 tests use the meta key `source-final-lf: no` to suppress it, and `lex/v6-fmt-trailing-lf` keeps the default. The owner adds the key to the runner, or chooses another mechanism with the same effect. This RFC does not edit the runner.
