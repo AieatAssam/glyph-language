@@ -690,6 +690,7 @@ class SharedPrAndBriefs(unittest.TestCase):
         odd = [{"type": "cycle_started", "subject": {}, "data": {"cycle": "c1"}}]
         a = self.subtasks(st, [check] + odd)[0]
         self.assertIn("merge early", a.body)
+        self.assertIn("main io{put 1}", a.body)  # the canonical RFC 0104 program, not the superseded fn/print one
         self.assertIn("rule 3: missing", a.body)
         self.assertNotIn("Implement subtask 2", a.body)
         even = self.subtasks(st, [check] + odd * 2)[0]

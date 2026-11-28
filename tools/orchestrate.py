@@ -663,12 +663,12 @@ def plan_implement(ctx) -> list[Asg]:
             failing = gate_failures(ctx.events, prs.get(str(item["pr"]), {})) if item["pr"] else []
             if item.get("early"):
                 task = (f"PR {item['pr']} cannot merge until one program works end to end. So that it can merge early, build a walking skeleton "
-                        "for the single program `fn main() io { print(1) }` before any other plan line. Do exactly one "
+                        "for the single program `main io{put 1}` (RFC 0104's canonical form: no `fn`, no `print`) before any other plan line. Do exactly one "
                         "stage this session: the first one in this list that the PR diff below does not have yet.\n"
                         "1. Lexer entry point: one function that turns that program's source into tokens, using the "
                         "lexer pieces already in the PR.\n"
                         "2. Parser for exactly that program's shape, producing a small tree.\n"
-                        "3. Code generation with the toolkit's `ModuleBuilder` and the print runtime in the PR, wired "
+                        "3. Code generation with the toolkit's `ModuleBuilder` and the put runtime in the PR, wired "
                         "into `compiler/stage0/src/main.ts` so `bin/glyphc run` prints `1`.\n"
                         "4. `spec/grammar.peg` with only the productions that program uses, one `conformance/` `.test` "
                         "of kind `run` for it (its `--- meta` block needs `id`, `rfc` and `kind`; `id` is the path "
