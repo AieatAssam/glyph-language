@@ -12,7 +12,7 @@ votes:
 
 Class: language
 Slug: lexical-syntax-v6
-Status: draft (attempt 6)
+Status: draft (attempt 6, revised for subtask 13 of the plan)
 Replaces: RFC 0048 (lexical-syntax-v4, superseded by the owner).
 Revises: RFC 0102 (lexical-syntax-v5, rejected on attempt 5). It keeps what voters accepted there and changes only what Summary lists.
 Amends: RFC 0004 (expected results of `diag/fix-present` and `diag/record-shape`, Design section "Expected results"); RFC 0014 (its rules 3, 5, 7, 8, 13 to 15, as restated here); RFC 0050 (its `diag/record-shape` line, E0100 at bytes 4 to 7, is replaced).
@@ -22,7 +22,7 @@ Meaning of every form here is given by `kernel-v46`. Diagnostic records follow `
 
 This RFC fixes how a Glyph source file becomes tokens and how tokens form a program. Against RFC 0102 it changes four things:
 
-- **Line feeds.** A line feed outside a text literal is E0002, as RFC 0102's diagnostic table and tests already said. RFC 0102 rule 2 said E0001. Tab, CR and other control characters stay E0001.
+- **Line feeds.** A line feed outside a text literal is E0002. Tab, CR and other control characters stay E0001.
 - **Keyword `fail`.** The declaration mark `fail` is a keyword, as `io` is.
 - **One syntax.** RFC 0103's forms (`n:Int`, `):Int`, `main()`, a two-line sample) are not adopted. `kernel-v46` uses the forms in this RFC.
 - **Text tests.** Tests that bind a text literal with `let` now use `put`. `kernel-v46` rule T3 makes a text literal valid only as the argument of `put`.
@@ -71,7 +71,7 @@ Normative. "Must" and "is" bind implementers. A *character* is a Unicode scalar 
 
 12. **Token kinds.** Each keyword and each punctuation token has its own kind. The other kinds are `IDENT`, `INT`, `TEXT` and `EOF`.
 
-13. **First error stops compilation.** The lexer reports the first lexical error (E0001, E0002, E0005 or E0006) and emits no tokens after it. If the lexer succeeds, the parser reports the first syntax error (E0003 or E0100) and builds no tree after it. A program with a lexical or syntax error has exactly one record, and no checker runs on it.
+13. **Lexical errors stop compilation.** The lexer reports the first lexical error (E0001, E0002, E0005 or E0006) and emits no tokens after it.
 
 ### Grammar
 
@@ -184,14 +184,14 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`. Test ids are `lex/<name>`, and each file is `conformance/lex/<name>.test`. Every file has `--- meta` with `id: lex/<name>`, `rfc: 0104` and `kind:` as listed in its table. Sections:
+Container. Every test of this RFC is one file, `conformance/lex/<name>.test`, with meta `id: lex/<name>`, `rfc: 0104` and `kind`. All tests of this RFC live in `conformance/lex/`, including the parser tests. Run tests and compile-error tests use these rules:
 
-- `--- source` holds the program bytes exactly, as listed in its row. LF and CR are the raw bytes 0x0A and 0x0D, not escapes.
-- Run tests add `--- expect-stdout` (the output lines, or an empty body) and `--- expect-exit` (`0` unless stated).
-- Compile-error tests add `--- expect-errors`, one line: the JSON record from the row. Keys are `code`, `span` as `{"start","end"}` (byte offsets, end exclusive), and `fix` as `{"span","replacement"}` where the row gives a fix. A row with fix none has no `fix` key.
-- fmt tests add `--- expect-stdout`, which is the source text.
-
-Byte offsets count from the first byte of the program. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+- **Source.** Every test has `source-final: exact` in its meta block. The runner writes the source section with no LF added to it. A final LF is written as one empty line at the end of the source section, and a source with no empty line at its end has no final LF. `v6-err-unterminated` and `v6-err-eof` depend on this: their programs end at the last character shown.
+- **CR.** `v6-err-cr` also has `source-escapes: hex`, so `\x0D` in its source stands for the CR. No other test of this RFC uses that key, because in that mode `\\` becomes one backslash.
+- **Expected records.** A compile-error test's `expect-errors` section holds one JSON object per line, with the keys `code` and `span` (`{"start": a, "end": b}`, byte offsets from the first byte of the file, end exclusive). Where the table gives a fix, the object also has `fix`, `{"span": {...}, "replacement": "..."}`. Lines and columns are not given. The table's `{12..15, "7"}` is `{"span":{"start":12,"end":15},"replacement":"7"}`.
+- **Output.** A run test's `expect-stdout` is the output with each `put` on its own line; `expect-exit` is 0 unless stated.
+- **Kernel.** Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+- **Layout.** Every program is in canonical layout except where the test is about layout.
 
 Run tests (stdout and exit 0 unless stated):
 
@@ -213,45 +213,45 @@ Run tests (stdout and exit 0 unless stated):
 | `v6-text-escape` | `main io{put"a\"b\\c"}` | `a"b\c` | `\"` and `\\` escapes |
 | `v6-fail-mark` | `main io fail{put 1+1}` | `2` | `fail` after `io` |
 
-Compile-error tests. Each row's last column is the whole `expect-errors` section, one line.
+Compile-error tests (one record each; fix `none` unless stated):
 
-| Test | Program | expect-errors |
-| --- | --- | --- |
-| `v6-err-cr` | `main io{` CR `put 1}` | `{"code":"E0001","span":{"start":8,"end":9}}` |
-| `v6-err-semi` | `main io{put 1;put 2}` | `{"code":"E0001","span":{"start":13,"end":14}}` |
-| `v6-err-colon` | `main io{let a:Int=1}` | `{"code":"E0001","span":{"start":13,"end":14}}` |
-| `v6-err-comment` | `main io{put 1//2}` | `{"code":"E0100","span":{"start":14,"end":15}}` |
-| `v6-fmt-two-spaces` | `main io{put  1}` | `{"code":"E0002","span":{"start":11,"end":13},"fix":{"span":{"start":11,"end":13},"replacement":" "}}` |
-| `v6-fmt-missing-space` | `main io{put 1put 2}` | `{"code":"E0002","span":{"start":13,"end":13},"fix":{"span":{"start":13,"end":13},"replacement":" "}}` |
-| `v6-fmt-space-punct` | `main io{put (1)}` | `{"code":"E0002","span":{"start":11,"end":12},"fix":{"span":{"start":11,"end":12},"replacement":""}}` |
-| `v6-fmt-newline` | `main io{` LF `put 1}` | `{"code":"E0002","span":{"start":8,"end":9},"fix":{"span":{"start":8,"end":9},"replacement":""}}` |
-| `v6-fmt-trailing-lf` | `main io{}` LF | `{"code":"E0002","span":{"start":9,"end":10},"fix":{"span":{"start":9,"end":10},"replacement":""}}` |
-| `v6-fmt-leading-space` | ` main io{}` | `{"code":"E0002","span":{"start":0,"end":1},"fix":{"span":{"start":0,"end":1},"replacement":""}}` |
-| `v6-err-zero-fix` | `main io{put 007}` | `{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}` |
-| `v6-err-zero-00` | `main io{put 00}` | `{"code":"E0006","span":{"start":12,"end":14},"fix":{"span":{"start":12,"end":14},"replacement":"0"}}` |
-| `v6-err-int-big` | `main io{put 9223372036854775808}` | `{"code":"E0500","span":{"start":12,"end":31}}` |
-| `v6-err-escape` | `main io{put"\n"}` | `{"code":"E0005","span":{"start":12,"end":14}}` |
-| `v6-err-unterminated` | `main io{put"ab` (file ends) | `{"code":"E0005","span":{"start":11,"end":14}}` |
-| `v6-err-keyword-let` | `let let=1` | `{"code":"E0003","span":{"start":0,"end":3}}` |
-| `v6-err-keyword-let-block` | `main io{let let=1}` | `{"code":"E0003","span":{"start":12,"end":15}}` |
-| `v6-err-keyword-io-name` | `io io{}` | `{"code":"E0003","span":{"start":0,"end":2}}` |
-| `v6-err-keyword-fail-name` | `fail io{}` | `{"code":"E0003","span":{"start":0,"end":4}}` |
-| `v6-err-keyword-param` | `f(ret Int)io{}` | `{"code":"E0003","span":{"start":2,"end":5}}` |
-| `v6-err-ptype` | `f(t Text)io{}` | `{"code":"E0100","span":{"start":4,"end":8}}` |
-| `v6-err-empty-params` | `f()Int{}` | `{"code":"E0100","span":{"start":2,"end":3}}` |
-| `v6-err-result-order` | `f io Int{}` | `{"code":"E0100","span":{"start":5,"end":8}}` |
-| `v6-err-fail-order` | `f fail io{}` | `{"code":"E0100","span":{"start":7,"end":9}}` |
-| `v6-err-let-type` | `main io{let a Int=1}` | `{"code":"E0100","span":{"start":14,"end":17}}` |
-| `v6-err-fn-old` | `fn main io{}` | `{"code":"E0100","span":{"start":3,"end":7}}` |
-| `v6-err-ret-mid` | `main io{ret put 1}` | `{"code":"E0100","span":{"start":12,"end":15}}` |
-| `v6-err-expr-stmt` | `main io{1+2}` | `{"code":"E0100","span":{"start":8,"end":9}}` |
-| `v6-err-ex-block` | `main io{ex 1}` | `{"code":"E0100","span":{"start":8,"end":10}}` |
-| `v6-err-cmp-chain` | `main io{put 1<2<3}` | `{"code":"E0100","span":{"start":15,"end":16}}` |
-| `v6-err-else-if` | `main io{if true{}else if true{}}` | `{"code":"E0100","span":{"start":22,"end":24}}` |
-| `v6-err-if-expr` | `main io{let x=if true{}}` | `{"code":"E0100","span":{"start":14,"end":16}}` |
-| `v6-err-eof` | `main io{put 1` (file ends) | `{"code":"E0100","span":{"start":13,"end":13}}` |
+| Test | Program | Record at | Code |
+| --- | --- | --- | --- |
+| `v6-err-cr` | `main io{` CR `put 1}` | bytes 8 to 9 (the CR) | E0001 |
+| `v6-err-semi` | `main io{put 1;put 2}` | bytes 13 to 14 (the `;`) | E0001 |
+| `v6-err-colon` | `main io{let a:Int=1}` | bytes 13 to 14 (the `:`) | E0001 |
+| `v6-err-comment` | `main io{put 1//2}` | bytes 14 to 15 (the second `/`) | E0100 |
+| `v6-fmt-two-spaces` | `main io{put  1}` | bytes 11 to 13, fix replacement ` ` | E0002 |
+| `v6-fmt-missing-space` | `main io{put 1put 2}` | bytes 13 to 13, fix replacement ` ` | E0002 |
+| `v6-fmt-space-punct` | `main io{put (1)}` | bytes 11 to 12, fix replacement empty | E0002 |
+| `v6-fmt-newline` | `main io{` LF `put 1}` | bytes 8 to 9, fix replacement empty | E0002 |
+| `v6-fmt-trailing-lf` | `main io{}` plus one final LF | bytes 9 to 10, fix replacement empty | E0002 |
+| `v6-fmt-leading-space` | ` main io{}` | bytes 0 to 1, fix replacement empty | E0002 |
+| `v6-err-zero-fix` | `main io{put 007}` | bytes 12 to 15, fix `{12..15, "7"}` | E0006 |
+| `v6-err-zero-00` | `main io{put 00}` | bytes 12 to 14, fix `{12..14, "0"}` | E0006 |
+| `v6-err-int-big` | `main io{put 9223372036854775808}` | bytes 12 to 31 | E0500 |
+| `v6-err-escape` | `main io{put"\n"}` | bytes 12 to 14 | E0005 |
+| `v6-err-unterminated` | `main io{put"ab` (file ends) | bytes 11 to 14 | E0005 |
+| `v6-err-keyword-let` | `let let=1` | bytes 0 to 3 (first `let`) | E0003 |
+| `v6-err-keyword-let-block` | `main io{let let=1}` | bytes 12 to 15 (second `let`) | E0003 |
+| `v6-err-keyword-io-name` | `io io{}` | bytes 0 to 2 | E0003 |
+| `v6-err-keyword-fail-name` | `fail io{}` | bytes 0 to 4 | E0003 |
+| `v6-err-keyword-param` | `f(ret Int)io{}` | bytes 2 to 5 | E0003 |
+| `v6-err-ptype` | `f(t Text)io{}` | bytes 4 to 8 | E0100 |
+| `v6-err-empty-params` | `f()Int{}` | bytes 2 to 3 | E0100 |
+| `v6-err-result-order` | `f io Int{}` | bytes 5 to 8 | E0100 |
+| `v6-err-fail-order` | `f fail io{}` | bytes 7 to 9 | E0100 |
+| `v6-err-let-type` | `main io{let a Int=1}` | bytes 14 to 17 | E0100 |
+| `v6-err-fn-old` | `fn main io{}` | bytes 3 to 7 | E0100 |
+| `v6-err-ret-mid` | `main io{ret put 1}` | bytes 12 to 15 | E0100 |
+| `v6-err-expr-stmt` | `main io{1+2}` | bytes 8 to 9 | E0100 |
+| `v6-err-ex-block` | `main io{ex 1}` | bytes 8 to 10 | E0100 |
+| `v6-err-cmp-chain` | `main io{put 1<2<3}` | bytes 15 to 16 | E0100 |
+| `v6-err-else-if` | `main io{if true{}else if true{}}` | bytes 22 to 24 | E0100 |
+| `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
+| `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
 
-Format: `lex/v6-fmt-canon` (kind `fmt`): source `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; `expect-stdout` is the same text. The formatter prints it unchanged.
+Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; the formatter prints it unchanged.
 
 Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
@@ -280,4 +280,4 @@ Retirement. Agents may not edit or delete an existing conformance test. The test
 5. **E0003 block.** E0003 is in the lexical range (E0001 to E0099) but the parser reports it. Moving it to a syntax code would need a new code, chosen before any PR emits it.
 6. **`fail` as a keyword.** This draft makes `fail` a keyword so the kernel's mark needs no position rule. If voters prefer a contextual word, `kernel-v46` must change with it.
 7. **New codes.** E0002 and E0003, and the kernel codes E0200 to E0202, E0300 to E0303, E0400 and E0403, are not in `spec/errors.json`. The first PR that emits each adds it there.
-8. **Final LF of a test program.** The conformance runner (`tools/check/conformance.py`) writes each `--- source` section followed by one LF. Under rule 4 that LF is a gap before EOF and is E0002, so every expectation in this test plan would gain an extra record. The expectations here assume the runner writes the section bytes exactly. The owner decides whether the runner changes or this RFC's test expectations do.
+8. **Runner change for `source-final: exact` (blocks the run tests and parser-error tests).** `source_bytes` in `tools/check/conformance.py` always appends one LF to the source, and `tools/schemas/test_meta.schema.json` accepts only the keys it knows. Under the current runner every test program ends in an LF, which rule 4 makes E0002 after the last token. Rule 13 then stops at that record, so every run test and every E0100, E0003 and E0500 test fails. The owner must add the `source-final: exact` key to the runner and schema, or choose another way to end a program without a LF. Until then, the implementing PR for the test files reports these tests red and cites this question. This RFC does not change rule 4 to avoid it.
