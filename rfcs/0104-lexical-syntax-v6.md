@@ -192,15 +192,11 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`, all of them, parser tests included. Each test is one file `conformance/lex/<name>.test` with `id: lex/<name>` in its meta block. Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
+Conformance tests live in `conformance/lex/`, including the parser tests. Test ids are `lex/<name>` and the file is `conformance/lex/<name>.test`. Meta: `id` is the test id, `rfc: 0104`, and `kind` is `run` for a Run test, `compile-error` for a Compile-error test, and `fmt` for `v6-fmt-canon`.
 
-File format, as read by `tools/check/conformance.py`:
+File encoding. The source section holds the program exactly. A line feed inside a text literal is a line break in the section. A program that holds a CR, ends with a LF, or holds a BOM sets `source-escapes: hex` and writes `\x0D`, `\x0A` or `\xEF\xBB\xBF` for those bytes (`v6-err-cr`, `v6-fmt-trailing-lf`). Programs with a backslash (`v6-text-escape`, `v6-err-escape`) do not set hex mode, since hex mode turns `\\` into one backslash. `expect-stdout` is the output lines joined by LF, with no LF after the last line. `expect-exit` is `0` for Run tests. Each expected record is one JSON object on its own line, for example `{"code":"E0002","span":{"start":8,"end":9}}`. Where the table gives a replacement, add `"fix":{"span":{"start":12,"end":15},"replacement":"7"}`, with `"replacement":""` for an empty one. The runner compares only the keys each record gives.
 
-- `--- meta` holds `id`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`). It also holds `source-escapes: hex` when the source has a control character (LF, CR, tab), a BOM or an invalid UTF-8 byte. Four tests need it: `v6-text-lf`, `v6-err-cr`, `v6-fmt-newline` and `v6-fmt-trailing-lf`.
-- `--- source` is the program. Its lines are joined with LF, and no LF is added after the last line. In hex mode, `\xHH` is the byte HH (`\x0A` is LF, `\x0D` is CR), and `\\` is one backslash. Write the program in the table with LF and CR meaning those bytes.
-- `run`: `--- expect-stdout` holds the output lines, and is empty where the table says `none`. `--- expect-exit` holds `0` unless the table says otherwise.
-- `compile-error`: `--- expect-errors` holds one JSON line per record: `{"code":"C","span":{"start":a,"end":b}}`. A row with a fix adds `,"fix":{"span":{"start":c,"end":d},"replacement":"r"}`. In a row, `{c..d, "r"}` gives that fix. A row with no `{...}` has a fix whose span is the record's span. A row with fix `none` has no `fix` key. The runner does not check that the key is absent; a node test does.
-- `fmt`: `--- expect-stdout` is the program text, unchanged.
+A run test states stdout and exit status. A compile-error test holds one program with one error and states the expected record as JSON; the runner compares `code`, `span` and `fix` (RFC 0004 section 7). Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
 Run tests (stdout and exit 0 unless stated):
 
@@ -260,7 +256,7 @@ Compile-error tests (one record each; fix `none` unless stated):
 | `v6-err-if-expr` | `main io{let x=if true{}}` | bytes 14 to 16 | E0100 |
 | `v6-err-eof` | `main io{put 1` (file ends) | bytes 13 to 13 (EOF) | E0100 |
 
-Format: `lex/v6-fmt-canon` (kind `fmt`): source `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; `expect-stdout` is the same text, since the formatter prints it unchanged.
+Format: `lex/v6-fmt-canon` (kind `fmt`): `fib(n Int)Int fail{if n<2{ret n}ret fib(n-1)+fib(n-2)}main io fail{put fib(10)}`; the formatter prints it unchanged.
 
 Retained tests. These RFC 0014 lexical tests keep their names and expected results, since their rules are unchanged: `lex/ident-run`, `lex/int-run`, `lex/ident-keyword` (`let let=1`, E0003 at bytes 0 to 3, as above), `lex/ident-ascii`, `lex/ident-io`, `lex/bad-utf8`, `lex/bom`, `lex/cr-alone`, `lex/tab`, `lex/punct-bracket`, `lex/bang-alone`, `lex/int-too-big`, and the `lex/kw-<word>` tests for `let var if else true false and or not io`, with `lex/kw-fail` added for `fail`.
 
