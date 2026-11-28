@@ -192,18 +192,9 @@ Spec card. The lexical section of the card, measured in `out/scratch/card-v6-add
 
 ## Test plan
 
-Conformance tests live in `conformance/lex/`, one file per test, named `<name>.test` (`v6-min` is `conformance/lex/v6-min.test`). Test ids are `lex/<name>`. Parser tests are in the same directory; this RFC uses no other directory. Each file uses the container read by `tools/check/conformance.py`: a `--- meta` block with `id: lex/<name>`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`); then `--- source`; then `--- expect-stdout` and `--- expect-exit` for a run test (exit 0 unless stated), or `--- expect-errors` for a compile-error test. The source section is written as given, with no LF added after its last line. A test whose source needs a CR, a trailing LF, a leading space or a BOM adds `source-escapes: hex` to its meta block. Then `\xHH` in the source is the byte HH, and `\\` is one backslash. These tests use it: `v6-err-cr`, `v6-fmt-leading-space`, `v6-fmt-trailing-lf`. Each line of `expect-errors` is one JSON object with `code`, and `span` with byte `start` and `end` (end exclusive). Where the table gives a fix, the object also has `fix` with `span` and `replacement`. Where the table says Fix `none`, the object has no `fix` key. The runner compares only the keys an object gives. Example:
+Conformance tests live in `conformance/lex/`, including the parser-level tests in this section. Test ids are `lex/<name>`, where `<name>` is the test's name in the tables.
 
-```
---- meta
-id: lex/v6-err-zero-fix
-rfc: 0104
-kind: compile-error
---- source
-main io{put 007}
---- expect-errors
-{"code":"E0006","span":{"start":12,"end":15},"fix":{"span":{"start":12,"end":15},"replacement":"7"}}
-```
+Test files. Each test is one file `conformance/lex/<name>.test` with meta lines `id: lex/<name>`, `rfc: 0104` and `kind` (`run`, `compile-error` or `fmt`). A run test has `--- expect-stdout`, which is the output without its final LF (each `put` writes one line, so a two-line output is two lines), and `--- expect-exit`, which is `0` unless the table says otherwise. A compile-error test has `--- expect-errors`, one JSON object on one line per error: `{"code":"E0002","span":{"start":11,"end":13},"fix":{"span":{"start":11,"end":13},"replacement":" "}}`. The fix span equals the record span. A test whose fix is `none` omits the `fix` key, because the runner does not compare a key the test omits. The runner compares `code`, `span` and `fix` (RFC 0004 section 7). A source with a CR, a LF or another control byte (`v6-err-cr`, `v6-text-lf`, `v6-fmt-newline`, `v6-fmt-trailing-lf`) has `source-escapes: hex` in its meta block and writes the byte as `\x0D` or `\x0A`. Such a source contains no other backslash, since in hex mode `\\` stands for one backslash. Every other source is written as the table shows.
 
 Byte offsets count from the first byte of the program. "bytes a to b" means start a, end b, exclusive. Every program is in canonical layout except where the test is about layout. Run programs must also pass the kernel's checks (`kernel-v46`), so a program that calls a function declared in the file carries `fail` on its caller.
 
