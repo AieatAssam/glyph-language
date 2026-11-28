@@ -10,6 +10,7 @@
 // and checker RFCs widen compile.ts, and the records come out of cli.ts's check path too.
 import { Buffer } from 'node:buffer';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { lexRecord } from './check.ts';
 import { run as runCli } from './cli.ts';
 import { compile } from './compile.ts';
 import { isSourceFile } from './source-file.ts';
@@ -17,6 +18,13 @@ import { run as runWasm } from '../../../toolkit/run.ts';
 
 async function main(argv: string[]): Promise<number> {
   const [sub, path] = argv;
+  if (sub === 'check' && argv.length === 2 && isSourceFile(path) && existsSync(path)) {
+    const line = lexRecord(Buffer.from(readFileSync(path)));
+    if (line !== null) {
+      process.stderr.write(`${line}\n`);
+      return 1;
+    }
+  }
   if (sub === 'run' && argv.length === 2 && isSourceFile(path) && existsSync(path)) {
     const compiled = compile(Buffer.from(readFileSync(path)));
     if ('wasm' in compiled) {
