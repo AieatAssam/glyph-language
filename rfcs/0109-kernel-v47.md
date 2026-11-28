@@ -1,3 +1,12 @@
+---
+status: accepted
+votes:
+  designer-min: approve
+  designer-prag: approve
+  impl-1: approve
+  impl-2: approve
+  tester: approve
+---
 # RFC draft: Kernel: integers, booleans, bindings, functions, conditionals, loops, text output
 
 Class: language
@@ -36,15 +45,11 @@ sq(n Int)Int{ret n*n}ex sq(3)==9 main io{var i=1 wh i<=3{put sq(i)i=i+1}}
 
 ## Motivation
 
-Attempt 47. RFC 0105 (kernel-v46) was superseded. Each finding of the owner's measurement is answered here.
-
-- **Process text.** This RFC writes no gate, prerequisite or status line. Retiring `conformance/kernel/print-one.test` is a step of the implementing PR (Test plan).
-- **`fail` (finding 1).** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body (F7 checked it, and E0403 rejected a wrong mark). Principle 3 exempts such a mark, and also a mark that nearly every function would carry: a function that adds, loops or calls another function is the common case. The mark tells a reader nothing the body does not. The rare case, a function that cannot trap, is left unmarked too, because a second mark for it would be one more token on a few functions and one more rule to check. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
-- **`io` (finding 1, same test).** `io` stays. It is not carried by most functions: a function that writes no output is the unmarked case. More importantly, rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). If `io` were derived from the body, a caller would have to read the callee's body. Trapping changes no rule that a caller or an example follows, so the `fail` mark had no reader. Its only checker was F7, which polices the mark itself.
-- **Spellings (finding 2).** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`. No spelling is decided here.
-- **Standard input (finding 3).** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
-- **Superseded rules (finding 4).** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5) and the codes (Diagnostics) are restated. The trap line (TR1) is stated once, here: no diagnostic RFC in force defines one. RFC 0050 is superseded, and RFCs 0101, 0106 and 0107 are rejected.
-- **Length (finding 5).** The RFC is under 25,000 characters. The test plan is kept whole.
+- **`fail` mark.** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body, and it is carried by most trapping functions, which add, loop or call. A reader learns nothing the body does not show. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
+- **`io` mark.** `io` stays. It is carried by few functions, and it is the one fact a caller needs without reading the callee's body: rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). Trapping changes no rule that a caller or an example follows.
+- **Spellings.** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`.
+- **Standard input.** The kernel has no way to read standard input. A later RFC adds it. This RFC neither adds an input form nor reserves a name for one.
+- **Rules restated.** No rule is cited from a superseded or rejected RFC. The reserved names (B5), the codes (Diagnostics) and the trap line (TR1) are stated here in full.
 
 ## Design
 
@@ -56,9 +61,11 @@ L1. Syntax is the grammar of RFC 0104, with one change. A declaration is:
 
 The `fail` alternative is removed from `decl`, and rule G10 of RFC 0104 reads "the marks come in this order: result type, then `io`". `fail` is still a keyword (RFC 0104 rule 7). So a `fail` where a mark or a block is expected is E0100 at it (RFC 0104 G3). No other rule of RFC 0104 changes.
 
-L2. A statement starts with `let`, `var`, `put`, `if`, `wh` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary.
+L2. A statement starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary.
 
 L3. At top level a declaration starts with a name. `fn main io{}` is E0100 at `main` (RFC 0104 G12).
+
+L4. Expressions are the productions `expr`, `and_expr`, `cmp_expr`, `add_expr`, `mul_expr`, `unary` and `primary` of RFC 0104 (Grammar). They give exactly the precedence of the Expressions section below. A text literal is a `primary` wherever the grammar allows an expression, so the parser accepts it there and the checker rejects it by T3. A parser does not report E0200.
 
 ### Types
 
