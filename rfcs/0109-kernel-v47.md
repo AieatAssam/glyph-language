@@ -45,9 +45,15 @@ sq(n Int)Int{ret n*n}ex sq(3)==9 main io{var i=1 wh i<=3{put sq(i)i=i+1}}
 
 ## Motivation
 
-- **`fail` is removed.** The counter gives one token per `fail` mark, and the owner measured 39 of RFC 0105's 1108 tokens on its 91 programs (Cost). The mark is a fact the compiler derives from the body, and most functions would carry it: a function that adds, loops or calls another is the common case. The rare function that cannot trap is left unmarked too, because a second mark would cost a token and a rule. A trap is still a defined outcome (TR1), so principle 7 holds.
-- **`io` stays.** Most functions do not carry it. Rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). Deriving `io` from the body would make every caller read the callee's body.
-- **Forms.** The spellings are those of RFC 0104: `wh`, `ret`, `ex`, `put`.
+Attempt 47. RFC 0105 (kernel-v46) was superseded. Each finding of the owner's measurement is answered here.
+
+- **Process text.** This RFC writes no gate, prerequisite or status line. Retiring `conformance/kernel/print-one.test` is a step of the implementing PR (Test plan).
+- **`fail` (finding 1).** The counter gives one token per `fail` mark. The owner measured 39 of RFC 0105's 1108 tokens on its 91 programs; the sample in this RFC loses 2 of 38 tokens (Cost). The mark is a fact the compiler derives from the body (F7 checked it, and E0403 rejected a wrong mark). Principle 3 exempts such a mark, and also a mark that nearly every function would carry: a function that adds, loops or calls another function is the common case. The mark tells a reader nothing the body does not. The rare case, a function that cannot trap, is left unmarked too, because a second mark for it would be one more token on a few functions and one more rule to check. Principle 7 still holds: a trap is a defined outcome (TR1), not an undefined one.
+- **`io` (finding 1, same test).** `io` stays. It is not carried by most functions: a function that writes no output is the unmarked case. More importantly, rules F2 and EX2 decide whether a call is allowed from the callee's signature alone (principle 2). If `io` were derived from the body, a caller would have to read the callee's body. Trapping changes no rule that a caller or an example follows, so the `fail` mark had no reader. Its only checker was F7, which polices the mark itself.
+- **Spellings (finding 2).** The forms are those of RFC 0104: `wh`, `ret`, `ex`, `put`. No spelling is decided here.
+- **Standard input (finding 3).** The kernel has no way to read standard input. A later RFC adds it (owner brief `input`). This RFC neither adds an input form nor reserves a name for one.
+- **Superseded rules (finding 4).** No rule is cited from RFCs 0050, 0086 or 0093. The reserved names (B5) and the codes (Diagnostics) are restated. The trap line (TR1) is stated once, here: no diagnostic RFC in force defines one. RFC 0050 is superseded, and RFCs 0101, 0106 and 0107 are rejected.
+- **Length (finding 5).** The RFC is under 25,000 characters. The test plan is kept whole.
 
 ## Design
 
@@ -59,7 +65,7 @@ L1. Syntax is the grammar of RFC 0104, with one change. A declaration is:
 
 The `fail` alternative is removed from `decl`, and rule G10 of RFC 0104 reads "the marks come in this order: result type, then `io`". `fail` is still a keyword (RFC 0104 rule 7). So a `fail` where a mark or a block is expected is E0100 at it (RFC 0104 G3). No other rule of RFC 0104 changes.
 
-L2. A statement or block item starts with `let`, `var`, `put`, `if`, `wh`, `ret` or a name, never with an operator, `(` or a literal. So `put a put b` is two statements, and in `put a-1` the `-` is binary. `ret` is the last item of its block (RFC 0104 G2).
+L2. A statement starts with `let`, `var`, `put`, `if`, `wh` or a name, never with an operator, `(` or a literal. `ret` is not a statement: it is the optional last item of a block (RFC 0104 `block`). After a name at the start of a statement, `=` begins an assignment and `(` begins a call; any other token there is E0100 at it. So `put a put b` is two statements, in `put a-1` the `-` is binary, and `put-7` is `put` with the unary `-7` (`put` is a keyword, not an operand). A statement that starts with a literal, `(` or an operator, such as `1+2`, is E0100 at that first token.
 
 L3. At top level a declaration starts with a name. `fn main io{}` is E0100 at `main` (RFC 0104 G12).
 
@@ -81,32 +87,7 @@ T6. A type position accepts `Int` and `Bool` only. `Int` and `Bool` used as valu
 
 Precedence, loosest first: `or`; `and`; `==` `!=` `<` `<=` `>` `>=`; `+` `-`; `*` `/` `%`; unary `-` `not`; then call, literal, name, and `( expr )`. Binary operators are left-associative. Comparisons do not chain (RFC 0104 G6).
 
-The parser implements these productions of RFC 0104, unchanged:
-
-```
-expr     = and_expr { "or" and_expr }
-and_expr = cmp_expr { "and" cmp_expr }
-cmp_expr = add_expr [ cmp_op add_expr ]
-add_expr = mul_expr { ( "+" | "-" ) mul_expr }
-mul_expr = unary { ( "*" | "/" | "%" ) unary }
-unary    = ( "-" | "not" ) unary | primary
-primary  = INT | TEXT | "true" | "false" | IDENT [ "(" [ args ] ")" ] | "(" expr ")"
-args     = expr { "," expr }
-```
-
-X1. The parser reports its first syntax error (E0100 or E0003) and emits nothing after it.
-
-X2. `TEXT` is a primary wherever an expression may stand. The parser accepts it; T3 is the checker's rule. So `let t="a"` parses, and the checker reports E0200 at the literal.
-
-X3. A second comparison operator after one `cmp_expr` is E0100 at it (G6).
-
-X4. A keyword the grammar does not accept at a position is E0100 at it. In an expression position, `if`, `wh`, `ret`, `let`, `var`, `put`, `ex`, `io` and `fail` are such keywords (G8).
-
-X5. A token the grammar does not accept is E0100 at that token. At end of file it is E0100 at `EOF` (G13). So `put(1,2)` is E0100 at `,`, and `f(1` is E0100 at `EOF`.
-
-X6. A statement that starts with a literal, `(` or an operator is E0100 at that token (L2). So `1+2` as a statement is E0100 at `1`.
-
-X7. `put(e)` parses as `put` followed by a parenthesised primary (RFC 0104, open question 2, option (a)). So `put("a")` parses, and the checker reports E0200 at the literal.
+Parsing. The parser implements the productions `expr`, `and_expr`, `cmp_expr`, `add_expr`, `mul_expr`, `unary` and `primary` of RFC 0104, and nothing else. A `TEXT` token is a `primary` wherever an expression may stand, so the parser accepts it and T3 is checked afterwards. `put(e)` parses as `put` followed by the group `(e)`, which is the same statement as `put e`. An expression ends where the grammar stops. If the next token neither continues the expression nor can begin a statement or is the block's `}`, that token is E0100. An expression that is required where the next token cannot begin one (`put}`, `let a=}`) is E0100 at that token.
 
 E1. `+`, `-` and `*` on `Int` give the exact result if it fits in 64 bits, else they trap `overflow`. Unary `-` on the minimum traps `overflow`.
 
@@ -198,7 +179,7 @@ Records follow `spec/core/diagnostic.md`. The codes below are restated in full; 
 
 | Code | Meaning and rules | Span |
 | --- | --- | --- |
-| E0001, E0002, E0005, E0006, E0100 | lexical and syntax, as RFC 0104 defines them | per RFC 0104 |
+| E0001, E0002, E0005, E0006, E0100 | lexical and syntax, as RFC 0104 defines them, and the parse rules of L2 and the Expressions section | per RFC 0104 |
 | E0003 | keyword where a name is required (`put` and `fail` as a binding or function name; RFC 0104 G3) | the keyword |
 | E0200 | type mismatch (E3 to E6, B2, F4, EX2, M1, P1, T3, T5) | per E9, or the literal |
 | E0201 | result clause, body does not return (F3) | the closing `}` |
@@ -236,6 +217,7 @@ Measured with `sbx python3 -m tools.check.tokens` on scratch files in `out/scrat
 - The card loses the `fail` line and the `[fail]` of the declaration line. It gains "Any function may trap. No mark says so." The card is far below the 2,000-token cap.
 - The core spec is capped at 12,000 tokens, checked by the merge bot. Its total is not measured here. The change to it is the removal of the `fail` production and of F7, and the addition of TR1's trap line and F7's sentence.
 - Removed relative to RFC 0105: the `fail` mark, rule F7, code E0403.
+- The parse rules added here (L2, Expressions, Parsing) add no tokens to any program. They fix where E0100 is reported.
 
 ## Test plan
 
@@ -289,6 +271,10 @@ Compile-error tests (one error each; the record is the code and the span named):
 | `kc-put-paren` | `main io{put("a")}` | the `"a"` | E0200 |
 | `kc-put-bool` | `main io{put true}` | the `true` | E0200 |
 | `kc-put-comma` | `main io{put(1,2)}` | the `,` | E0100 |
+| `kc-put-two` | `main io{put 1 2}` | the `2` | E0100 |
+| `kc-put-empty` | `main io{put}` | the `}` | E0100 |
+| `kc-expr-stmt` | `main io{1+2}` | the `1` | E0100 |
+| `kc-cmp-chain` | `main io{put 1<2<3}` | the second `<` | E0100 |
 | `kc-type` | `main io{if 1{}}` | the `1` | E0200 |
 | `kc-bool-op` | `main io{let a=1 and true}` | the `and` | E0200 |
 | `kc-arity` | `add(a Int,b Int)Int{ret a+b}` and `main io{put add(1)}` | the `add` of the call | E0200 |
@@ -330,7 +316,7 @@ Compile-error tests (one error each; the record is the code and the span named):
 | `kc-effect-call` | `g io{}f{g()}` and `main io{f()}` | the `g` | E0400 |
 | `kc-effect-example` | `say Int io{ret 1}ex say()==1 main io{put say()}` | the `say` in the example | E0400 |
 
-Every grammar production of RFC 0104 as amended is reached by a `kernel` test or by an RFC 0104 test. The `decl` production without `fail` is reached by `kc-fail-after-io` and `kc-fail-after-name`.
+Every grammar production of RFC 0104 as amended is reached by a `kernel` test or by an RFC 0104 test. The `decl` production without `fail` is reached by `kc-fail-after-io` and `kc-fail-after-name`. The `put` statement and the parse rules of L2 and the Expressions section are reached by `kc-put-comma`, `kc-put-two`, `kc-put-empty`, `kc-expr-stmt` and `kc-cmp-chain`.
 
 Retirement and changes to other tests:
 
